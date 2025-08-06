@@ -1,0 +1,16 @@
+#!/bin/bash
+
+options=(
+	style=round
+	width=8.0
+	hidpi=on
+	# active_color="glow(0xd943ff64)" #green
+	active_color="glow(0xd900FF33)" #green v2
+	# active_color="glow(0xd9f64343)" #red
+	# active_color="glow(0xd943eaf6)" #turqiose
+	# active_color="glow(0xd9e4f643)" #yellow
+	# active_color="glow(0xd9FF00FF)" #purple
+    inactive_color=0x20494d64 
+)
+
+borders "${options[@]}"

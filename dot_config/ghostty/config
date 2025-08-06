@@ -1,0 +1,62 @@
+config-file = ghostty-theme
+
+# Some shaders can be found in this repo, they're usually uploaded to discord
+# https://github.com/hackrmomo/ghostty-shaders
+custom-shader = shaders/bloom025.glsl
+custom-shader = shaders/cursor_blaze_no_trail.glsl
+custom-shader = shaders/cursor_smear.glsl
+
+# This assumes you installed tmux through brew if using macos
+# command = zsh --login -c "if command -v tmux >/dev/null 2>&1; then tmux attach || tmux; else zsh; fi"
+command = zsh --login -c "if command -v tmux >/dev/null 2>&1; then $HOME/github/dotfiles-latest/tmux/tools/prime/tmux-sessionizer.sh $HOME/github/dotfiles-latest || (tmux attach 2>/dev/null || tmux); else exec zsh; fi"
+
+# quit after last window closed
+quit-after-last-window-closed = false
+
+# single instance, true by default
+gtk-single-instance = false
+
+window-padding-x = 4,2
+
+# To set a different top and bottom padding, specify two numerical values
+# separated by a comma. For example, `window-padding-y = 2,4` will set the
+# top padding to 2 and the bottom padding to 4. If you want to set both
+# paddings to the same value, you can use a single value. For example,
+# `window-padding-y = 2` will set both paddings to 2.
+window-padding-y = 6,0
+
+font-family = "JetBrainsMono Nerd Font"
+font-size = 15
+
+# macOS: To hide the titlebar without removing the native window borders
+#        or rounded corners, use `macos-titlebar-style = hidden` instead.
+macos-titlebar-style = hidden
+
+# Confirms that a surface should be closed before closing it. This defaults to
+# true. If set to false, surfaces will close without any confirmation.
+confirm-close-surface = false
+
+# keybind = global:cmd+s=toggle_quick_terminal
+keybind = cmd+s=toggle_quick_terminal
+
+# This does not work with GLFW builds.
+macos-option-as-alt = right
+
+# Duration (in seconds) of the quick terminal enter and exit animation.
+# Set it to 0 to disable animation completely. This can be changed at
+# runtime.
+# quick-terminal-animation-duration = 0.1
+quick-terminal-animation-duration = 0.08
+# quick-terminal-animation-duration = 0
+
+keybind = super+i=inspector:toggle
+keybind = super+r=reload_config
+
+macos-icon = official
+
+# On macOS, changing this configuration requires restarting Ghostty completely.
+background-opacity = 0.78
+
+background-blur = true
+
+unfocused-split-opacity = 0.7
