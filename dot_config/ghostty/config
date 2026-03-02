@@ -43,7 +43,7 @@ macos-titlebar-style = hidden
 confirm-close-surface = false
 
 # keybind = global:alt+s=toggle_quick_terminal
-keybind = cmd+s=toggle_quick_terminal
+keybind = global:ctrl+shift+alt+f18=toggle_quick_terminal
 
 # This does not work with GLFW builds.
 macos-option-as-alt = true
@@ -71,3 +71,5 @@ keybind = shift+enter=text:\x1b\r
 #
 # https://ghostty.org/docs/help/terminfo#ssh
 shell-integration-features = ssh-terminfo,ssh-env
+
+desktop-notifications = true
