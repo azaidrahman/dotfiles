@@ -24,11 +24,13 @@
  :applications {:ghostty-utm ["^com\\.mitchellh\\.ghostty$"
                               "^com\\.utmapp\\.UTM$"]}
 
- :templates {:open          "open -a '%s'"
-             :open-vivaldi  "open -n -a Vivaldi --args --profile-directory='%s'"}
+ :templates {:open          "open -a '%s'",
+             :open-vivaldi  "open -n -a Vivaldi --args --profile-directory='%s'"
+             ; :cycle-or-open "~/.config/karabiner/scripts/cycle-or-open.sh '%s'"
+            }
 
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "M:Iphone, c:cursor, a:claude, m:spotify, f:fantastical, e:obsidian, V:vivaldi-w, v:vivaldi-p, S:safari, t:ghostty, T:TB, s:slack, w:WA, W:Messages, o:todo, p:teams, l: outlook i:Freetube, n: ino, k:KM"}}
+                              :text "M:Iphone, c:cursor, a:claude, m:spotify, f:fantastical, e:obsidian, V:Arc*, v:vivaldi*, S:safari, t:ghostty,s:slack, w:WA, W:Messages, o:todo, p:teams, l: outlook i:Freetube, n: ino, k:KM"}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}}
 
@@ -40,8 +42,11 @@
 
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]          :app-launch]
-    [:!Ss [:open "Safari"]            :app-launch]
-    [:!Sv [:open-vivaldi "Profile 2"] :app-launch]
+    [:!Se [:open "Todoist"]           :app-launch]
+    [:!St :!TOSf18                    :app-launch]  ;; quick terminal (ghostty)
+    [:!Sf [:open "Alfred Preferences"]:app-launch]
+    [:!Sg [:open "Safari"]            :app-launch]
+    [:!Sv [:open "Arc"]               :app-launch]
     [:!Sm [:open "iPhone Mirroring"]  :app-launch]
 
     ;; Unshifted shortcuts
@@ -49,15 +54,16 @@
     [:e [:open "Obsidian"]          :app-launch]
     [:t [:open "Ghostty"]           :app-launch]
     [:i [:open "Freetube"]          :app-launch]
-    [:o [:open "Todoist"]           :app-launch]
+    [:o [:open "Orbstack"]          :app-launch]
     [:p [:open "Microsoft Teams"]   :app-launch]
     [:a [:open "Claude"]            :app-launch]
     [:s [:open "Slack"]             :app-launch]
     [:f [:open "Fantastical"]       :app-launch]
     [:k [:open "Keyboard Maestro"]  :app-launch]
     [:l [:open "Microsoft Outlook"] :app-launch]
-    [:c [:open "Cursor"]            :app-launch]
-    [:v [:open-vivaldi "Default"]   :app-launch]
+    [:c :!Cgrave_accent_and_tilde   :app-launch]  ;; cycle windows
+    ; [:v [:open-vivaldi "Default"]   :app-launch]
+    [:v [:open "Vivaldi"]           :app-launch]
     [:n [:open "Inoreader"]         :app-launch]
     [:m [:open "Spotify"]           :app-launch]
    ]
