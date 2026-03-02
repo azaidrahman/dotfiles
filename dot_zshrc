@@ -37,6 +37,7 @@ fi
 autoload -U +X bashcompinit && bashcompinit
 complete -o nospace -C /opt/homebrew/bin/terraform terraform
 
+
 # bun completions
 [ -s "/Users/zaid/.bun/_bun" ] && source "/Users/zaid/.bun/_bun"
 
