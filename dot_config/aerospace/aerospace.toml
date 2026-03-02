@@ -16,18 +16,18 @@ on-focus-changed = ['move-mouse window-lazy-center']
 # You can use it to add commands that run after AeroSpace startup.
 # 'after-startup-command' is run after 'after-login-command'
 # Available commands : https://nikitabobko.github.io/AeroSpace/commands
-after-startup-command = [
-    # JankyBorders has a built-in detection of already running process,
-    # so it won't be run twice on AeroSpace restart
-    # 'exec-and-forget /opt/homebrew/opt/sketchybar/bin/sketchybar',
-    # 'exec-and-forget'
-]
+# after-startup-command = [
+#     # JankyBorders has a built-in detection of already running process,
+#     # so it won't be run twice on AeroSpace restart
+#     # 'exec-and-forget /opt/homebrew/opt/sketchybar/bin/sketchybar',
+#     # 'exec-and-forget'
+# ]
 
-exec-on-workspace-change = [
-    '/bin/bash',
-    '-c',
-    # '/opt/homebrew/opt/sketchybar/bin/sketchybar --trigger aerospace_workspace_change AEROSPACE_FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE AEROSPACE_PREV_WORKSPACE=$AEROSPACE_PREV_WORKSPACE',
-]
+# exec-on-workspace-change = [
+#     '/bin/bash',
+#     '-c',
+#     # '/opt/homebrew/opt/sketchybar/bin/sketchybar --trigger aerospace_workspace_change AEROSPACE_FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE AEROSPACE_PREV_WORKSPACE=$AEROSPACE_PREV_WORKSPACE',
+# ]
 
 
 # [workspace-to-monitor-force-assignment]
@@ -46,14 +46,14 @@ exec-on-workspace-change = [
 # 1 is 2nd monitor, 3 is vertical monitor, for some reason idk
 1 = [1,'built-in']
 2 = [1,'built-in']
-3 = [1,'built-in']
-4 = [1,'built-in']
-5 = [2,'built-in']
-6 = [2,'built-in']
-7 = [3,'built-in']
-8 = [3,'built-in']
-9 = [3,'built-in']
-10 = [3,'built-in']
+3 = [2,'built-in']
+4 = [2,'built-in']
+5 = [2,1,'built-in']
+# 6 = [1,'built-in']
+# 7 = [3,2,'built-in']
+# 8 = [3,2, 'built-in']
+# 9 = [3,2, 'built-in']
+# 10 = [3,2,'built-in']
 
 [gaps]
 inner.horizontal = 8
@@ -68,26 +68,26 @@ outer.right =      8
 # --- Go to workspace
     alt-1 = 'workspace 1'
     alt-2 = 'workspace 2'
-    alt-3 = 'workspace 3'
-    alt-4 = 'workspace 4'
-    alt-5 = 'workspace 5'
-    alt-q = 'workspace 6'
-    alt-w = 'workspace 7'
-    alt-e = 'workspace 8'
-    alt-r = 'workspace 9'
-    alt-t = 'workspace 10'   
+    alt-q = 'workspace 3'
+    alt-w = 'workspace 4'
+    alt-e = 'workspace 5'
+    # alt-q = 'workspace 6'
+    # alt-w = 'workspace 7'
+    # alt-e = 'workspace 8'
+    # alt-r = 'workspace 9'
+    # alt-t = 'workspace 10'   
 
 # --- Move window to workspace
     alt-shift-1 = 'move-node-to-workspace 1 --focus-follows-window'
     alt-shift-2 = 'move-node-to-workspace 2 --focus-follows-window'
-    alt-shift-3 = 'move-node-to-workspace 3 --focus-follows-window'
-    alt-shift-4 = 'move-node-to-workspace 4 --focus-follows-window'
-    alt-shift-5 = 'move-node-to-workspace 5 --focus-follows-window'
-    alt-shift-q = 'move-node-to-workspace 6 --focus-follows-window'
-    alt-shift-w = 'move-node-to-workspace 7 --focus-follows-window'
-    alt-shift-e = 'move-node-to-workspace 8 --focus-follows-window'
-    alt-shift-r = 'move-node-to-workspace 9 --focus-follows-window'
-    alt-shift-t = 'move-node-to-workspace 10 --focus-follows-window'
+    alt-shift-q = 'move-node-to-workspace 3 --focus-follows-window'
+    alt-shift-w = 'move-node-to-workspace 4 --focus-follows-window'
+    alt-shift-e = 'move-node-to-workspace 5 --focus-follows-window'
+    # alt-shift-q = 'move-node-to-workspace 6 --focus-follows-window'
+    # alt-shift-w = 'move-node-to-workspace 7 --focus-follows-window'
+    # alt-shift-e = 'move-node-to-workspace 8 --focus-follows-window'
+    # alt-shift-r = 'move-node-to-workspace 9 --focus-follows-window'
+    # alt-shift-t = 'move-node-to-workspace 10 --focus-follows-window'
 
     # See: https://nikitabobko.github.io/AeroSpace/goodies#open-a-new-window-with-applescript
     # alt-q = '''exec-and-forget osascript -e '
@@ -164,71 +164,80 @@ run = [
     # 'move-node-to-workspace 9',
     'layout floating',
 ]
-# Workspace 3 - Apps
+
+# Workspace 1 - Terminal/Apps
+# Workspace 2 - Work Browser/Work Apps
+# Workspace 3 - Personal Browser/Secondary Browser
+# Workspace 4 - Secondary Apps
+# Workspace 5 - Main aka Blank (Place to do splits)
+
+# Browser
+[[on-window-detected]]
+if.app-name-regex-substring = 'Vivaldi'
+run = 'move-node-to-workspace 2'
+[[on-window-detected]]
+if.app-name-regex-substring = 'Arc'
+run = 'move-node-to-workspace 1'
+
+# Apps
 [[on-window-detected]]
 if.app-name-regex-substring = 'Docker'
-run = 'move-node-to-workspace 3'
-
-# Workspace 4 - News
-[[on-window-detected]]
-if.app-name-regex-substring = 'NetNewsWire'
 run = 'move-node-to-workspace 4'
+
+#News
+[[on-window-detected]]
+if.app-name-regex-substring = 'Inoreader'
+run = 'move-node-to-workspace 2'
 [[on-window-detected]]
 if.app-name-regex-substring = 'IINA'
 run = 'move-node-to-workspace 4'
 # run = 'layout floating'  
 
-# Workspace 5 - Terminal
+# Terminal
 [[on-window-detected]]
 if.app-id = "com.mitchellh.ghostty"
 run = [
   "layout floating",
-  "move-node-to-workspace 5",
+  "move-node-to-workspace 1",
 ]
 
-# Workspace 6 - MAIN
-
-
-# Workspace 7 - Note
+# Note
 [[on-window-detected]]
 if.app-name-regex-substring = 'Obsidian'
-run = 'move-node-to-workspace 7'
+run = 'move-node-to-workspace 1'
 
-# Workspace 8 - AI
-[[on-window-detected]]
-if.app-name-regex-substring = 'T3 Chat'
-run = 'move-node-to-workspace 8'
+# AI
+# [[on-window-detected]]
+# if.app-name-regex-substring = 'T3 Chat'
+# run = 'move-node-to-workspace 8'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Claude'
-run = 'move-node-to-workspace 8'
+run = 'move-node-to-workspace 2'
 
-# Workspace 9 - Emails & Tasks
+# Emails & Tasks
 [[on-window-detected]]
 if.app-name-regex-substring = 'Fantastical'
-run = 'move-node-to-workspace 9'
-[[on-window-detected]]
-if.app-name-regex-substring = 'Thunderbird'
-run = 'move-node-to-workspace 9'
+run = 'move-node-to-workspace 2'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Outlook'
-run = 'move-node-to-workspace 9'
+run = 'move-node-to-workspace 2'
 
-# Workspace 10  - Chats
+# Chats
 [[on-window-detected]]
 if.app-name-regex-substring = 'Messages'
-run = 'move-node-to-workspace 10'
+run = 'move-node-to-workspace 4'
 [[on-window-detected]]
 if.app-id = 'net.whatsapp.WhatsApp'
-run = 'move-node-to-workspace 10'
+run = 'move-node-to-workspace 2'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Slack'
-run = 'move-node-to-workspace 10'
+run = 'move-node-to-workspace 2'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Telegram'
-run = 'move-node-to-workspace 10'
+run = 'move-node-to-workspace 4'
 [[on-window-detected]]
 if.app-id = 'com.microsoft.teams2'
-run = 'move-node-to-workspace 10'
+run = 'move-node-to-workspace 1'
 
 # [[on-window-detected]]
 #   if.app-id = 'com.github.th-ch.youtube-music'
