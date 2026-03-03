@@ -44,6 +44,7 @@
     [:!Sw [:open "Messages"]          :app-launch]
     [:!Se [:open "Todoist"]           :app-launch]
     [:!St :!TOSf18                    :app-launch]  ;; quick terminal (ghostty)
+    [:!Si [:open "IINA"]              :app-launch]
     [:!Sf [:open "Alfred Preferences"]:app-launch]
     [:!Sg [:open "Safari"]            :app-launch]
     [:!Sv [:open "Arc"]               :app-launch]

@@ -90,6 +90,22 @@
           "type" : "basic"
         }, {
           "from" : {
+            "key_code" : "i",
+            "modifiers" : {
+              "mandatory" : [ "left_shift" ]
+            }
+          },
+          "to" : [ {
+            "shell_command" : "open -a 'IINA'"
+          } ],
+          "conditions" : [ {
+            "name" : "app-launch",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
+          "from" : {
             "key_code" : "f",
             "modifiers" : {
               "mandatory" : [ "left_shift" ]
