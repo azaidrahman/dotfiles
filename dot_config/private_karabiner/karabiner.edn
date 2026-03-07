@@ -30,7 +30,8 @@
             }
 
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "M:Iphone, c:cursor, a:claude, m:spotify, f:fantastical, e:obsidian, V:Arc*, v:vivaldi*, S:safari, t:ghostty,s:slack, w:WA, W:Messages, o:todo, p:teams, l: outlook i:Freetube, n: ino, k:KM"}}
+                              :text "w:WA, W:Messages, e:obsidian, t:ghostty, T:quickT, i:IINA, o:todo, p:teams, a:claude, s:slack, f:fantastical, G:safari, M:Iphone, k:KM, l:outlook, c:switch, V:Arc, v:vivaldi, n:ino,m:spotify"
+}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}}
 
@@ -48,18 +49,18 @@
     [:!Sf [:open "Alfred Preferences"]:app-launch]
     [:!Sg [:open "Safari"]            :app-launch]
     [:!Sv [:open "Arc"]               :app-launch]
-    [:!Sm [:open "iPhone Mirroring"]  :app-launch]
 
     ;; Unshifted shortcuts
     [:w [:open "Whatsapp"]          :app-launch]
     [:e [:open "Obsidian"]          :app-launch]
     [:t [:open "Ghostty"]           :app-launch]
-    [:i [:open "Freetube"]          :app-launch]
+    [:i [:open "IINA"]          :app-launch]
     [:o [:open "Orbstack"]          :app-launch]
     [:p [:open "Microsoft Teams"]   :app-launch]
     [:a [:open "Claude"]            :app-launch]
     [:s [:open "Slack"]             :app-launch]
     [:f [:open "Fantastical"]       :app-launch]
+    [:g [:open "iPhone Mirroring"]  :app-launch]
     [:k [:open "Keyboard Maestro"]  :app-launch]
     [:l [:open "Microsoft Outlook"] :app-launch]
     [:c :!Cgrave_accent_and_tilde   :app-launch]  ;; cycle windows
@@ -91,7 +92,7 @@
     [:!OCQWERk    [:!Sup_arrow :!Sup_arrow :!Sup_arrow]]            ;; +opt+cmd → select 3 lines
     [:!SQWERk     :!CStab]                                          ;; +shift → prev app
     ;; m = mission control
-    [:!QWERm     :!Tup_arrow]                                      ;; +ctrl → mission control
+    [:!QWERf     :!Tup_arrow]                                      ;; +ctrl → mission control
 
     ;; l = right
     [:!QWERl      :right_arrow]                                     ;; right
