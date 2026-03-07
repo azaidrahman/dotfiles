@@ -30,7 +30,7 @@
           "to" : [ {
             "set_notification_message" : {
               "id" : "org.pqrs.notificaion_message_global_shortcut",
-              "text" : "M:Iphone, c:cursor, a:claude, m:spotify, f:fantastical, e:obsidian, V:Arc*, v:vivaldi*, S:safari, t:ghostty,s:slack, w:WA, W:Messages, o:todo, p:teams, l: outlook i:Freetube, n: ino, k:KM"
+              "text" : "w:WA, W:Messages, e:obsidian, t:ghostty, T:quickT, i:IINA, o:todo, p:teams, a:claude, s:slack, f:fantastical, G:safari, M:Iphone, k:KM, l:outlook, c:switch, V:Arc, v:vivaldi, n:ino,m:spotify"
             }
           }, {
             "set_variable" : {
@@ -154,22 +154,6 @@
           "type" : "basic"
         }, {
           "from" : {
-            "key_code" : "m",
-            "modifiers" : {
-              "mandatory" : [ "left_shift" ]
-            }
-          },
-          "to" : [ {
-            "shell_command" : "open -a 'iPhone Mirroring'"
-          } ],
-          "conditions" : [ {
-            "name" : "app-launch",
-            "value" : 1,
-            "type" : "variable_if"
-          } ],
-          "type" : "basic"
-        }, {
-          "from" : {
             "key_code" : "w"
           },
           "to" : [ {
@@ -212,7 +196,7 @@
             "key_code" : "i"
           },
           "to" : [ {
-            "shell_command" : "open -a 'Freetube'"
+            "shell_command" : "open -a 'IINA'"
           } ],
           "conditions" : [ {
             "name" : "app-launch",
@@ -278,6 +262,19 @@
           },
           "to" : [ {
             "shell_command" : "open -a 'Fantastical'"
+          } ],
+          "conditions" : [ {
+            "name" : "app-launch",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
+          "from" : {
+            "key_code" : "g"
+          },
+          "to" : [ {
+            "shell_command" : "open -a 'iPhone Mirroring'"
           } ],
           "conditions" : [ {
             "name" : "app-launch",
@@ -546,7 +543,7 @@
           "type" : "basic"
         }, {
           "from" : {
-            "key_code" : "m",
+            "key_code" : "f",
             "modifiers" : {
               "mandatory" : [ "right_command", "right_control", "right_option", "right_shift" ]
             }
