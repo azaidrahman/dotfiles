@@ -34,12 +34,16 @@ if [[ -n "$ZSH_PROFILER" ]]; then
     zprof
 fi
 
-autoload -U +X bashcompinit && bashcompinit
-complete -o nospace -C /opt/homebrew/bin/terraform terraform
-
+# Defer bashcompinit + terraform completion until first use
+terraform() {
+    unfunction terraform
+    autoload -U +X bashcompinit && bashcompinit
+    complete -o nospace -C /opt/homebrew/bin/terraform terraform
+    terraform "$@"
+}
 
 # bun completions
-[ -s "/Users/zaid/.bun/_bun" ] && source "/Users/zaid/.bun/_bun"
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 # bun
 export BUN_INSTALL="$HOME/.bun"
