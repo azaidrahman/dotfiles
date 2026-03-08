@@ -16,7 +16,8 @@ setopt sharehistory
 setopt hist_ignore_space
 setopt hist_ignore_all_dups
 setopt hist_save_no_dups
-setopt hist_ignore_dups
+# hist_ignore_dups is redundant — hist_ignore_all_dups already covers it
+# setopt hist_ignore_dups
 setopt hist_find_no_dups
 
 # Completion Config

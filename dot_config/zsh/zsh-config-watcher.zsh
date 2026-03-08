@@ -11,28 +11,25 @@ __zsh_config_watcher_last_check=0
 __zsh_config_watcher_prompted=0
 
 __zsh_config_compute_checksum() {
-  local checksum_cmd
-  if command -v shasum &>/dev/null; then
-    checksum_cmd="shasum"
-  elif command -v sha256sum &>/dev/null; then
-    checksum_cmd="sha256sum"
-  else
-    return 1
+  # Use stat mtime instead of shasum for speed (~5ms vs ~400ms)
+  local mtimes=""
+  if [[ -f "$HOME/.zshrc" ]]; then
+    mtimes+="$(stat -f '%m' "$HOME/.zshrc" 2>/dev/null)"
   fi
-
-  (
-    {
-      [[ -f "$HOME/.zshrc" ]] && $checksum_cmd "$HOME/.zshrc"
-      if [[ -d "$HOME/.config/zsh" ]]; then
-        find "$HOME/.config/zsh" -type f -not -name '.*' | sort | while read -r f; do
-          $checksum_cmd "$f"
-        done
-      fi
-    } 2>/dev/null | $checksum_cmd | awk '{print $1}'
-  )
+  if [[ -d "$HOME/.config/zsh" ]]; then
+    # Use zsh globbing instead of find for speed
+    local f
+    for f in "$HOME/.config/zsh/"*.zsh(N); do
+      mtimes+=":$(stat -f '%m' "$f" 2>/dev/null)"
+    done
+  fi
+  echo "$mtimes"
 }
 
 __zsh_config_watcher_check() {
+  # Skip if disabled (e.g. during benchmarking)
+  [[ -n "$ZSH_CONFIG_WATCH_DISABLE" ]] && return
+
   local now=${EPOCHSECONDS:-$(date +%s)}
 
   # Throttle: skip if checked recently

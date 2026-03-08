@@ -6,7 +6,14 @@ export PYENV_ROOT="$HOME/.pyenv"
 path_prepend "$HOME/.local/bin"
 [[ -d $PYENV_ROOT/bin ]] && path_prepend "$PYENV_ROOT/bin"
 
-eval "$(pyenv init - zsh)"
+# Cache pyenv init output (regenerate with: rm ~/.cache/pyenv-init.zsh)
+_pyenv_cache="${XDG_CACHE_HOME:-$HOME/.cache}/pyenv-init.zsh"
+if [[ ! -f "$_pyenv_cache" ]] || [[ "$PYENV_ROOT/bin/pyenv" -nt "$_pyenv_cache" ]]; then
+    mkdir -p "${_pyenv_cache:h}"
+    pyenv init - zsh > "$_pyenv_cache"
+fi
+source "$_pyenv_cache"
+unset _pyenv_cache
 
 if [ -n "$NVIM_LISTEN_ADDRESS" ]; then
     export VISUAL="nvr -cc split --remote-wait +'set bufhidden=wipe'"
@@ -23,19 +30,18 @@ fi
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f "$HOME/Downloads/google-cloud-sdk/path.zsh.inc" ]; then . "$HOME/Downloads/google-cloud-sdk/path.zsh.inc"; fi
 
-# The next line enables shell command completion for gcloud.
-if [ -f "$HOME/Downloads/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/Downloads/google-cloud-sdk/completion.zsh.inc"; fi
+# Duplicate gcloud completion — kept in plugins.zsh via brew --prefix instead
+# if [ -f "$HOME/Downloads/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/Downloads/google-cloud-sdk/completion.zsh.inc"; fi
 
 ## COMMON VARIABLES
-export EDITOR="nvim"
-export VISUAL="nvim"
+# EDITOR/VISUAL already set conditionally above (lines 11-17); removed duplicate unconditional exports
 export SUDO_EDITOR="nvim"
 export FCEDITOR="nvim"
 export TERMINAL="Ghostty"
 # export ZUNO="$HOME/Library/Mobile Documents/com~apple~CloudDocs/ZUNO/"
 # export BROWSER="app.zen-browser.zen"
 #
-export FZ_DEFAULT_COMMAND='rg —files —hidden -g !.git/'
+export FZF_DEFAULT_COMMAND='rg --files --hidden -g !.git/'
 
 export GCP_SCRIPTS="$HOME/projects/gamuda/gtech-platform-infra-monorepo/scripts/"
 

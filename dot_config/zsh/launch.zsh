@@ -11,14 +11,20 @@ source "$HOME/.local/share/zinit/zinit.git/zinit.zsh"
 unalias zi zini zpl zplg 2>/dev/null
 autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
-autoload -Uz compinit 
-compinit
+autoload -Uz compinit
+# Cache compinit: only full rebuild if zcompdump is older than 24h
+if [[ -n ${ZDOTDIR:-$HOME}/.zcompdump(#qN.mh+24) ]] || [[ ! -f ${ZDOTDIR:-$HOME}/.zcompdump ]]; then
+    compinit
+else
+    compinit -C  # skip security check, use cached dump
+fi
 # bashcompinit
 
 # Load a few important annexes, without Turbo
 # (this is currently required for annexes)
-zinit light-mode for \
-    zdharma-continuum/zinit-annex-as-monitor \
-    zdharma-continuum/zinit-annex-bin-gem-node \
-    zdharma-continuum/zinit-annex-patch-dl \
-    zdharma-continuum/zinit-annex-rust
+# Annexes commented out: none of the current plugins require them
+# zinit light-mode for \
+#     zdharma-continuum/zinit-annex-as-monitor \
+#     zdharma-continuum/zinit-annex-bin-gem-node \
+#     zdharma-continuum/zinit-annex-patch-dl \
+#     zdharma-continuum/zinit-annex-rust
