@@ -69,6 +69,22 @@ function ,isglob() {
     fi
 }
 
+function ,zsh-bench() {
+    local n=${1:-10}
+    echo "Timing $n zsh startups..."
+    local total=0
+    for i in $(seq 1 "$n"); do
+        local start=$EPOCHREALTIME
+        ZSH_CONFIG_WATCH_DISABLE=1 zsh -i -c exit 2>/dev/null
+        local end=$EPOCHREALTIME
+        local elapsed=$(( end - start ))
+        printf "  Run %2d: %.3fs\n" "$i" "$elapsed"
+        total=$(( total + elapsed ))
+    done
+    local avg=$(( total / n ))
+    printf "Average: %.3fs\n" "$avg"
+}
+
 gwtcd() {
     local selected
     selected=$(git worktree list | awk '{print $1}' | while read -r p; do
