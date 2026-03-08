@@ -6,13 +6,6 @@ return {
 		lazy = false,
 		-- NOTE: Options
 		opts = {
-			-- explorer = {
-			--
-			--     enabled = true,
-			--     layout = {
-			--         cycle=false,
-			--     }
-			-- },
 			styles = {
 				input = {
 					keys = {
@@ -50,7 +43,7 @@ return {
 					-- presets options : "default" , "ivy" , "ivy-split" , "telescope" , "vscode", "select" , "sidebar"
 					-- override picker layout in keymaps function as a param below
 					preset = function()
-						return vim.o.columns >= 120 and "vertical" or "vertical"
+						return vim.o.columns >= 120 and "default" or "vertical"
 					end,
 					cycle = false,
 				},
@@ -308,6 +301,20 @@ return {
 					require("snacks").picker.colorschemes({ layout = "ivy" })
 				end,
 				desc = "Pick Color Schemes",
+			},
+			{
+				"<leader>pr",
+				function()
+					require("snacks").picker.recent()
+				end,
+				desc = "Recent Files",
+			},
+			{
+				"<leader>bb",
+				function()
+					require("snacks").picker.buffers()
+				end,
+				desc = "Browse Open Buffers",
 			},
 			{
 				"<leader>hf",
