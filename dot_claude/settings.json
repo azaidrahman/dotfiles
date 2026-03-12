@@ -8,5 +8,6 @@
     "commit-commands@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "claude-notifications-go@claude-notifications-go": true
-  }
+  },
+  "effortLevel": "high"
 }

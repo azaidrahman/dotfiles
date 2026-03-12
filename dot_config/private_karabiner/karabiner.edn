@@ -45,7 +45,6 @@
     [:!Sw [:open "Messages"]          :app-launch]
     [:!Se [:open "Todoist"]           :app-launch]
     [:!St :!TOSf18                    :app-launch]  ;; quick terminal (ghostty)
-    [:!Si [:open "IINA"]              :app-launch]
     [:!Sf [:open "Alfred Preferences"]:app-launch]
     [:!Sg [:open "Safari"]            :app-launch]
     [:!Sv [:open "Arc"]               :app-launch]
@@ -59,7 +58,7 @@
     [:p [:open "Microsoft Teams"]   :app-launch]
     [:a [:open "Claude"]            :app-launch]
     [:s [:open "Slack"]             :app-launch]
-    [:f [:open "Fantastical"]       :app-launch]
+    [:f [:open "Calendar"]       :app-launch]
     [:g [:open "iPhone Mirroring"]  :app-launch]
     [:k [:open "Keyboard Maestro"]  :app-launch]
     [:l [:open "Microsoft Outlook"] :app-launch]
