@@ -157,22 +157,6 @@
           "type" : "basic"
         }, {
           "from" : {
-            "key_code" : "v",
-            "modifiers" : {
-              "mandatory" : [ "left_shift" ]
-            }
-          },
-          "to" : [ {
-            "shell_command" : "open -a 'Arc'"
-          } ],
-          "conditions" : [ {
-            "name" : "app-launch",
-            "value" : 1,
-            "type" : "variable_if"
-          } ],
-          "type" : "basic"
-        }, {
-          "from" : {
             "key_code" : "w"
           },
           "to" : [ {
@@ -190,6 +174,19 @@
           },
           "to" : [ {
             "shell_command" : "open -a 'Obsidian'"
+          } ],
+          "conditions" : [ {
+            "name" : "app-launch",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
+          "from" : {
+            "key_code" : "r"
+          },
+          "to" : [ {
+            "shell_command" : "open -a 'Arc'"
           } ],
           "conditions" : [ {
             "name" : "app-launch",
