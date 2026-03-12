@@ -153,16 +153,10 @@ outer.right =      8
 if.app-name-regex-substring = 'finder'
 run = 'layout floating'
 [[on-window-detected]]
-if.app-name-regex-substring = 'Iphone Mirroring'
-run = 'layout floating'
-[[on-window-detected]]
 if.app-name-regex-substring = 'FreeTube'
 run = 'layout floating'  
 [[on-window-detected]]
 if.app-name-regex-substring = '1Password'
-run = 'layout floating'
-[[on-window-detected]]
-if.app-name-regex-substring = 'Outlook'
 run = 'layout floating'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Todoist'
@@ -224,9 +218,9 @@ run = 'move-node-to-workspace 2'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Fantastical'
 run = 'move-node-to-workspace 2'
-# [[on-window-detected]]
-# if.app-name-regex-substring = 'Outlook'
-# run = 'move-node-to-workspace 2'
+[[on-window-detected]]
+if.app-name-regex-substring = 'Outlook'
+run = 'move-node-to-workspace 2'
 
 # Chats
 [[on-window-detected]]
