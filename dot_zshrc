@@ -16,8 +16,10 @@ source "$ZSH_DIR/exports.zsh"
 source "$ZSH_DIR/aliases.zsh"
 # Bindings & general
 source "$ZSH_DIR/general.zsh"
-# Functions
-source "$ZSH_DIR/functions.zsh"
+# Functions (lazy-loaded via autoload)
+fpath=(~/.config/zsh/functions $fpath)
+autoload -Uz ,env-op ,gcp-iam-check ,gwtcd ,isglob ,v ,y ,zsh-bench
+
 # Zinit plugins
 source "$ZSH_DIR/plugins.zsh"
 
@@ -50,4 +52,13 @@ export BUN_INSTALL="$HOME/.bun"
 path_prepend "$BUN_INSTALL/bin"
 
 # Zsh config change watcher
-source "$ZSH_DIR/zsh-config-watcher.zsh"
+# source "$ZSH_DIR/zsh-config-watcher.zsh"
+
+# Docker completion
+docker () {
+    unfunction docker
+    FPATH="$HOME/.docker/completions:$FPATH"
+    autoload -Uz compinit
+    compinit
+    docker "$@"
+}
