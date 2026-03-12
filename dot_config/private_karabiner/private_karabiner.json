@@ -14,6 +14,22 @@
         "description" : "Global app shortcut",
         "manipulators" : [ {
           "to_after_key_up" : [ {
+            "shell_command" : "killall time-hud 2>/dev/null"
+          } ],
+          "from" : {
+            "key_code" : "right_option"
+          },
+          "to" : [ {
+            "shell_command" : "~/.config/karabiner/scripts/show-time.sh"
+          } ],
+          "conditions" : [ {
+            "name" : "ro-tapped",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
+          "to_after_key_up" : [ {
             "set_notification_message" : {
               "id" : "org.pqrs.notificaion_message_global_shortcut",
               "text" : ""
@@ -24,6 +40,20 @@
               "value" : 0
             }
           } ],
+          "to_delayed_action" : {
+            "to_if_invoked" : [ {
+              "set_variable" : {
+                "name" : "ro-tapped",
+                "value" : 0
+              }
+            } ],
+            "to_if_canceled" : [ {
+              "set_variable" : {
+                "name" : "ro-tapped",
+                "value" : 0
+              }
+            } ]
+          },
           "from" : {
             "key_code" : "right_option"
           },
@@ -35,6 +65,11 @@
           }, {
             "set_variable" : {
               "name" : "app-launch",
+              "value" : 1
+            }
+          }, {
+            "set_variable" : {
+              "name" : "ro-tapped",
               "value" : 1
             }
           } ],
