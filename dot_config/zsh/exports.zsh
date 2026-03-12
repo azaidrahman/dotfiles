@@ -58,3 +58,5 @@ export WTREE="$HOME/projects/gamuda/worktrees"
 
 # GOKU (KARABINER)
 export GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn"
+
+export INFRA="$HOME/projects/gamuda/gtech-platform-infra-monorepo/"

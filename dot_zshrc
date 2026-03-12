@@ -37,12 +37,12 @@ if [[ -n "$ZSH_PROFILER" ]]; then
 fi
 
 # Defer bashcompinit + terraform completion until first use
-terraform() {
-    unfunction terraform
+# terraform() {
+    # unfunction terraform
     autoload -U +X bashcompinit && bashcompinit
     complete -o nospace -C /opt/homebrew/bin/terraform terraform
-    terraform "$@"
-}
+    # terraform "$@"
+# }
 
 # bun completions
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
