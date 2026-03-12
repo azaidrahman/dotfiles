@@ -26,6 +26,8 @@
 
  :templates {:open          "open -a '%s'",
              :open-vivaldi  "open -n -a Vivaldi --args --profile-directory='%s'"
+             :show-time     "~/.config/karabiner/scripts/show-time.sh"
+             :hide-time     "killall time-hud 2>/dev/null"
              ; :cycle-or-open "~/.config/karabiner/scripts/cycle-or-open.sh '%s'"
             }
 
@@ -38,8 +40,10 @@
  :main
  [{:des "Global app shortcut"
    :rules
-   [;; Hold right_option to activate app launcher layer (shows key hints overlay)
-    [:right_option [:show-app-help ["app-launch" 1]] nil {:afterup [:clear-app-help ["app-launch" 0]]}]
+   [;; Double-tap right_option to show time notification
+    [:right_option [:show-time] ["ro-tapped" 1] {:afterup [:hide-time ["ro-tapped" 0]]}]
+    ;; Hold right_option to activate app launcher layer (shows key hints overlay)
+    [:right_option [:show-app-help ["app-launch" 1] ["ro-tapped" 1]] nil {:afterup [:clear-app-help ["app-launch" 0]] :delayed {:invoked ["ro-tapped" 0] :canceled ["ro-tapped" 0]}}]
 
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]          :app-launch]
