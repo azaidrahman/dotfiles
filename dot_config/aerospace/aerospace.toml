@@ -6,6 +6,7 @@
 # Normalizations eliminate all sorts of weird tree configurations that don't make sense.
 # Give normalizations a chance and enable them back.
 start-at-login = true
+accordion-padding = 0
 enable-normalization-flatten-containers = false
 enable-normalization-opposite-orientation-for-nested-containers = false
 after-login-command = []
@@ -56,12 +57,12 @@ on-focus-changed = ['move-mouse window-lazy-center']
 # 10 = [3,2,'built-in']
 
 [gaps]
-inner.horizontal = 8
-inner.vertical =   8
-outer.left =       8
-outer.bottom =     8
-outer.top =        8
-outer.right =      8
+inner.horizontal = 4
+inner.vertical =   4
+outer.left =       4
+outer.bottom =     4
+outer.top =        4
+outer.right =      4
 
 [mode.main.binding]
 
