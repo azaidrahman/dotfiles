@@ -1,0 +1,18 @@
+# ,env-op - Read 1password entries and export as env vars
+
+local search="$*"
+local keys_string values_string
+
+keys_string=$(op item get --fields label=username "$search")   || return
+values_string=$(op item get --reveal --fields label=credential "$search") || return
+
+local -a keys values
+keys=( ${(s: :)keys_string} )
+values=( ${(s: :)values_string} )
+
+local last_value=""
+for (( i = 1; i <= $#keys; i++ )); do
+    [[ -n $values[i] ]] && last_value=$values[i]
+    export "${keys[i]}"="$last_value"
+    print -u 2 "Loaded ${keys[i]}"
+done

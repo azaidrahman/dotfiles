@@ -1,0 +1,10 @@
+# ,v - Open nvim using zoxide
+
+local file="$1"
+local target=$(zoxide query "$file")
+
+if [ -n "$target" ]; then
+    nvim "$target"
+else
+    echo "File not found: $target"
+fi
