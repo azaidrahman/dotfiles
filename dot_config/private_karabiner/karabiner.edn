@@ -50,6 +50,7 @@
     [:!Se [:open "Todoist"]           :app-launch]
     [:!St :!TOSf18                    :app-launch]  ;; quick terminal (ghostty)
     [:!Sf [:open "Alfred Preferences"]:app-launch]
+    [:!Si [:open "Youtube Music"]:app-launch]
     [:!Sg [:open "Safari"]            :app-launch]
     ; [:!Sv [:open "Arc"]               :app-launch]
 
