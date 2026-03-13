@@ -32,7 +32,7 @@
             }
 
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:Messages, e:obsidian, t:ghostty, T:quickT, i:IINA, o:todo, p:teams, a:claude, s:slack, f:fantastical, G:safari, g:Iphone, k:KM, l:outlook, c:switch, V:Arc, v:vivaldi, n:ino,m:spotify"
+                              :text "w:WA, W:Messages, e:obsidian, t:ghostty, T:quickT, i:IINA, o:todo, p:teams, a:claude, s:slack, F:alfred, f:fantastical, G:safari, g:Iphone, k:KM, l:outlook, c:switch, V:Arc, v:vivaldi, n:ino,m:spotify"
 }}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}}
