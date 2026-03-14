@@ -773,9 +773,50 @@
       }, {
         "description" : "Tab to Ctrl",
         "manipulators" : [ {
+          "from" : {
+            "key_code" : "tab",
+            "modifiers" : {
+              "optional" : [ "any" ]
+            }
+          },
+          "to" : [ {
+            "key_code" : "f9",
+            "modifiers" : [ "left_command", "left_control", "left_option" ]
+          }, {
+            "set_variable" : {
+              "name" : "tab-tapped",
+              "value" : 0
+            }
+          } ],
+          "conditions" : [ {
+            "name" : "tab-tapped",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
           "to_if_alone" : [ {
             "key_code" : "tab"
+          }, {
+            "set_variable" : {
+              "name" : "tab-tapped",
+              "value" : 1
+            }
           } ],
+          "to_delayed_action" : {
+            "to_if_invoked" : [ {
+              "set_variable" : {
+                "name" : "tab-tapped",
+                "value" : 0
+              }
+            } ],
+            "to_if_canceled" : [ {
+              "set_variable" : {
+                "name" : "tab-tapped",
+                "value" : 0
+              }
+            } ]
+          },
           "from" : {
             "key_code" : "tab",
             "modifiers" : {
