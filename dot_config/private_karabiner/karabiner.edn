@@ -129,7 +129,10 @@
 
   {:des "Tab to Ctrl"
    :rules
-   [[:##tab :left_control nil {:alone :tab}]]}
+   [;; Double-tap tab → Notification Centre (⌘⌃⌥F9)
+    [:##tab [:!CTOf9 ["tab-tapped" 0]] ["tab-tapped" 1]]
+    ;; Tab → Ctrl (hold) / Tab (tap), track double-tap
+    [:##tab :left_control nil {:alone [:tab ["tab-tapped" 1]] :delayed {:invoked ["tab-tapped" 0] :canceled ["tab-tapped" 0]}}]]}
 
   ; {:des "Ghostty/UTM: swap Cmd and Ctrl"
   ;  :rules
