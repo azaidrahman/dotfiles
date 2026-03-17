@@ -18,7 +18,7 @@ source "$ZSH_DIR/aliases.zsh"
 source "$ZSH_DIR/general.zsh"
 # Functions (lazy-loaded via autoload)
 fpath=(~/.config/zsh/functions $fpath)
-autoload -Uz ,env-op ,gcp-iam-check ,gwtcd ,isglob ,v ,y ,zsh-bench
+autoload -Uz ,env-op ,gcp-iam-check ,gwtcd ,isglob ,v ,y ,zsh-bench ,goku-build
 
 # Zinit plugins
 source "$ZSH_DIR/plugins.zsh"
