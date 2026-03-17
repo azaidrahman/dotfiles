@@ -7,13 +7,17 @@ path_prepend "$HOME/.local/bin"
 [[ -d $PYENV_ROOT/bin ]] && path_prepend "$PYENV_ROOT/bin"
 
 # Cache pyenv init output (regenerate with: rm ~/.cache/pyenv-init.zsh)
+# Strips 'command pyenv rehash' from cache to avoid blocking shell on stale locks;
+# rehash runs in background instead.
 _pyenv_cache="${XDG_CACHE_HOME:-$HOME/.cache}/pyenv-init.zsh"
 if [[ ! -f "$_pyenv_cache" ]] || [[ "$PYENV_ROOT/bin/pyenv" -nt "$_pyenv_cache" ]]; then
     mkdir -p "${_pyenv_cache:h}"
-    pyenv init - zsh > "$_pyenv_cache"
+    pyenv init - zsh | grep -v 'command pyenv rehash' > "$_pyenv_cache"
 fi
 source "$_pyenv_cache"
 unset _pyenv_cache
+# Clean up stale lock and rehash in background (never blocks shell startup)
+{ rm -f "$PYENV_ROOT/shims/.pyenv-shim"; command pyenv rehash; } &!
 
 if [ -n "$NVIM_LISTEN_ADDRESS" ]; then
     export VISUAL="nvr -cc split --remote-wait +'set bufhidden=wipe'"
