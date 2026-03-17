@@ -33,6 +33,7 @@ font-size = 17
 # Toggle between two font sizes
 keybind = cmd+shift+minus=set_font_size:14
 keybind = cmd+shift+equal=set_font_size:22
+keybind = cmd+shift+0=reset_font_size
 
 # macOS: To hide the titlebar without removing the native window borders
 #        or rounded corners, use `macos-titlebar-style = hidden` instead.
@@ -43,7 +44,7 @@ macos-titlebar-style = hidden
 confirm-close-surface = false
 
 # keybind = global:alt+s=toggle_quick_terminal
-keybind = global:ctrl+shift+alt+f18=toggle_quick_terminal
+keybind = global:ctrl+shift+alt+f13=toggle_quick_terminal
 
 # This does not work with GLFW builds.
 macos-option-as-alt = true
