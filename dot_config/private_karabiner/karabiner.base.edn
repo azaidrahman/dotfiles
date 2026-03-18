@@ -40,11 +40,11 @@
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
-                             :text "o:1p, p:dot, l:todoist"}}
+                             :text "o:1p, p:dot, l:todoist, s:cleanshotx"}}
        :clear-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
                               :text ""}}
        :show-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
-                             :text "o:1p, p:dot, l:todoist"}}
+                             :text "o:1p, p:dot, l:todoist, s:cleanshotx"}}
        :clear-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
                               :text ""}}}
 

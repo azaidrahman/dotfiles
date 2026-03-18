@@ -33,7 +33,7 @@
           "to" : [ {
             "set_notification_message" : {
               "id" : "org.pqrs.notificaion_message_layer1",
-              "text" : "o:1p, p:dot, l:todoist"
+              "text" : "o:1p, p:dot, l:todoist, s:cleanshotx"
             }
           }, {
             "set_variable" : {
@@ -63,7 +63,7 @@
           "to" : [ {
             "set_notification_message" : {
               "id" : "org.pqrs.notificaion_message_layer2",
-              "text" : "o:1p, p:dot, l:todoist"
+              "text" : "o:1p, p:dot, l:todoist, s:cleanshotx"
             }
           }, {
             "set_variable" : {
