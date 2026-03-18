@@ -51,6 +51,12 @@ fi
 export BUN_INSTALL="$HOME/.bun"
 path_prepend "$BUN_INSTALL/bin"
 
+# Ensure Homebrew binaries (bash 5.x, etc.) take priority over system paths.
+# Can't use path_prepend — /etc/paths.d/homebrew already adds it via
+# path_helper, so the guard skips it. Remove and re-prepend to force first.
+path=("${(@)path:#/opt/homebrew/bin}")
+path=(/opt/homebrew/bin $path)
+
 # Zsh config change watcher
 # source "$ZSH_DIR/zsh-config-watcher.zsh"
 
