@@ -1,4 +1,4 @@
-path_prepend "/opt/homebrew/bin"
+# Homebrew bin prepended at end of .zshrc to ensure it stays first
 # path_prepend "$HOME/.npm-global/bin"
 export XDG_CONFIG_HOME="$HOME/.config"
 
@@ -57,7 +57,7 @@ export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agen
 
 export STARSHIP_CONFIG="$HOME/.config/zsh/starship.toml"
 
-export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"
+path_prepend "/opt/homebrew/opt/openjdk/bin"
 export WTREE="$HOME/projects/gamuda/worktrees"
 
 # GOKU (KARABINER)
