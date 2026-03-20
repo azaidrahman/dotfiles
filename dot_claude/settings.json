@@ -1,4 +1,36 @@
 {
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass"
+          }
+        ]
+      },
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message 'Claude finished' -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass"
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "jq -r '[ .model.display_name, \"ctx:\\(.context_window.used_percentage // 0)%\", (if .worktree.name then \"wt:\\(.worktree.name)\" else null end), (if .worktree.branch then \"br:\\(.worktree.branch)\" else null end), \"api:\\((.cost.total_api_duration_ms // 0) / 1000 | floor)s\" ] | map(select(. != null)) | join(\"  |  \")'"
@@ -11,8 +43,6 @@
     "code-review@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "claude-notifications-go@claude-notifications-go": true,
     "swift-lsp@claude-plugins-official": true
-  },
-  "effortLevel": "high"
+  }
 }
