@@ -10,7 +10,7 @@ path_prepend "$HOME/.local/bin"
 # Strips 'command pyenv rehash' from cache to avoid blocking shell on stale locks;
 # rehash runs in background instead.
 _pyenv_cache="${XDG_CACHE_HOME:-$HOME/.cache}/pyenv-init.zsh"
-if [[ ! -f "$_pyenv_cache" ]] || [[ "$PYENV_ROOT/bin/pyenv" -nt "$_pyenv_cache" ]]; then
+if [[ ! -f "$_pyenv_cache" ]] || [[ "$(realpath "$(command -v pyenv)")" -nt "$_pyenv_cache" ]]; then
     mkdir -p "${_pyenv_cache:h}"
     pyenv init - zsh | grep -v 'command pyenv rehash' > "$_pyenv_cache"
 fi
