@@ -44,5 +44,6 @@
     "commit-commands@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true
-  }
+  },
+  "effortLevel": "high"
 }
