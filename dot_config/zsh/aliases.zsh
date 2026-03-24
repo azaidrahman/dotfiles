@@ -43,3 +43,5 @@ alias ,grant-terraform-sa='/Users/abdullahzaidas-sani/projects/gamuda/gtech-plat
 alias ,rename-template='/Users/abdullahzaidas-sani/projects/gamuda/gtech-platform-infra-monorepo/scripts/bootstrap/rename-template.sh'
 
 alias gwtpwd='basename $(git rev-parse --show-toplevel)'
+
+alias ob='obsidian'
