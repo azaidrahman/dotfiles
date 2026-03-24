@@ -4,8 +4,8 @@
 ;; Note: Device simple_modifications and fn_function_keys are managed
 ;; by Karabiner UI, not by this file.
 ;;
-;; IMPORTANT: Edit this file, not karabiner.edn directly.
-;; Run ./build.sh to merge layers.edn and regenerate.
+;; IMPORTANT: Edit this file, not karabiner.json directly.
+;; Run ./generate-help-text.sh to rebuild help text from scripts/*.yaml and run goku.
 ;;
 ;; !  | means mandatory
 ;; #  | means optional
@@ -34,19 +34,21 @@
              ; :cycle-or-open "~/.config/karabiner/scripts/cycle-or-open.sh '%s'"
             }
 
+;; BEGIN HELP-TEXT (auto-generated from scripts/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:Messages, e:obsidian, t:ghostty, T:quickT, u:conductor, i:IINA, o:todo, p:teams, a:claude, s:slack, F:alfred, f:fantastical, G:safari, g:Iphone, k:KM, l:outlook, c:switch, V:Arc, v:vivaldi, n:ino,m:spotify"
-}}
+                              :text "w:WA, W:messages, e:obsidian, E:todoist, r:arc, t:ghostty, T:quickT, u:conductor, U:superset, i:IINA, I:ytmusic, o:todo, p:teams, a:claude, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
-                             :text "o:1p, p:dot, l:todoist, s:cleanshotx"}}
+                             :text "o:1p, p:dot, s:cleanshotx, l:todoist"}}
        :clear-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
                               :text ""}}
        :show-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
-                             :text "o:1p, p:dot, l:todoist, s:cleanshotx"}}
+                             :text "o:1p, p:dot, s:cleanshotx, l:todoist"}}
        :clear-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
-                              :text ""}}}
+                              :text ""}}
+ }
+;; END HELP-TEXT
 
  :main
  [{:des "Global app shortcut"
@@ -61,35 +63,38 @@
     ;; Hold right_option to activate app launcher layer (shows key hints overlay)
     [:right_option [:show-app-help ["app-launch" 1] ["ro-tapped" 1]] nil {:afterup [:clear-app-help ["app-launch" 0]] :delayed {:invoked ["ro-tapped" 0] :canceled ["ro-tapped" 0]}}]
 
+;; BEGIN APP-RULES (auto-generated from scripts/help-text.yaml)
     ;; Shifted shortcuts
-    [:!Sw [:open "Messages"]          :app-launch]
-    [:!Se [:open "Todoist"]           :app-launch]
-    [:!St :!TOSf13                    :app-launch]  ;; quick terminal (ghostty)
-    [:!Sf [:open "Alfred Preferences"]:app-launch]
-    [:!Si [:open "Youtube Music"]:app-launch]
-    [:!Sg [:open "Safari"]            :app-launch]
-    ; [:!Sv [:open "Arc"]               :app-launch]
+    [:!Sw [:open "Messages"]              :app-launch]
+    [:!Se [:open "Todoist"]               :app-launch]
+    [:!St :!TOSf13                        :app-launch]
+    [:!Su [:open "Superset"]              :app-launch]
+    [:!Si [:open "Youtube Music"]         :app-launch]
+    [:!Sf [:open "Alfred Preferences"]    :app-launch]
+    [:!Sg [:open "Safari"]                :app-launch]
+    [:!Sv [:open "Arc"]                   :app-launch]
 
     ;; Unshifted shortcuts
-    [:w [:open "Whatsapp"]          :app-launch]
-    [:e [:open "Obsidian"]          :app-launch]
-    [:r [:open "Arc"]               :app-launch]
-    [:t [:open "Ghostty"]           :app-launch]
-    [:u [:open "Conductor"]         :app-launch]
-    [:i [:open "IINA"]              :app-launch]
-    [:o [:open "Orbstack"]          :app-launch]
-    [:p [:open "Microsoft Teams"]   :app-launch]
-    [:a [:open "Claude"]            :app-launch]
-    [:s [:open "Slack"]             :app-launch]
-    [:f [:open "Calendar"]          :app-launch]
-    [:g [:open "iPhone Mirroring"]  :app-launch]
-    [:k [:open "Keyboard Maestro"]  :app-launch]
-    [:l [:open "Microsoft Outlook"] :app-launch]
-    [:c :!Cgrave_accent_and_tilde   :app-launch]  ;; cycle windows
-    ; [:v [:open-vivaldi "Default"] :app-launch]
-    [:v [:open "Vivaldi"]           :app-launch]
-    [:n [:open "Inoreader"]         :app-launch]
-    [:m [:open "Spotify"]           :app-launch]
+    [:w [:open "Whatsapp"]                :app-launch]
+    [:e [:open "Obsidian"]                :app-launch]
+    [:r [:open "Arc"]                     :app-launch]
+    [:t [:open "Ghostty"]                 :app-launch]
+    [:u [:open "Conductor"]               :app-launch]
+    [:i [:open "IINA"]                    :app-launch]
+    [:o [:open "Orbstack"]                :app-launch]
+    [:p [:open "Microsoft Teams"]         :app-launch]
+    [:a [:open "Claude"]                  :app-launch]
+    [:s [:open "Slack"]                   :app-launch]
+    [:f [:open "Calendar"]                :app-launch]
+    [:g [:open "iPhone Mirroring"]        :app-launch]
+    [:k [:open "Keyboard Maestro"]        :app-launch]
+    [:l [:open "Microsoft Outlook"]       :app-launch]
+    [:c :!Cgrave_accent_and_tilde         :app-launch]
+    [:v [:open "Vivaldi"]                 :app-launch]
+    [:b [:open "Telegram"]                :app-launch]
+    [:n [:open "Inoreader"]               :app-launch]
+    [:m [:open "Spotify"]                 :app-launch]
+;; END APP-RULES
    ]
   }
   {:des "Hyper Navigation"
