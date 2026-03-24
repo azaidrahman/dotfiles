@@ -33,7 +33,7 @@
           "to" : [ {
             "set_notification_message" : {
               "id" : "org.pqrs.notificaion_message_layer1",
-              "text" : "o:1p, p:dot, l:todoist, s:cleanshotx"
+              "text" : "o:1p, p:dot, s:cleanshotx, l:todoist"
             }
           }, {
             "set_variable" : {
@@ -63,7 +63,7 @@
           "to" : [ {
             "set_notification_message" : {
               "id" : "org.pqrs.notificaion_message_layer2",
-              "text" : "o:1p, p:dot, l:todoist, s:cleanshotx"
+              "text" : "o:1p, p:dot, s:cleanshotx, l:todoist"
             }
           }, {
             "set_variable" : {
@@ -120,7 +120,7 @@
           "to" : [ {
             "set_notification_message" : {
               "id" : "org.pqrs.notificaion_message_global_shortcut",
-              "text" : "w:WA, W:Messages, e:obsidian, t:ghostty, T:quickT, u:conductor, i:IINA, o:todo, p:teams, a:claude, s:slack, F:alfred, f:fantastical, G:safari, g:Iphone, k:KM, l:outlook, c:switch, V:Arc, v:vivaldi, n:ino,m:spotify"
+              "text" : "w:WA, W:messages, e:obsidian, E:todoist, r:arc, t:ghostty, T:quickT, u:conductor, U:superset, i:IINA, I:ytmusic, o:todo, p:teams, a:claude, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"
             }
           }, {
             "set_variable" : {
@@ -185,13 +185,13 @@
           "type" : "basic"
         }, {
           "from" : {
-            "key_code" : "f",
+            "key_code" : "u",
             "modifiers" : {
               "mandatory" : [ "left_shift" ]
             }
           },
           "to" : [ {
-            "shell_command" : "open -a 'Alfred Preferences'"
+            "shell_command" : "open -a 'Superset'"
           } ],
           "conditions" : [ {
             "name" : "app-launch",
@@ -217,6 +217,22 @@
           "type" : "basic"
         }, {
           "from" : {
+            "key_code" : "f",
+            "modifiers" : {
+              "mandatory" : [ "left_shift" ]
+            }
+          },
+          "to" : [ {
+            "shell_command" : "open -a 'Alfred Preferences'"
+          } ],
+          "conditions" : [ {
+            "name" : "app-launch",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
+          "from" : {
             "key_code" : "g",
             "modifiers" : {
               "mandatory" : [ "left_shift" ]
@@ -224,6 +240,22 @@
           },
           "to" : [ {
             "shell_command" : "open -a 'Safari'"
+          } ],
+          "conditions" : [ {
+            "name" : "app-launch",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
+          "from" : {
+            "key_code" : "v",
+            "modifiers" : {
+              "mandatory" : [ "left_shift" ]
+            }
+          },
+          "to" : [ {
+            "shell_command" : "open -a 'Arc'"
           } ],
           "conditions" : [ {
             "name" : "app-launch",
@@ -433,6 +465,19 @@
           },
           "to" : [ {
             "shell_command" : "open -a 'Vivaldi'"
+          } ],
+          "conditions" : [ {
+            "name" : "app-launch",
+            "value" : 1,
+            "type" : "variable_if"
+          } ],
+          "type" : "basic"
+        }, {
+          "from" : {
+            "key_code" : "b"
+          },
+          "to" : [ {
+            "shell_command" : "open -a 'Telegram'"
           } ],
           "conditions" : [ {
             "name" : "app-launch",
