@@ -64,3 +64,6 @@ export WTREE="$HOME/projects/gamuda/worktrees"
 export GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn"
 
 export INFRA="$HOME/projects/gamuda/gtech-platform-infra-monorepo/"
+
+# Obsidian
+path_append "/Applications/Obsidian.app/Contents/MacOS"
