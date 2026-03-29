@@ -1,4 +1,5 @@
 import AppKit
+import IOKit.ps
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
@@ -10,7 +11,19 @@ df.dateFormat = "EEEE, MMMM d"
 let timeStr = tf.string(from: Date())
 let dateStr = df.string(from: Date())
 
-let view = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 70))
+var batteryStr = ""
+let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
+let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as Array
+for source in sources {
+    if let desc = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any],
+       let capacity = desc[kIOPSCurrentCapacityKey] as? Int {
+        let charging = desc[kIOPSIsChargingKey] as? Bool ?? false
+        let icon = charging ? "⚡" : "🔋"
+        batteryStr = "\(icon) \(capacity)%"
+    }
+}
+
+let view = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 90))
 view.wantsLayer = true
 view.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.9).cgColor
 view.layer?.cornerRadius = 14
@@ -19,16 +32,23 @@ let timeLabel = NSTextField(labelWithString: timeStr)
 timeLabel.font = .systemFont(ofSize: 28, weight: .medium)
 timeLabel.textColor = .white
 timeLabel.alignment = .center
-timeLabel.frame = NSRect(x: 0, y: 24, width: 250, height: 36)
+timeLabel.frame = NSRect(x: 0, y: 44, width: 250, height: 36)
 
 let dateLabel = NSTextField(labelWithString: dateStr)
 dateLabel.font = .systemFont(ofSize: 13, weight: .regular)
 dateLabel.textColor = NSColor(white: 1, alpha: 0.6)
 dateLabel.alignment = .center
-dateLabel.frame = NSRect(x: 0, y: 6, width: 250, height: 18)
+dateLabel.frame = NSRect(x: 0, y: 26, width: 250, height: 18)
+
+let batteryLabel = NSTextField(labelWithString: batteryStr)
+batteryLabel.font = .systemFont(ofSize: 13, weight: .regular)
+batteryLabel.textColor = NSColor(white: 1, alpha: 0.6)
+batteryLabel.alignment = .center
+batteryLabel.frame = NSRect(x: 0, y: 6, width: 250, height: 18)
 
 view.addSubview(timeLabel)
 view.addSubview(dateLabel)
+view.addSubview(batteryLabel)
 
 let w = NSPanel(
     contentRect: view.frame,
