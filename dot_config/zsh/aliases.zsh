@@ -11,6 +11,7 @@ alias uvoprun='op run --env-file=.env -- uv run main.py'
 alias oc="opencode"
 alias c="claude"
 alias cres="claude --resume" 
+alias cup="brew upgrade claude-code"
 
 alias cl="gcloud"
 
