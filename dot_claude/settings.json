@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass"
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\""
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass"
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\""
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message 'Claude finished' -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass"
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message 'Claude finished' -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\""
           }
         ]
       },
@@ -80,6 +80,18 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/allow-readonly.sh",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
@@ -97,5 +109,20 @@
     "swift-lsp@claude-plugins-official": true
   },
   "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(fd *)",
+      "Bash(grep *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(ls *)"
+    ]
+  }
 }

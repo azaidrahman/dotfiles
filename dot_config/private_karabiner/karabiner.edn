@@ -36,7 +36,7 @@
 
 ;; BEGIN HELP-TEXT (auto-generated from scripts/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:messages, e:obsidian, E:todoist, r:arc, t:ghostty, T:quickT, u:conductor, U:superset, i:IINA, I:ytmusic, o:todo, p:teams, a:claude, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
+                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, T:quickT, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, a:claude, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
@@ -66,13 +66,13 @@
 ;; BEGIN APP-RULES (auto-generated from scripts/help-text.yaml)
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]              :app-launch]
-    [:!Se [:open "Todoist"]               :app-launch]
     [:!St :!TOSf13                        :app-launch]
-    [:!Su [:open "Superset"]              :app-launch]
     [:!Si [:open "Youtube Music"]         :app-launch]
     [:!Sf [:open "Alfred Preferences"]    :app-launch]
     [:!Sg [:open "Safari"]                :app-launch]
     [:!Sv [:open "Arc"]                   :app-launch]
+    ; [:!Se [:open "Todoist"]               :app-launch]
+    ; [:!Su [:open "Superset"]              :app-launch]
 
     ;; Unshifted shortcuts
     [:w [:open "Whatsapp"]                :app-launch]
