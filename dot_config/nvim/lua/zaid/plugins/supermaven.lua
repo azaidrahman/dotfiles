@@ -1,7 +1,3 @@
-return {
-	"supermaven-inc/supermaven-nvim",
-	event = "InsertEnter",
-	config = function()
-		require("supermaven-nvim").setup({})
-	end,
-}
+-- Supermaven is configured as a blink.cmp dependency in nvim-cmp.lua
+-- This file is kept empty to avoid duplicate setup
+return {}

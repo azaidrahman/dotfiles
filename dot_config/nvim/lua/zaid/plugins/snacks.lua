@@ -161,6 +161,20 @@ return {
 			},
 			dashboard = {
 				enabled = true,
+				preset = {
+					header = [==[
+  ,-.       _,---._ __  / \
+ /  )    .-'       `./ /   \
+(  (   ,'            `/    /|
+ \  `-"             \'\   / |
+  `.              ,  \ \ /  |
+   /`.          ,'-`----Y   |
+  (            ;        |   '
+  |  ,-.    ,-'         |  /
+  |  | (   |        aza | /
+  )  |  \  `.___________|/
+  `--'   `--']==],
+				},
 				sections = {
 					{ section = "header" },
 					{
@@ -223,14 +237,6 @@ return {
 				end,
 				desc = "Fast Rename Current File",
 			},
-			{
-				"<leader>dB",
-				function()
-					require("snacks").bufdelete()
-				end,
-				desc = "Delete or Close Buffer  (Confirm)",
-			},
-
 			-- Snacks Picker
 			{
 				"<leader>pf",

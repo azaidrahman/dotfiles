@@ -26,7 +26,15 @@ return{
             dapui.close()
         end
 
-        vim.keymap.set("n", "<Leader>db", dap.toggle_breakpoint, {})
-        vim.keymap.set("n", "<Leader>dc", dap.continue, {} )
+        vim.keymap.set("n", "<Leader>db", dap.toggle_breakpoint, { desc = "Toggle breakpoint" })
+        vim.keymap.set("n", "<Leader>dc", dap.continue, { desc = "Continue" })
+        vim.keymap.set("n", "<Leader>do", dap.step_over, { desc = "Step over" })
+        vim.keymap.set("n", "<Leader>di", dap.step_into, { desc = "Step into" })
+        vim.keymap.set("n", "<Leader>dO", dap.step_out, { desc = "Step out" })
+        vim.keymap.set("n", "<Leader>dt", dapui.toggle, { desc = "Toggle DAP UI" })
+        vim.keymap.set("n", "<Leader>de", function()
+            -- nvim-dap-ui evaluate expression under cursor
+            dapui.eval(nil, { enter = true })
+        end, { desc = "DAP evaluate expression" })
     end,
 }

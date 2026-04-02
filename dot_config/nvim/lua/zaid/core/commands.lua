@@ -1,10 +1,3 @@
--- Autoformat on save using LSP
--- vim.api.nvim_create_autocmd("BufWritePre", {
---   pattern = "*",
---   callback = function()
---     vim.lsp.buf.format({ async = false })
---   end,
--- })
 vim.api.nvim_create_autocmd("TextYankPost", {
 	desc = "Highlight when yanking (copying) text",
 	group = vim.api.nvim_create_augroup("kickstart-highlight-yank", { clear = true }),
@@ -16,6 +9,17 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 vim.api.nvim_create_autocmd("QuickFixCmdPost", {
 	callback = function()
 		vim.cmd([[Trouble qflist open]])
+	end,
+})
+
+-- Restore cursor position when reopening a file
+vim.api.nvim_create_autocmd("BufReadPost", {
+	callback = function(args)
+		local mark = vim.api.nvim_buf_get_mark(args.buf, '"')
+		local line_count = vim.api.nvim_buf_line_count(args.buf)
+		if mark[1] > 0 and mark[1] <= line_count then
+			pcall(vim.api.nvim_win_set_cursor, 0, mark)
+		end
 	end,
 })
 
@@ -77,6 +81,3 @@ vim.api.nvim_create_user_command("Terminalpop", pop_terminal, {})
 vim.keymap.set("t", "<esc><esc>", "<c-\\><c-n>")
 
 vim.keymap.set({ "n", "t" }, "<space>tt", pop_terminal)
--------------------
-
-----

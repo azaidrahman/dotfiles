@@ -1,4 +1,4 @@
-vim.cmd("let g:netrw_banner = 0 ")
+vim.g.netrw_banner = 0
 vim.opt.iskeyword:remove("_")
 
 vim.opt.guicursor = ""
@@ -32,11 +32,7 @@ vim.opt.background = "dark"
 vim.opt.scrolloff = 18
 vim.opt.signcolumn = "yes"
 
--- Enable folding ( setup in nvim-ufo )
-vim.opt.foldenable = true
-vim.opt.foldmethod = "manual"
-vim.opt.foldlevel = 99
-vim.opt.foldcolumn = "0"
+-- Folding is configured in nvim-ufo plugin (lua/zaid/plugins/nvim-ufo.lua)
 
 -- backspace
 vim.opt.backspace = { "start", "eol", "indent" }
@@ -54,9 +50,6 @@ vim.opt.hlsearch = true
 
 -- for easy mouse resizing, just incase
 vim.opt.mouse = "a"
-
--- gets rid of line with white spaces
-vim.g.editorconfig = true
 
 -- filetype extensions
 vim.filetype.add({

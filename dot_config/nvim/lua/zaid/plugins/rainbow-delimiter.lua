@@ -1,7 +1,7 @@
 -- https://github.com/HiPhish/rainbow-delimiters.nvim/blob/master/doc/rainbow-delimiters.txt
 return {
 	"HiPhish/rainbow-delimiters.nvim",
-	enabled = true,
+	enabled = false,
 	event = { "BufReadPost", "BufNewFile" },
 	config = function()
 		-- either set the global and let the plugin pick it up:
@@ -10,6 +10,7 @@ return {
 			strategy = {
 				[""] = "rainbow-delimiters.strategy.global",
 				vim = "rainbow-delimiters.strategy.local",
+				snacks_dashboard = "rainbow-delimiters.strategy.noop",
 			},
 			query = {
 				[""] = "rainbow-delimiters",

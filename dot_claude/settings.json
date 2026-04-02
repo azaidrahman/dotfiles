@@ -96,7 +96,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "jq -r '[ .model.display_name, \"ctx:\\(.context_window.used_percentage // 0)%\", (if .worktree.name then \"wt:\\(.worktree.name)\" else null end), (if .worktree.branch then \"br:\\(.worktree.branch)\" else null end), \"api:\\((.cost.total_api_duration_ms // 0) / 1000 | floor)s\" ] | map(select(. != null)) | join(\"  |  \")'"
+    "command": "jq -r '[ .model.display_name, \"ctx:\\(.context_window.used_percentage // 0)%\", (if .worktree.name then \"wt:\\(.worktree.name)\" else null end), (if .worktree.branch then \"br:\\(.worktree.branch)\" else null end), (if .rate_limits.five_hour then \"5h:\\(.rate_limits.five_hour.used_percentage | round)%\" else null end), (if .rate_limits.seven_day then \"7d:\\(.rate_limits.seven_day.used_percentage | round)%\" else null end) ] | map(select(. != null)) | join(\"  |  \")'"
   },
   "enabledPlugins": {
     "pyright-lsp@claude-plugins-official": true,
@@ -122,7 +122,9 @@
       "Bash(cat *)",
       "Bash(head *)",
       "Bash(tail *)",
-      "Bash(ls *)"
+      "Bash(ls *)",
+      "WebSearch",
+      "WebFetch"
     ]
   }
 }

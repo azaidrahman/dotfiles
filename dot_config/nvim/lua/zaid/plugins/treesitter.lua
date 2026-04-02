@@ -1,67 +1,78 @@
 return {
+	-- NOTE: nvim-treesitter on `main` branch (required for Neovim 0.12+)
+	-- The old `master` branch API (require("nvim-treesitter.configs").setup()) is frozen/deprecated.
+	-- Neovim 0.12 handles highlighting & indentation natively via vim.treesitter.start()
+	-- The plugin now only manages parser installation.
 	{
 		"nvim-treesitter/nvim-treesitter",
-		event = { "BufReadPre", "BufNewFile" },
+		branch = "main",
+		lazy = false, -- must load early so parsers are available
 		build = ":TSUpdate",
 		config = function()
-			-- import nvim-treesitter plugin
-			local treesitter = require("nvim-treesitter.configs")
-
-			-- configure treesitter
-			treesitter.setup({ -- enable syntax highlighting
-				highlight = {
-					enable = true,
-				},
-				-- enable indentation
-				indent = { enable = true },
-
-				-- ensure these languages parsers are installed
-				ensure_installed = {
-					"json",
-					"javascript",
-					"typescript",
-					"tsx",
-					"go",
-					"yaml",
-					"html",
-					"css",
-					"python",
-					"http",
-					"prisma",
-					"markdown",
-					"markdown_inline",
-					"svelte",
-					"graphql",
-					"bash",
-					"lua",
-					"vim",
-					"dockerfile",
-					"gitignore",
-					"query",
-					"vimdoc",
-					"c",
-					"java",
-					"rust",
-					"vue",
-				},
-				incremental_selection = {
-					enable = true,
-					keymaps = {
-						init_selection = "<C-S-Space>",
-						node_incremental = "<C-S-Space>",
-						scope_incremental = false,
-					},
-				},
-				additional_vim_regex_highlighting = false,
+			-- setup() configures where parsers get installed
+			require("nvim-treesitter").setup({
+				install_dir = vim.fn.stdpath("data") .. "/site",
 			})
+
+			-- install() downloads pre-compiled parsers (async, won't block startup)
+			-- add/remove languages here as needed
+			require("nvim-treesitter").install({
+				"json",
+				"javascript",
+				"typescript",
+				"tsx",
+				"go",
+				"yaml",
+				"html",
+				"css",
+				"python",
+				"http",
+				"prisma",
+				"markdown",
+				"markdown_inline",
+				"svelte",
+				"graphql",
+				"bash",
+				"lua",
+				"vim",
+				"dockerfile",
+				"gitignore",
+				"query",
+				"vimdoc",
+				"c",
+				"java",
+				"rust",
+			})
+
+			-- Enable treesitter highlighting + indentation for every filetype that has a parser
+			-- This replaces the old `highlight = { enable = true }` and `indent = { enable = true }`
+			vim.api.nvim_create_autocmd("FileType", {
+				group = vim.api.nvim_create_augroup("TreesitterSetup", { clear = true }),
+				callback = function(args)
+					local ft = args.match
+					-- get_lang maps filetype → treesitter language name (e.g. "typescriptreact" → "tsx")
+					local lang = vim.treesitter.language.get_lang(ft) or ft
+					-- inspect checks if the parser is actually installed
+					local ok = pcall(vim.treesitter.language.inspect, lang)
+					if ok then
+						-- start() enables treesitter syntax highlighting for this buffer
+						vim.treesitter.start()
+						-- indentexpr enables treesitter-based auto-indentation
+						vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+					end
+				end,
+			})
+
+			-- NOTE: Incremental selection is now built-in (Neovim 0.12+)
+			-- Use `an` to expand selection outward and `in` to shrink inward (visual mode)
+			-- This replaces the old `incremental_selection` module with <C-S-Space>
 		end,
 	},
-	-- NOTE: js,ts,jsx,tsx Auto Close Tags
+	-- NOTE: Auto close/rename HTML-style tags (works independently of treesitter module system)
 	{
 		"windwp/nvim-ts-autotag",
-		ft = { "html","vue", "xml", "javascript", "typescript", "javascriptreact", "typescriptreact", "svelte" },
+		ft = { "html", "xml", "svelte" },
 		config = function()
-			-- Independent nvim-ts-autotag setup
 			require("nvim-ts-autotag").setup({
 				opts = {
 					enable_close = true, -- Auto-close tags
@@ -70,10 +81,7 @@ return {
 				},
 				per_filetype = {
 					["html"] = {
-						enable_close = true, -- Disable auto-closing for HTML
-					},
-					["typescriptreact"] = {
-						enable_close = true, -- Explicitly enable auto-closing (optional, defaults to `true`)
+						enable_close = true,
 					},
 				},
 			})
