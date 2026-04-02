@@ -27,9 +27,9 @@ vim.keymap.set("n", "<leader>bn", "<cmd>BDelete nameless<CR>", descopts("[B]uffe
 
 vim.keymap.set("n", "<leader>qq", ":q<CR>", opts)
 vim.keymap.set("n", "<leader>qc", ":q!<CR>", opts)
-vim.keymap.set("n", "<leader>qs", ":w<CR>", opts)
+vim.keymap.set("n", "<leader>qw", ":w<CR>", opts)
 
-vim.keymap.set("n", "<leader>pd", ":lua Snacks.dashboard()<CR>", opts)
+vim.keymap.set("n", "<leader>pd", function() Snacks.dashboard() end, descopts("Open dashboard"))
 
 -- remember yanked
 vim.keymap.set("v", "p", '"_dp', opts)
@@ -85,8 +85,8 @@ vim.keymap.set("v", "<leader>hs", function()
     vim.cmd('execute "help " . @x')
 end, { noremap = true, silent = true, desc = "Search under cursor in help" })
 
--- Toggle LSP diagnostics visibility
-local isLspDiagnosticsVisible = true
+-- Toggle LSP diagnostics visibility (starts false to match lspconfig's virtual_text = false)
+local isLspDiagnosticsVisible = false
 vim.keymap.set("n", "<leader>lx", function()
 	isLspDiagnosticsVisible = not isLspDiagnosticsVisible
 	vim.diagnostic.config({
@@ -100,7 +100,5 @@ vim.keymap.set("n", "<leader>qr","<cmd>make<cr>", descopts("Run makefile") )
 vim.keymap.set("n", "<leader>pq", "<cmd>copen<CR>", descopts("Open quickfix list") )
 
 vim.keymap.set("n","<leader>gn","<cmd>Neogit<cr>",descopts("Open neogit"))
-
-vim.keymap.set('n', '<leader>yd', ':let @+=expand("%:p:h")<CR>',descopts("Copy directory path") )
 
 

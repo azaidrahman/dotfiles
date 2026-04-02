@@ -10,7 +10,7 @@ alias uvoprun='op run --env-file=.env -- uv run main.py'
 
 alias oc="opencode"
 alias c="claude"
-alias cres="claude --resume" 
+alias cres="claude --resume"
 alias cup="brew upgrade claude-code"
 
 alias cl="gcloud"
@@ -46,3 +46,5 @@ alias ,rename-template='/Users/abdullahzaidas-sani/projects/gamuda/gtech-platfor
 alias gwtpwd='basename $(git rev-parse --show-toplevel)'
 
 alias ob='obsidian'
+
+alias tmc="terramate"

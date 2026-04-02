@@ -1,38 +1,22 @@
+-- Linting via nvim-lint
+-- Only for tools not covered by an LSP (ruff LSP handles Python linting)
+
 return {
 	"mfussenegger/nvim-lint",
 	event = { "BufReadPre", "BufNewFile" },
 	config = function()
 		local lint = require("lint")
-		local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
-		local eslint = lint.linters.eslint_d
 
-		-- if Eslint error configuration not found : change MasonInstall eslint@version or npm i -g eslint at a specific version
 		lint.linters_by_ft = {
-			javascript = {"eslint_d"},
-			typescript = {"eslint_d"},
-			javascriptreact = {"eslint_d"},
-			typescriptreact = {"eslint_d"},
-			svelte = { "eslint_d" },
-			python = { "pylint" },
+			go = { "golangcilint" }, -- comprehensive Go linting (configure via .golangci.yml)
+			yaml = { "yamllint" }, -- style checks (configure via .yamllint to avoid prettier conflicts)
+			-- Python: handled by ruff LSP (see lspconfig.lua)
+			-- Bash: handled by bash-language-server + shellcheck (see lspconfig.lua)
+			-- Terraform: handled by tflint LSP (see lspconfig.lua)
 		}
 
-        lint.linters.pylint.cmd = 'python'
-        lint.linters.pylint.args = {'-m','pylint','-f','json','$FILENAME'}
-
-		eslint.args = {
-			"--no-warn-ignored",
-			"--format",
-			"json",
-			"--stdin",
-			"--stdin-filename",
-			function()
-                return vim.fn.expand("%:p")
-			end,
-		}
-
-        -- set running linters on buffer save
 		vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
-			group = lint_augroup,
+			group = vim.api.nvim_create_augroup("lint", { clear = true }),
 			callback = function()
 				lint.try_lint()
 			end,
