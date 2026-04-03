@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\""
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && WINDOW=$(tmux display-message -p '#{window_index}' 2>/dev/null || echo '0') && WNAME=$(tmux display-message -p '#{window_name}' 2>/dev/null || echo 'claude') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\" && ~/.tmux/scripts/log-alert.sh \"$SESSION\" \"$WINDOW\" \"$WNAME\" CLAUDE"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message 'Claude finished' -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\""
+            "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && WINDOW=$(tmux display-message -p '#{window_index}' 2>/dev/null || echo '0') && WNAME=$(tmux display-message -p '#{window_name}' 2>/dev/null || echo 'claude') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message 'Claude finished' -contentImage /Users/abdullahzaidas-sani/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\" && ~/.tmux/scripts/log-alert.sh \"$SESSION\" \"$WINDOW\" \"$WNAME\" CLAUDE"
           }
         ]
       },

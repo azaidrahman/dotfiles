@@ -1,0 +1,29 @@
+[metadata]
+name = "tmux-alerts"
+description = "Tmux windows with bell or activity notifications needing attention"
+requirements = ["tmux"]
+
+[source]
+# Ctrl+S to cycle: persistent alerts (file) -> live tmux flags -> all windows
+command = [
+  "bash -c 'if [ -s ~/.tmux/alerts ]; then sort -u ~/.tmux/alerts; else echo \"--\tNo alerts\t\"; fi'",
+  "bash -c 'r=$(tmux list-windows -a -f \"#{||:#{window_bell_flag},#{window_activity_flag}}\" -F \"#{session_name}:#{window_index}\t#{window_name}\t#{?window_bell_flag,BELL,ACTIVITY}\"); [ -n \"$r\" ] && echo \"$r\" || echo \"--\tNo alerts right now\t\"'",
+  "tmux list-windows -a -F '#{session_name}:#{window_index}\t#{window_name}\t#{?window_bell_flag,BELL,#{?window_activity_flag,ACTIVITY,}}'"
+]
+display = "{split:\t:0}  {split:\t:1}  {split:\t:2}"
+output = "{split:\t:0}"
+watch = 3.0
+frecency = false
+no_sort = true
+
+[preview]
+command = "tmux capture-pane -t '{split:\t:0}' -p -e 2>/dev/null || echo 'No preview'"
+header = "{split:\t:0} - {split:\t:1}"
+
+[keybindings]
+enter = "actions:switch"
+
+[actions.switch]
+description = "Switch to window"
+command = "tmux switch-client -t '{split:\t:0}'"
+mode = "execute"
