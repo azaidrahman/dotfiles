@@ -1,0 +1,12 @@
+#!/bin/bash
+# Brewfile hash: {{ include (joinPath .chezmoi.sourceDir "dot_config/homebrew/Brewfile.tmpl") | sha256sum }}
+
+set -euo pipefail
+
+BREWFILE="${HOME}/.config/homebrew/Brewfile"
+
+echo "Running brew bundle install..."
+brew bundle install --file="$BREWFILE"
+
+echo "Cleaning up packages not in Brewfile..."
+brew bundle cleanup --file="$BREWFILE" --force
