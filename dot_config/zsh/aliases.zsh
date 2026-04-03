@@ -48,3 +48,10 @@ alias gwtpwd='basename $(git rev-parse --show-toplevel)'
 alias ob='obsidian'
 
 alias tmc="terramate"
+
+alias brewsync='brew bundle dump --force --file=~/.config/homebrew/Brewfile \
+  && chezmoi add ~/.config/homebrew/Brewfile \
+  && chezmoi cd \
+  && git add -A \
+  && git commit -m "chore: update Brewfile" \
+  && git push'
