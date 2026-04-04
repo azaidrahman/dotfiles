@@ -91,11 +91,10 @@ brew "koekeishiya/formulae/skhd"
 brew "teamookla/speedtest/speedtest"
 brew "yqrashawn/goku/goku"
 brew "age"
-brew "multipass"
 brew "dua-cli"
-brew "mole"{{ if eq .chezmoi.username "zaid" -}}
+brew "mole"
+{{ if eq .chezmoi.username "zaid" -}}
 brew "python@3.12"
-brew "yazi"
 {{ end -}}
 
 ############################################################
