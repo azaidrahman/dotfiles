@@ -12,6 +12,7 @@ Stage files and suggest conventional commit messages. **Never run `git commit`.*
 ### 1. Review Changes
 
 Run in parallel:
+
 - `git status` (no `-uall` flag)
 - `git diff` (staged + unstaged)
 
@@ -47,12 +48,14 @@ Present the message to the user in `type(scope): description` format.
 | `revert`   | Revert a previous commit                 |
 
 **Scope** — short identifier for the affected area (project, module, component):
+
 - `feat(llmrag): add vector search`
 - `docs(infra-core): update networking guide`
 - `fix(spatialQ): resolve auth timeout`
 - `chore(hooks): update hookify rules`
 
 **Rules:**
+
 - Lowercase type and scope
 - Imperative mood ("add login" not "added login")
 - No trailing period
@@ -61,6 +64,5 @@ Present the message to the user in `type(scope): description` format.
 
 ## Do NOT
 
-- **Ever run `git commit`** — the user commits and rebases themselves
-- Push unless explicitly asked
 - Use `-uall` flag with git status
+- Add Claude Opus tag at the end of commit message
