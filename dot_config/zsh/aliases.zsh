@@ -49,9 +49,4 @@ alias ob='obsidian'
 
 alias tmc="terramate"
 
-alias brewsync='brew bundle dump --force --file=~/.config/homebrew/Brewfile \
-  && chezmoi add ~/.config/homebrew/Brewfile \
-  && chezmoi cd \
-  && git add -A \
-  && git commit -m "chore: update Brewfile" \
-  && git push'
+# brewsync is now automatic via the `brew` wrapper function in ~/.config/zsh/functions/brew

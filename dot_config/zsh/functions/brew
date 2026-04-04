@@ -1,0 +1,222 @@
+# brew - wrapper that auto-syncs Brewfile.tmpl on install/uninstall
+#
+# Extra flags:
+#   --no-sync    Install/uninstall without updating Brewfile
+#
+# Extra subcommands:
+#   brew sync-status   Show packages installed but not in Brewfile, and vice versa
+#   brew sync-ignore   List/add/remove ignored packages (~/.config/homebrew/brewignore)
+
+local BREWFILE="$HOME/.local/share/chezmoi/dot_config/homebrew/Brewfile.tmpl"
+local DEPLOYED_BREWFILE="$HOME/.config/homebrew/Brewfile"
+local IGNOREFILE="$HOME/.config/homebrew/brewignore"
+
+# Check if a package is ignored
+# Usage: _brew_ignored <prefix> <pkg>
+_brew_ignored() {
+    [[ ! -f "$IGNOREFILE" ]] && return 1
+    local prefix="$1" pkg="$2"
+    # Match "cask foo" or "brew foo" or bare "foo" (matches any prefix)
+    grep -qE "^${prefix}\s+${pkg}\s*$|^${pkg}\s*$" "$IGNOREFILE" 2>/dev/null
+}
+
+case "$1" in
+    sync-status)
+        echo "\033[1mPackages installed but NOT in Brewfile:\033[0m"
+        local missing_brews=()
+        local missing_casks=()
+        while IFS= read -r pkg; do
+            _brew_ignored "brew" "$pkg" && continue
+            if ! grep -qF "brew \"$pkg\"" "$BREWFILE" 2>/dev/null; then
+                missing_brews+=("$pkg")
+            fi
+        done < <(command brew leaves)
+        while IFS= read -r pkg; do
+            _brew_ignored "cask" "$pkg" && continue
+            if ! grep -qF "cask \"$pkg\"" "$BREWFILE" 2>/dev/null; then
+                missing_casks+=("$pkg")
+            fi
+        done < <(command brew list --cask -1)
+        if [[ ${#missing_brews[@]} -gt 0 ]]; then
+            for pkg in "${missing_brews[@]}"; do echo "  brew \"$pkg\""; done
+        fi
+        if [[ ${#missing_casks[@]} -gt 0 ]]; then
+            for pkg in "${missing_casks[@]}"; do echo "  cask \"$pkg\""; done
+        fi
+        if [[ ${#missing_brews[@]} -eq 0 && ${#missing_casks[@]} -eq 0 ]]; then
+            echo "  (none)"
+        fi
+
+        echo "\n\033[1mPackages in Brewfile but NOT installed:\033[0m"
+        local not_installed=()
+        while IFS= read -r line; do
+            local pkg=$(echo "$line" | sed -n 's/^brew "\(.*\)"/\1/p')
+            [[ -z "$pkg" ]] && continue
+            _brew_ignored "brew" "$pkg" && continue
+            if ! command brew list --formula "$pkg" &>/dev/null; then
+                not_installed+=("brew \"$pkg\"")
+            fi
+        done < "$DEPLOYED_BREWFILE"
+        while IFS= read -r line; do
+            local pkg=$(echo "$line" | sed -n 's/^cask "\(.*\)"/\1/p')
+            [[ -z "$pkg" ]] && continue
+            _brew_ignored "cask" "$pkg" && continue
+            if ! command brew list --cask "$pkg" &>/dev/null; then
+                not_installed+=("cask \"$pkg\"")
+            fi
+        done < "$DEPLOYED_BREWFILE"
+        if [[ ${#not_installed[@]} -gt 0 ]]; then
+            for entry in "${not_installed[@]}"; do echo "  $entry"; done
+        else
+            echo "  (none)"
+        fi
+        return 0
+        ;;
+    sync-ignore)
+        shift
+        case "$1" in
+            ""|list)
+                if [[ -f "$IGNOREFILE" ]]; then
+                    echo "\033[1mIgnored packages:\033[0m"
+                    grep -v '^\s*#' "$IGNOREFILE" | grep -v '^\s*$' | while read -r line; do
+                        echo "  $line"
+                    done
+                else
+                    echo "(no ignore file)"
+                fi
+                ;;
+            add)
+                shift
+                [[ -z "$1" ]] && echo "Usage: brew sync-ignore add [brew|cask] <pkg>" && return 1
+                local entry="$*"
+                echo "$entry" >> "$IGNOREFILE"
+                echo "\033[32m[brewsync]\033[0m added '$entry' to brewignore"
+                ;;
+            remove)
+                shift
+                [[ -z "$1" ]] && echo "Usage: brew sync-ignore remove [brew|cask] <pkg>" && return 1
+                local entry="$*"
+                if grep -qF "$entry" "$IGNOREFILE" 2>/dev/null; then
+                    sed -i '' "\|^${entry}$|d" "$IGNOREFILE"
+                    echo "\033[33m[brewsync]\033[0m removed '$entry' from brewignore"
+                else
+                    echo "'$entry' not found in brewignore"
+                fi
+                ;;
+            *)
+                echo "Usage: brew sync-ignore [list|add|remove] ..."
+                return 1
+                ;;
+        esac
+        return 0
+        ;;
+esac
+
+# Parse --no-sync before passing to brew
+local no_sync=false
+local brew_args=()
+for arg in "$@"; do
+    case "$arg" in
+        --no-sync) no_sync=true ;;
+        *) brew_args+=("$arg") ;;
+    esac
+done
+
+# Run the real brew command (without --no-sync)
+command brew "${brew_args[@]}"
+local ret=$?
+
+[[ $ret -ne 0 ]] && return $ret
+$no_sync && return $ret
+
+local action="${brew_args[1]}"
+local rest=("${brew_args[@]:1}")
+
+case "$action" in
+    install|uninstall|remove|rmtree)
+        ;;
+    *)
+        return $ret
+        ;;
+esac
+
+# Parse flags and package names
+local is_cask=false
+local pkgs=()
+for arg in "${rest[@]}"; do
+    case "$arg" in
+        --cask) is_cask=true ;;
+        -*) ;;
+        *) pkgs+=("$arg") ;;
+    esac
+done
+
+[[ ${#pkgs[@]} -eq 0 ]] && return $ret
+
+local prefix
+if $is_cask; then
+    prefix="cask"
+else
+    prefix="brew"
+fi
+
+local changed=false
+
+for pkg in "${pkgs[@]}"; do
+    local line="$prefix \"$pkg\""
+
+    # Skip ignored packages
+    _brew_ignored "$prefix" "$pkg" && continue
+
+    if [[ "$action" == "install" ]]; then
+        if grep -qF "$line" "$BREWFILE" 2>/dev/null; then
+            continue
+        fi
+
+        if $is_cask; then
+            local marker='{{ if eq .chezmoi.username "zaid" -}}'
+            local insert_line=$(grep -n "$marker" "$BREWFILE" | tail -1 | cut -d: -f1)
+            if [[ -n "$insert_line" ]]; then
+                insert_line=$((insert_line - 1))
+            else
+                insert_line=$(grep -n '^cask ' "$BREWFILE" | tail -1 | cut -d: -f1)
+            fi
+        else
+            local insert_line=$(grep -n '^brew ' "$BREWFILE" | while IFS=: read -r num rest; do
+                local next=$(sed -n "$((num+1))p" "$BREWFILE")
+                if [[ "$next" == *'{{ if eq'* ]]; then
+                    echo "$num"
+                    break
+                fi
+                echo "$num"
+            done | tail -1)
+        fi
+
+        if [[ -n "$insert_line" ]]; then
+            sed -i '' "${insert_line}a\\
+${line}" "$BREWFILE"
+            echo "\033[32m[brewsync]\033[0m added '$line' to Brewfile.tmpl"
+            changed=true
+        fi
+
+    elif [[ "$action" == "uninstall" || "$action" == "remove" || "$action" == "rmtree" ]]; then
+        if grep -qF "$line" "$BREWFILE" 2>/dev/null; then
+            sed -i '' "\|^${line}$|d" "$BREWFILE"
+            echo "\033[33m[brewsync]\033[0m removed '$line' from Brewfile.tmpl"
+            changed=true
+        fi
+    fi
+done
+
+if $changed; then
+    (
+        cd "$HOME/.local/share/chezmoi" \
+        && chezmoi apply ~/.config/homebrew/Brewfile \
+        && git add dot_config/homebrew/Brewfile.tmpl \
+        && git commit -m "chore: update Brewfile" \
+        && git push
+    ) 2>/dev/null && echo "\033[32m[brewsync]\033[0m pushed to remote" \
+      || echo "\033[31m[brewsync]\033[0m failed to push (commit manually)"
+fi
+
+return $ret
