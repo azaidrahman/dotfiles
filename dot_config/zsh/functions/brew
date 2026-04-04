@@ -210,8 +210,7 @@ for pkg in "${pkgs[@]}"; do
         fi
 
         if [[ -n "$insert_line" ]]; then
-            sed -i '' "${insert_line}a\\
-${line}" "$BREWFILE"
+            awk -v n="$insert_line" -v text="$line" 'NR==n{print; print text; next}1' "$BREWFILE" > "${BREWFILE}.tmp" && mv "${BREWFILE}.tmp" "$BREWFILE"
             echo "\033[32m[brewsync]\033[0m added '$line' to Brewfile.tmpl"
             changed=true
         fi
