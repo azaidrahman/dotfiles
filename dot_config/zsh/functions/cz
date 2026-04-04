@@ -1,0 +1,58 @@
+# cz - chezmoi wrapper with git sync shortcut
+#
+# Extra subcommands:
+#   cz push [msg...]     Stage all, commit, and push to remote
+#                        Each argument becomes a paragraph: cz push "title" "body"
+#
+# All other commands pass through to chezmoi.
+
+case "$1" in
+    push)
+        shift
+        if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+            cat <<'HELP'
+Usage: cz push [msg...]
+
+Stage all chezmoi source changes, commit, and push to remote.
+Each argument becomes a separate paragraph in the commit message.
+
+Examples:
+  cz push                              Commit with "chore: update dotfiles"
+  cz push "feat(zsh): add cz wrapper"  Commit with custom message
+  cz push "title" "body details"       Multiline commit (title + body)
+
+If there are no changes but unpushed commits, pushes to remote.
+HELP
+            return 0
+        fi
+        local src="$HOME/.local/share/chezmoi"
+        local commit_args=()
+        if [[ $# -eq 0 ]]; then
+            commit_args=(-m "chore: update dotfiles")
+        else
+            for arg in "$@"; do
+                commit_args+=(-m "$arg")
+            done
+        fi
+
+        if ! git -C "$src" diff --quiet || ! git -C "$src" diff --cached --quiet || [[ -n "$(git -C "$src" ls-files --others --exclude-standard)" ]]; then
+            git -C "$src" add -A \
+            && git -C "$src" commit "${commit_args[@]}" \
+            && git -C "$src" push \
+            && echo "\033[32m[cz]\033[0m pushed: ${1:-chore: update dotfiles}" \
+            || { echo "\033[31m[cz]\033[0m commit/push failed"; return 1; }
+        else
+            # Nothing to commit, just push if ahead
+            if git -C "$src" status -sb | grep -q 'ahead'; then
+                git -C "$src" push \
+                && echo "\033[32m[cz]\033[0m pushed to remote" \
+                || { echo "\033[31m[cz]\033[0m push failed"; return 1; }
+            else
+                echo "\033[33m[cz]\033[0m nothing to commit or push"
+            fi
+        fi
+        ;;
+    *)
+        command chezmoi "$@"
+        ;;
+esac
