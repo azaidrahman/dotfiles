@@ -3,3 +3,6 @@
 Emoji\ Pack/
 
 .config/alfred/
+.config/borders/
+.config/mpv/
+.config/wezterm/
