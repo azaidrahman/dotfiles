@@ -21,6 +21,23 @@ _brew_ignored() {
 }
 
 case "$1" in
+    sync-help)
+        cat <<'HELP'
+brew sync extensions (auto-syncs Brewfile.tmpl via chezmoi):
+
+  brew install <pkg>           Install and add to Brewfile (auto)
+  brew uninstall <pkg>         Uninstall and remove from Brewfile (auto)
+  brew install --no-sync <pkg> Install without touching Brewfile
+  brew sync-status             Show packages out of sync with Brewfile
+  brew sync-ignore             List ignored packages
+  brew sync-ignore add <type> <pkg>    Add to ignore list (e.g. cask magicquit)
+  brew sync-ignore remove <type> <pkg> Remove from ignore list
+  brew sync-help               Show this help
+
+All other brew commands pass through unchanged.
+HELP
+        return 0
+        ;;
     sync-status)
         echo "\033[1mPackages installed but NOT in Brewfile:\033[0m"
         local missing_brews=()
