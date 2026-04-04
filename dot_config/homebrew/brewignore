@@ -3,3 +3,4 @@
 cask magicquit
 cask claude-code@latest
 cask google-drive
+cask multipass
