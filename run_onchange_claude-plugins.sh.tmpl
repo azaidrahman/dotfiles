@@ -1,0 +1,34 @@
+#!/bin/bash
+# Plugin list hash: {{ include (joinPath .chezmoi.sourceDir "dot_claude/plugins.txt") | sha256sum }}
+
+set -euo pipefail
+
+if ! command -v claude &>/dev/null; then
+  echo "claude CLI not found, skipping plugin sync"
+  exit 0
+fi
+
+PLUGIN_FILE="${HOME}/.claude/plugins.txt"
+
+if [[ ! -f "$PLUGIN_FILE" ]]; then
+  echo "No plugins.txt found, skipping"
+  exit 0
+fi
+
+echo "Syncing Claude Code plugins..."
+
+# Get currently installed plugins
+installed=$(claude plugins list 2>/dev/null | sed -n 's/.*❯ \([^ ]*\).*/\1/p')
+
+# Install each desired plugin if not already present
+while IFS= read -r plugin; do
+  [[ -z "$plugin" || "$plugin" =~ ^# ]] && continue
+  if echo "$installed" | grep -qF "$plugin"; then
+    echo "  ✓ $plugin (already installed)"
+  else
+    echo "  ↓ Installing $plugin..."
+    claude plugins install "$plugin" --scope user
+  fi
+done < "$PLUGIN_FILE"
+
+echo "Claude plugin sync complete."
