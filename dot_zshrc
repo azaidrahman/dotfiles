@@ -60,6 +60,21 @@ path=(/opt/homebrew/bin $path)
 # Zsh config change watcher
 # source "$ZSH_DIR/zsh-config-watcher.zsh"
 
+# SSH: change tmux pane background so remote sessions look different
+ssh() {
+  if [ -n "$TMUX" ]; then
+    tmux select-pane -P 'bg=#200000'
+    tmux set -p window-style 'bg=#200000'
+    tmux set -p window-active-style 'bg=#501515'
+  fi
+  command ssh "$@"
+  if [ -n "$TMUX" ]; then
+    tmux select-pane -P 'default'
+    tmux set -pu window-style
+    tmux set -pu window-active-style
+  fi
+}
+
 # Docker completion
 docker () {
     unfunction docker
