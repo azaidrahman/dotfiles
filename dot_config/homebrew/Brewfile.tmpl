@@ -12,9 +12,6 @@ tap "macos-fuse-t/cask"
 tap "nikitabobko/tap"
 tap "teamookla/speedtest"
 tap "yqrashawn/goku"
-{{ if eq .chezmoi.username "zaid" -}}
-tap "pikachuexe/freetube"
-{{ end -}}
 
 ############################################################
 # BREWS
@@ -93,7 +90,6 @@ brew "yqrashawn/goku/goku"
 brew "age"
 brew "dua-cli"
 brew "mole"
-brew "tailscale-app"
 {{ if eq .chezmoi.username "zaid" -}}
 brew "python@3.12"
 {{ end -}}
@@ -134,10 +130,8 @@ cask "mouseless"
 cask "obsidian"
 cask "orbstack"
 cask "pdf-expert"
-cask "phoenix-slides"
 cask "qdirstat"
 cask "raindropio"
-cask "sejda-pdf"
 cask "sioyek"
 cask "slack"
 cask "spotify"
@@ -161,9 +155,7 @@ cask "claude"
 cask "filen"
 cask "jdownloader"
 cask "libreoffice"
-cask "pikachuexe-freetube"
 cask "steam"
-cask "wezterm"
 cask "zen"
 cask "zoom"
 
