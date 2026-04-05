@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# Custom hostname widget with device-specific accent color (update-safe)
+
+ENABLED=$(tmux show-option -gv @tokyo-night-tmux_show_hostname 2>/dev/null)
+[[ ${ENABLED} -ne 1 ]] && exit 0
+
+if command -v scutil >/dev/null 2>&1; then
+  hostname=$(scutil --get LocalHostName)
+elif command -v hostnamectl >/dev/null 2>&1; then
+  hostname=$(hostnamectl hostname)
+elif command -v hostname >/dev/null 2>&1; then
+  hostname=$(hostname)
+else
+  hostname="unknown-host"
+fi
+
+{{ if eq .chezmoi.hostname "aqua" -}}
+ACCENT_COLOR="#000000"
+{{ else if eq .chezmoi.hostname "onyx" -}}
+ACCENT_COLOR="#FFFFFF"
+{{ else -}}
+ACCENT_COLOR="#414868"
+{{ end -}}
+
+echo "#[nodim,fg=$ACCENT_COLOR]@${hostname}"
