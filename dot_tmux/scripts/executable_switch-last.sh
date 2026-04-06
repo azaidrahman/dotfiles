@@ -9,13 +9,13 @@ if [ -z "$LAST" ]; then
     exit 0
 fi
 
-# Verify the window still exists
-if ! tmux display -t "$LAST" -p '#{window_id}' >/dev/null 2>&1; then
+# Verify the window still exists (exact match, not fuzzy)
+if ! tmux list-windows -a -F '#{session_name}:#{window_index}' | grep -qx "$LAST"; then
     tmux switch-client -l
     exit 0
 fi
 
-TARGET_SESSION=$(tmux display -t "$LAST" -p '#{session_name}')
+TARGET_SESSION="${LAST%%:*}"
 CURRENT_SESSION=$(tmux display -p '#{session_name}')
 
 if [ "$TARGET_SESSION" != "$CURRENT_SESSION" ]; then
