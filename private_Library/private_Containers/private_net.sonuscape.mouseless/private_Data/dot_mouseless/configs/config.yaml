@@ -1,8 +1,8 @@
 app_version: 0.4.3
 behavior_configs:
-- base_move_speed: 5.0
+- base_move_speed: 10
   base_wheel_speed: 15.0
-  free_mode_auto_off_s: 30
+  free_mode_auto_off_s: 40
   grid_action_level: subgrid
   hide_cursor_on_click: false
   hide_location: bottom_left
@@ -17,7 +17,7 @@ behavior_configs:
   send_escape_after_global_alt_tap__windows: true
   tap_threshold_ms: 200
   wheel_easing: 0.3
-  wheel_speed_multiplier: 5.0
+  wheel_speed_multiplier: 5
   wheel_step_size: 80.0
   wheel_step_size_large: 250.0
 classname: AppConfig
@@ -355,10 +355,10 @@ style_configs:
   - 1.0
   - 0.2
   background_rgba:
-  - 0
-  - 0
-  - 0
-  - 0.4
+  - 0.9215686274509803
+  - 0.7607843137254902
+  - 0.4235294117647059
+  - 0.35
   char_spacing_cell_width_ratio: 0.5
   char_spacing_font_size_ratio: 0.5
   char_spacing_strategy: cell_width_relative
@@ -390,7 +390,7 @@ style_configs:
   cursor_size: 7
   font_family: '[Apple System Font]'
   font_size_multiplier: 0.4
-  font_weight: 500
+  font_weight: 200
   grid_line_style: dots
   grid_rgba:
   - 1.0
@@ -399,9 +399,9 @@ style_configs:
   - 0.5
   highlight_animation_ms: 150
   highlight_rgba:
-  - 0.77
-  - 0.44
-  - 0.15
+  - 0.996078431372549
+  - 0.6078431372549019
+  - 0.5764705882352941
   - 0.6
   name: default
   show_initial_highlight: false
@@ -412,23 +412,23 @@ style_configs:
   - 1.0
   - 0.5
   subgrid_text_rgba:
-  - 1.0
-  - 1.0
-  - 1.0
+  - 0.03529411764705882
+  - 0.03529411764705882
+  - 0.03529411764705882
   - 0.5
   text_rgba:
-  - 0.996078431372549
-  - 0.996078431372549
-  - 0.996078431372549
-  - 1.0
-  text_shadow_blur_radius: 5
+  - 0.00784313725490196
+  - 0.00784313725490196
+  - 0.00784313725490196
+  - 1
+  text_shadow_blur_radius: 2
   text_shadow_offset:
-  - 0.0
-  - 0.0
+  - 2
+  - 2
   text_shadow_rgba:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
+  - 0.996078431372549
+  - 0.996078431372549
+  - 0.996078431372549
+  - 1
   text_y_offset: 0.0
   window_opacity: 0.9

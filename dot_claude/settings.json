@@ -1,4 +1,21 @@
 {
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(fd *)",
+      "Bash(grep *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(ls *)",
+      "WebSearch",
+      "WebFetch"
+    ]
+  },
   "hooks": {
     "Notification": [
       {
@@ -110,21 +127,5 @@
   },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
-  "permissions": {
-    "allow": [
-      "Read",
-      "Grep",
-      "Glob",
-      "Bash(rg *)",
-      "Bash(find *)",
-      "Bash(fd *)",
-      "Bash(grep *)",
-      "Bash(cat *)",
-      "Bash(head *)",
-      "Bash(tail *)",
-      "Bash(ls *)",
-      "WebSearch",
-      "WebFetch"
-    ]
-  }
+  "model": "sonnet"
 }
