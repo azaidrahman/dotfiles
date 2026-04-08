@@ -1,18 +1,19 @@
   ;; ── Shortcut Layer 1 (Left Shift + Right Option + key) ──────────────
   ;; !S in from consumes the held left_shift so outputs are clean.
-  ;; Trigger keys map to F15–F20 × {bare, ctrl, cmd, opt, ctrl+cmd,
+  ;; Trigger keys map to F13, F16–F20 × {bare, ctrl, cmd, opt, ctrl+cmd,
   ;; ctrl+opt, cmd+opt, ctrl+cmd+opt} = 48 slots.
+  ;; (F14=brightness-down, F15=brightness-up — both avoided)
   {:des "Shortcut Layer 1 (Shift+RightOpt)"
    :rules
-   [;; ─── F15 ───
-    [:!Sa   :f15           :shortcut-l1]   ;; a → F15
-    [:!Sb   :!Tf15         :shortcut-l1]   ;; b → ctrl+F15
-    [:!Sc   :!Cf15         :shortcut-l1]   ;; c → cmd+F15
-    [:!Sd   :!Of15         :shortcut-l1]   ;; d → opt+F15
-    [:!Se   :!CTf15        :shortcut-l1]   ;; e → ctrl+cmd+F15
-    [:!Sf   :!TOf15        :shortcut-l1]   ;; f → ctrl+opt+F15
-    [:!Sg   :!COf15        :shortcut-l1]   ;; g → cmd+opt+F15
-    [:!Sh   :!CTOf15       :shortcut-l1]   ;; h → ctrl+cmd+opt+F15
+   [;; ─── F13 ───
+    [:!Sa   :f13           :shortcut-l1]   ;; a → F13
+    [:!Sb   :!Tf13         :shortcut-l1]   ;; b → ctrl+F13
+    [:!Sc   :!Cf13         :shortcut-l1]   ;; c → cmd+F13
+    [:!Sd   :!Of13         :shortcut-l1]   ;; d → opt+F13
+    [:!Se   :!CTf13        :shortcut-l1]   ;; e → ctrl+cmd+F13
+    [:!Sf   :!TOf13        :shortcut-l1]   ;; f → ctrl+opt+F13
+    [:!Sg   :!COf13        :shortcut-l1]   ;; g → cmd+opt+F13
+    [:!Sh   :!CTOf13       :shortcut-l1]   ;; h → ctrl+cmd+opt+F13
 
     ;; ─── F16 ───
     [:!Si   :f16           :shortcut-l1]   ;; i → F16
@@ -70,15 +71,15 @@
   ;; Outputs mirror Layer 1 but with shift added.
   {:des "Shortcut Layer 2 (Ctrl+RightOpt)"
    :rules
-   [;; ─── F15 ───
-    [:!Ta   :!Sf15         :shortcut-l2]   ;; a → shift+F15
-    [:!Tb   :!TSf15        :shortcut-l2]   ;; b → ctrl+shift+F15
-    [:!Tc   :!CSf15        :shortcut-l2]   ;; c → cmd+shift+F15
-    [:!Td   :!OSf15        :shortcut-l2]   ;; d → opt+shift+F15
-    [:!Te   :!CTSf15       :shortcut-l2]   ;; e → ctrl+cmd+shift+F15
-    [:!Tf   :!TOSf15       :shortcut-l2]   ;; f → ctrl+opt+shift+F15
-    [:!Tg   :!COSf15       :shortcut-l2]   ;; g → cmd+opt+shift+F15
-    [:!Th   :!CTOSf15      :shortcut-l2]   ;; h → ctrl+cmd+opt+shift+F15
+   [;; ─── F13 ───
+    [:!Ta   :!Sf13         :shortcut-l2]   ;; a → shift+F13
+    [:!Tb   :!TSf13        :shortcut-l2]   ;; b → ctrl+shift+F13
+    [:!Tc   :!CSf13        :shortcut-l2]   ;; c → cmd+shift+F13
+    [:!Td   :!OSf13        :shortcut-l2]   ;; d → opt+shift+F13
+    [:!Te   :!CTSf13       :shortcut-l2]   ;; e → ctrl+cmd+shift+F13
+    [:!Tf   :!TOSf13       :shortcut-l2]   ;; f → ctrl+opt+shift+F13
+    [:!Tg   :!COSf13       :shortcut-l2]   ;; g → cmd+opt+shift+F13
+    [:!Th   :!CTOSf13      :shortcut-l2]   ;; h → ctrl+cmd+opt+shift+F13
 
     ;; ─── F16 ───
     [:!Ti   :!Sf16         :shortcut-l2]   ;; i → shift+F16

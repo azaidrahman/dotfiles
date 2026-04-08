@@ -32,20 +32,19 @@
              :aero          "/opt/homebrew/bin/aerospace %s"
              :show-time     "~/.config/karabiner/scripts/show-time.sh"
              :hide-time     "killall time-hud 2>/dev/null"
-             ; :cycle-or-open "~/.config/karabiner/scripts/cycle-or-open.sh '%s'"
             }
 
-;; BEGIN HELP-TEXT (auto-generated from scripts/help-text.yaml)
+;; BEGIN HELP-TEXT (auto-generated from config/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:messages, e:obsidian\nr:arc, t:ghostty, T:quickT, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, a:claude, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
+                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, T:quickT, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, a:claude, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 1:ws1/→ws1, =:+size, 8:vacc, 2:ws2/→ws2, -:-size, 0:tile, 9:hacc"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 8:vacc, 0:tile, 1:ws1/→ws1, =:+size, 9:hacc, 2:ws2/→ws2, -:-size"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
-                             :text "o:1p, p:dot, s:cleanshotx, l:todoist"}}
+                             :text "o:1p, p:dot, s:cleanshotx, l:todoist, c:claude"}}
        :clear-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
                               :text ""}}
        :show-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
@@ -53,11 +52,11 @@
        :clear-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
                               :text ""}}
        :show-l3-help {:noti {:id "org.pqrs.notificaion_message_layer3"
-                             :text "[:prev-space, ]:next-space"}}
+                             :text "[:b prev-space, ]:b next-space"}}
        :clear-l3-help {:noti {:id "org.pqrs.notificaion_message_layer3"
                               :text ""}}
        :show-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"
-                                :text "h:←, j:↓, k:↑, l:→\nu:home, p:end, x:⌫, f:expose\n⇧h:prevTab, ⇧j:nextApp, ⇧k:prevApp, ⇧l:nextTab, ⇧x:fwd⌦\n⌘h:sel←, ⌘j:sel↓, ⌘k:sel↑, ⌘l:sel→, ⌘u:selHome, ⌘p:selEnd\n⌥h:word←, ⌥l:word→\n⌥⌘h:selWord←, ⌥⌘l:selWord→, ⌥⌘j:sel3↓, ⌥⌘k:sel3↑\n⌃j:appExpose\nspc:lang, ⌘spc:emoji, esc:capslock"}}
+                                :text "h:← ⇧prevTab ⌘sel ⌥word ⌥⌘selWord\nj:↓ ⇧nextApp ⌘sel ⌥⌘sel3 ⌃expose\nk:↑ ⇧prevApp ⌘sel ⌥⌘sel3\nl:→ ⇧nextTab ⌘sel ⌥word ⌥⌘selWord\nu:home ⌘sel\np:end ⌘sel\nx:⌫ ⇧⌦\nf:expose\nc:alfred clip\n-:alfred arc bookmarks\n=:alfred arc opentabs\n\\:alfred pin bookmarks\n⌘spa:emoji  esc:caps"}}
        :clear-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"
                                  :text ""}}
 }
@@ -70,6 +69,8 @@
     [:!Sright_option [["shortcut-l1" 1]] nil {:afterup [["shortcut-l1" 0]]}]
     ;; Layer 2 trigger: Left Control + Right Option
     [:!Tright_option [["shortcut-l2" 1]] nil {:afterup [["shortcut-l2" 0]]}]
+    ;; Layer 3 trigger: Left Command + Right Option
+    [:!Cright_option [["shortcut-l3" 1]] nil {:afterup [["shortcut-l3" 0]]}]
 
     ;; Left option hold → workspace layer (option modifier still sent)
     [:left_option :left_option nil {:afterup [:clear-ws-help]}]
@@ -81,11 +82,12 @@
 
     ;; / = show help overlay (hold to view, release to dismiss)
     [:slash :show-app-help :app-launch {:afterup :clear-app-help}]
-    [:slash :show-l1-help :shortcut-l1 {:afterup :clear-l1-help}]
-    [:slash :show-l2-help :shortcut-l2 {:afterup :clear-l2-help}]
+    [:!Sslash :show-l1-help :shortcut-l1 {:afterup :clear-l1-help}]
+    [:!Tslash :show-l2-help :shortcut-l2 {:afterup :clear-l2-help}]
+    [:!Cslash :show-l3-help :shortcut-l3 {:afterup :clear-l3-help}]
     [:!Oslash :show-ws-help nil {:afterup :clear-ws-help}]
 
-;; BEGIN APP-RULES (auto-generated from scripts/help-text.yaml)
+;; BEGIN APP-RULES (auto-generated from config/help-text.yaml)
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]              :app-launch]
     [:!St :!TOSf12                        :app-launch]
@@ -118,49 +120,67 @@
 ;; END APP-RULES
    ]
   }
+;; BEGIN HYPER-RULES (auto-generated from config/hyperkeys.yaml)
   {:des "Hyper Navigation"
    :rules
-   [;; h = left
-    [:!QWERh      :left_arrow]                                      ;; left
-    [:!CQWERh     :!Sleft_arrow]                                    ;; +cmd → select char left
-    [:!OCQWERh    :!OSleft_arrow]                                   ;; +opt+cmd → select word left
-    [:!SQWERh     :!TStab]                                          ;; +shift → prev tab
-    [:!OQWERh     :!Oleft_arrow]                                    ;; +opt → word left
+   [;; h
+    [:!QWERh           :left_arrow]  ;; ←
+    [:!SQWERh          :!TStab]  ;; prevTab
+    [:!CQWERh          :!Sleft_arrow]  ;; sel
+    [:!OQWERh          :!Oleft_arrow]  ;; word
+    [:!OCQWERh         :!OSleft_arrow]  ;; selWord
 
-    ;; j = down
-    [:!QWERj      :down_arrow]                                      ;; down
-    [:!CQWERj     :!Sdown_arrow]                                    ;; +cmd → select line down
-    [:!OCQWERj    [:!Sdown_arrow :!Sdown_arrow :!Sdown_arrow]]      ;; +opt+cmd → select 3 lines
-    [:!SQWERj     :!Ctab]                                           ;; +shift → next app
-    [:!TQWERj     :!Tdown_arrow]                                    ;; +ctrl → app expose
+    ;; j
+    [:!QWERj           :down_arrow]  ;; ↓
+    [:!SQWERj          :!Ctab]  ;; nextApp
+    [:!CQWERj          :!Sdown_arrow]  ;; sel
+    [:!OCQWERj         [:!Sdown_arrow :!Sdown_arrow :!Sdown_arrow]]  ;; sel3
+    [:!TQWERj          :!Tdown_arrow]  ;; expose
 
-    ;; k = up
-    [:!QWERk      :up_arrow]                                        ;; up
-    [:!CQWERk     :!Sup_arrow]                                      ;; +cmd → select line up
-    [:!OCQWERk    [:!Sup_arrow :!Sup_arrow :!Sup_arrow]]            ;; +opt+cmd → select 3 lines
-    [:!SQWERk     :!CStab]                                          ;; +shift → prev app
-    ;; m = mission control
-    [:!QWERf     :!Tup_arrow]                                      ;; +ctrl → mission control
+    ;; k
+    [:!QWERk           :up_arrow]  ;; ↑
+    [:!SQWERk          :!CStab]  ;; prevApp
+    [:!CQWERk          :!Sup_arrow]  ;; sel
+    [:!OCQWERk         [:!Sup_arrow :!Sup_arrow :!Sup_arrow]]  ;; sel3
 
-    ;; l = right
-    [:!QWERl      :right_arrow]                                     ;; right
-    [:!CQWERl     :!Sright_arrow]                                   ;; +cmd → select char right
-    [:!OCQWERl    :!OSright_arrow]                                   ;; +opt+cmd → select word right
-    [:!SQWERl     :!Ttab]                                           ;; +shift → next tab
-    [:!OQWERl     :!Oright_arrow]                                   ;; +opt → word right
+    ;; l
+    [:!QWERl           :right_arrow]  ;; →
+    [:!SQWERl          :!Ttab]  ;; nextTab
+    [:!CQWERl          :!Sright_arrow]  ;; sel
+    [:!OQWERl          :!Oright_arrow]  ;; word
+    [:!OCQWERl         :!OSright_arrow]  ;; selWord
 
-    ;; u = home, p = end
-    [:!QWERu      :!Cleft_arrow]                                    ;; home
-    [:!CQWERu     :!CSleft_arrow]                                   ;; +cmd → select to home
-    [:!QWERp      :!Cright_arrow]                                   ;; end
-    [:!CQWERp     :!CSright_arrow]                                  ;; +cmd → select to end
+    ;; u
+    [:!QWERu           :!Cleft_arrow]  ;; home
+    [:!CQWERu          :!CSleft_arrow]  ;; sel
 
-    ;; x = delete
-    [:!QWERx      :delete_or_backspace]                             ;; backspace
-    [:!SQWERx     :delete_forward]                                  ;; +shift → forward delete
+    ;; p
+    [:!QWERp           :!Cright_arrow]  ;; end
+    [:!CQWERp          :!CSright_arrow]  ;; sel
 
-    ;; ? (shift+/) = show hyper help (hold to view, release to dismiss)
-    [:!QWERslash :show-hyper-help nil {:afterup :clear-hyper-help}]]}
+    ;; x
+    [:!QWERx           :delete_or_backspace]  ;; ⌫
+    [:!SQWERx          :delete_forward]  ;; ⌦
+
+    ;; f
+    [:!QWERf           :!Tup_arrow]  ;; expose
+
+    ;; c
+    [:!QWERc           :!CTOSc]  ;; alfred clip
+
+    ;; -
+    [:!QWERhyphen      :!CTOShyphen]  ;; alfred arc bookmarks
+
+    ;; =
+    [:!QWERequal_sign  :!CTOSequal_sign]  ;; alfred arc opentabs
+
+    ;; \
+    [:!QWERbackslash   :!CTOSbackslash]  ;; alfred pin bookmarks
+
+    ;; / = show hyper help (hold to view, release to dismiss)
+    [:!QWERslash :show-hyper-help nil {:afterup :clear-hyper-help}]
+   ]}
+;; END HYPER-RULES
 
   {:des "CapsLock to Hyper"
    :rules
@@ -189,7 +209,7 @@
   ;  [[:##left_command :left_control :ghostty-utm {:alone :left_command}]
   ;   [:##left_control :left_command :ghostty-utm {:alone :left_control}]]}
 
-;; BEGIN WORKSPACE-RULES (auto-generated from scripts/help-text.yaml)
+;; BEGIN WORKSPACE-RULES (auto-generated from config/help-text.yaml)
   {:des "Workspace shortcuts (Left Option)"
    :rules
    [;; opt+key
@@ -227,19 +247,20 @@
 
   ;; ── Shortcut Layer 1 (Left Shift + Right Option + key) ──────────────
   ;; !S in from consumes the held left_shift so outputs are clean.
-  ;; Trigger keys map to F15–F20 × {bare, ctrl, cmd, opt, ctrl+cmd,
+  ;; Trigger keys map to F13, F16–F20 × {bare, ctrl, cmd, opt, ctrl+cmd,
   ;; ctrl+opt, cmd+opt, ctrl+cmd+opt} = 48 slots.
+  ;; (F14=brightness-down, F15=brightness-up — both avoided)
   {:des "Shortcut Layer 1 (Shift+RightOpt)"
    :rules
-   [;; ─── F15 ───
-    [:!Sa   :f15           :shortcut-l1]   ;; a → F15
-    [:!Sb   :!Tf15         :shortcut-l1]   ;; b → ctrl+F15
-    [:!Sc   :!Cf15         :shortcut-l1]   ;; c → cmd+F15
-    [:!Sd   :!Of15         :shortcut-l1]   ;; d → opt+F15
-    [:!Se   :!CTf15        :shortcut-l1]   ;; e → ctrl+cmd+F15
-    [:!Sf   :!TOf15        :shortcut-l1]   ;; f → ctrl+opt+F15
-    [:!Sg   :!COf15        :shortcut-l1]   ;; g → cmd+opt+F15
-    [:!Sh   :!CTOf15       :shortcut-l1]   ;; h → ctrl+cmd+opt+F15
+   [;; ─── F13 ───
+    [:!Sa   :f13           :shortcut-l1]   ;; a → F13
+    [:!Sb   :!Tf13         :shortcut-l1]   ;; b → ctrl+F13
+    [:!Sc   :!Cf13         :shortcut-l1]   ;; c → cmd+F13
+    [:!Sd   :!Of13         :shortcut-l1]   ;; d → opt+F13
+    [:!Se   :!CTf13        :shortcut-l1]   ;; e → ctrl+cmd+F13
+    [:!Sf   :!TOf13        :shortcut-l1]   ;; f → ctrl+opt+F13
+    [:!Sg   :!COf13        :shortcut-l1]   ;; g → cmd+opt+F13
+    [:!Sh   :!CTOf13       :shortcut-l1]   ;; h → ctrl+cmd+opt+F13
 
     ;; ─── F16 ───
     [:!Si   :f16           :shortcut-l1]   ;; i → F16
@@ -297,15 +318,15 @@
   ;; Outputs mirror Layer 1 but with shift added.
   {:des "Shortcut Layer 2 (Ctrl+RightOpt)"
    :rules
-   [;; ─── F15 ───
-    [:!Ta   :!Sf15         :shortcut-l2]   ;; a → shift+F15
-    [:!Tb   :!TSf15        :shortcut-l2]   ;; b → ctrl+shift+F15
-    [:!Tc   :!CSf15        :shortcut-l2]   ;; c → cmd+shift+F15
-    [:!Td   :!OSf15        :shortcut-l2]   ;; d → opt+shift+F15
-    [:!Te   :!CTSf15       :shortcut-l2]   ;; e → ctrl+cmd+shift+F15
-    [:!Tf   :!TOSf15       :shortcut-l2]   ;; f → ctrl+opt+shift+F15
-    [:!Tg   :!COSf15       :shortcut-l2]   ;; g → cmd+opt+shift+F15
-    [:!Th   :!CTOSf15      :shortcut-l2]   ;; h → ctrl+cmd+opt+shift+F15
+   [;; ─── F13 ───
+    [:!Ta   :!Sf13         :shortcut-l2]   ;; a → shift+F13
+    [:!Tb   :!TSf13        :shortcut-l2]   ;; b → ctrl+shift+F13
+    [:!Tc   :!CSf13        :shortcut-l2]   ;; c → cmd+shift+F13
+    [:!Td   :!OSf13        :shortcut-l2]   ;; d → opt+shift+F13
+    [:!Te   :!CTSf13       :shortcut-l2]   ;; e → ctrl+cmd+shift+F13
+    [:!Tf   :!TOSf13       :shortcut-l2]   ;; f → ctrl+opt+shift+F13
+    [:!Tg   :!COSf13       :shortcut-l2]   ;; g → cmd+opt+shift+F13
+    [:!Th   :!CTOSf13      :shortcut-l2]   ;; h → ctrl+cmd+opt+shift+F13
 
     ;; ─── F16 ───
     [:!Ti   :!Sf16         :shortcut-l2]   ;; i → shift+F16
