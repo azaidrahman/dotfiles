@@ -1,0 +1,27 @@
+# Shortcut layer definitions
+# Format: key | label | description
+#
+# F-key combos are auto-assigned by position — adding new entries
+# does NOT reshuffle existing assignments.  To see the mapping,
+# run generate-help.py and check the printed table.
+#
+# Layer triggers (defined in karabiner.edn):
+#   l1: Left Shift  + Right Option
+#   l2: Left Ctrl   + Right Option
+#   l3: Left Command + Right Option
+
+l1:
+  - o | 1p | 1Password quick access
+  - p | dot | chezmoi dotfiles
+  - s | cleanshotx | CleanShot X capture
+  - l | todoist | Todoist quick add
+
+l2:
+  - o | 1p | 1Password (alt)
+  - p | dot | chezmoi dotfiles (alt)
+  - s | cleanshotx | CleanShot X (alt)
+  - l | todoist | Todoist (alt)
+
+l3:
+  - [ | prev-space | Browser previous space
+  - ] | next-space | Browser next space
