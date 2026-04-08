@@ -1,0 +1,97 @@
+# Hyper Navigation (CapsLock held)
+# Declarative: generates both EDN rules and help overlay.
+#
+# Format:
+#   key:
+#     -: action              # help label (base hyper+key)
+#     modifier: action       # help label (+modifier variant)
+#
+# Modifiers: shift, cmd, opt, ctrl, opt+cmd, ctrl+shift
+# Actions: goku key code, or ["seq", "of", "keys"] for sequences
+# The # comment after each action becomes the help overlay label.
+
+# !  | means mandatory
+# #  | means optional
+# C  | left_command
+# T  | left_control
+# O  | left_option
+# S  | left_shift
+# F  | fn
+# Q  | right_command
+# W  | right_control
+# E  | right_option
+# R  | right_shift
+# P  | caps_lock
+# !! | mandatory command + control + optional + shift (hyper)
+# ## | optional any
+
+# Special key names (use these instead of the symbol):
+#   -  → hyphen        =  → equal_sign     [  → open_bracket
+#   ]  → close_bracket ;  → semicolon      '  → quote
+#   ,  → comma         .  → period         /  → slash
+#   \  → backslash     `  → grave_accent_and_tilde
+#   space → spacebar
+#
+# "misc" section: keys handled in CapsLock-to-Hyper (not Hyper Navigation)
+
+hyper:
+  h:
+    -: left_arrow # ←
+    shift: "!TStab" # prevTab
+    cmd: "!Sleft_arrow" # sel
+    opt: "!Oleft_arrow" # word
+    opt+cmd: "!OSleft_arrow" # selWord
+
+  j:
+    -: down_arrow # ↓
+    shift: "!Ctab" # nextApp
+    cmd: "!Sdown_arrow" # sel
+    opt+cmd: ["!Sdown_arrow", "!Sdown_arrow", "!Sdown_arrow"] # sel3
+    ctrl: "!Tdown_arrow" # expose
+
+  k:
+    -: up_arrow # ↑
+    shift: "!CStab" # prevApp
+    cmd: "!Sup_arrow" # sel
+    opt+cmd: ["!Sup_arrow", "!Sup_arrow", "!Sup_arrow"] # sel3
+
+  l:
+    -: right_arrow # →
+    shift: "!Ttab" # nextTab
+    cmd: "!Sright_arrow" # sel
+    opt: "!Oright_arrow" # word
+    opt+cmd: "!OSright_arrow" # selWord
+
+  u:
+    -: "!Cleft_arrow" # home
+    cmd: "!CSleft_arrow" # sel
+
+  p:
+    -: "!Cright_arrow" # end
+    cmd: "!CSright_arrow" # sel
+
+  x:
+    -: delete_or_backspace # ⌫
+    shift: delete_forward # ⌦
+
+  f:
+    -: "!Tup_arrow" # expose
+
+  c:
+    -: "!CTOSc" # alfred clip
+
+  -:
+    -: "!CTOShyphen" # alfred arc bookmarks
+
+  =:
+    -: "!CTOSequal_sign" # alfred arc opentabs
+
+  \:
+    -: "!CTOSbackslash" # alfred pin bookmarks
+
+misc:
+  spacebar:
+    cmd: "!TCspacebar" # emoji
+
+  escape:
+    -: "!Tcaps_lock" # caps
