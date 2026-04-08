@@ -32,10 +32,9 @@
              :aero          "/opt/homebrew/bin/aerospace %s"
              :show-time     "~/.config/karabiner/scripts/show-time.sh"
              :hide-time     "killall time-hud 2>/dev/null"
-             ; :cycle-or-open "~/.config/karabiner/scripts/cycle-or-open.sh '%s'"
             }
 
-;; BEGIN HELP-TEXT (auto-generated from scripts/help-text.yaml)
+;; BEGIN HELP-TEXT (auto-generated from config/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                               :text ""}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
@@ -62,6 +61,8 @@
     [:!Sright_option [["shortcut-l1" 1]] nil {:afterup [["shortcut-l1" 0]]}]
     ;; Layer 2 trigger: Left Control + Right Option
     [:!Tright_option [["shortcut-l2" 1]] nil {:afterup [["shortcut-l2" 0]]}]
+    ;; Layer 3 trigger: Left Command + Right Option
+    [:!Cright_option [["shortcut-l3" 1]] nil {:afterup [["shortcut-l3" 0]]}]
 
     ;; Left option hold → workspace layer (option modifier still sent)
     [:left_option :left_option nil {:afterup [:clear-ws-help]}]
@@ -73,8 +74,9 @@
 
     ;; / = show help overlay (hold to view, release to dismiss)
     [:slash :show-app-help :app-launch {:afterup :clear-app-help}]
-    [:slash :show-l1-help :shortcut-l1 {:afterup :clear-l1-help}]
-    [:slash :show-l2-help :shortcut-l2 {:afterup :clear-l2-help}]
+    [:!Sslash :show-l1-help :shortcut-l1 {:afterup :clear-l1-help}]
+    [:!Tslash :show-l2-help :shortcut-l2 {:afterup :clear-l2-help}]
+    [:!Cslash :show-l3-help :shortcut-l3 {:afterup :clear-l3-help}]
     [:!Oslash :show-ws-help nil {:afterup :clear-ws-help}]
 
 ;; BEGIN APP-RULES (auto-generated from scripts/help-text.yaml)
@@ -109,49 +111,8 @@
 ;; END APP-RULES
    ]
   }
-  {:des "Hyper Navigation"
-   :rules
-   [;; h = left
-    [:!QWERh      :left_arrow]                                      ;; left
-    [:!CQWERh     :!Sleft_arrow]                                    ;; +cmd → select char left
-    [:!OCQWERh    :!OSleft_arrow]                                   ;; +opt+cmd → select word left
-    [:!SQWERh     :!TStab]                                          ;; +shift → prev tab
-    [:!OQWERh     :!Oleft_arrow]                                    ;; +opt → word left
-
-    ;; j = down
-    [:!QWERj      :down_arrow]                                      ;; down
-    [:!CQWERj     :!Sdown_arrow]                                    ;; +cmd → select line down
-    [:!OCQWERj    [:!Sdown_arrow :!Sdown_arrow :!Sdown_arrow]]      ;; +opt+cmd → select 3 lines
-    [:!SQWERj     :!Ctab]                                           ;; +shift → next app
-    [:!TQWERj     :!Tdown_arrow]                                    ;; +ctrl → app expose
-
-    ;; k = up
-    [:!QWERk      :up_arrow]                                        ;; up
-    [:!CQWERk     :!Sup_arrow]                                      ;; +cmd → select line up
-    [:!OCQWERk    [:!Sup_arrow :!Sup_arrow :!Sup_arrow]]            ;; +opt+cmd → select 3 lines
-    [:!SQWERk     :!CStab]                                          ;; +shift → prev app
-    ;; m = mission control
-    [:!QWERf     :!Tup_arrow]                                      ;; +ctrl → mission control
-
-    ;; l = right
-    [:!QWERl      :right_arrow]                                     ;; right
-    [:!CQWERl     :!Sright_arrow]                                   ;; +cmd → select char right
-    [:!OCQWERl    :!OSright_arrow]                                   ;; +opt+cmd → select word right
-    [:!SQWERl     :!Ttab]                                           ;; +shift → next tab
-    [:!OQWERl     :!Oright_arrow]                                   ;; +opt → word right
-
-    ;; u = home, p = end
-    [:!QWERu      :!Cleft_arrow]                                    ;; home
-    [:!CQWERu     :!CSleft_arrow]                                   ;; +cmd → select to home
-    [:!QWERp      :!Cright_arrow]                                   ;; end
-    [:!CQWERp     :!CSright_arrow]                                  ;; +cmd → select to end
-
-    ;; x = delete
-    [:!QWERx      :delete_or_backspace]                             ;; backspace
-    [:!SQWERx     :delete_forward]                                  ;; +shift → forward delete
-
-    ;; ? (shift+/) = show hyper help (hold to view, release to dismiss)
-    [:!QWERslash :show-hyper-help nil {:afterup :clear-hyper-help}]]}
+;; BEGIN HYPER-RULES (auto-generated from config/hyperkeys.yaml)
+;; END HYPER-RULES
 
   {:des "CapsLock to Hyper"
    :rules

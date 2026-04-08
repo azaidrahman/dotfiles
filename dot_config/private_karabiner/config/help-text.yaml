@@ -36,7 +36,6 @@ app:
   - w | WA | Whatsapp
   - W | messages | Messages
   - e | obsidian | Obsidian
-  # - E | todoist | Todoist
   - r | arc | Arc
   - t | ghostty | Ghostty
   - T | quickT | !TOSf12
