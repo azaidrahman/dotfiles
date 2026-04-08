@@ -1,6 +1,6 @@
 app_version: 0.4.3
 behavior_configs:
-- base_move_speed: 10
+- base_move_speed: 10.0
   base_wheel_speed: 15.0
   free_mode_auto_off_s: 40
   grid_action_level: subgrid
@@ -17,7 +17,7 @@ behavior_configs:
   send_escape_after_global_alt_tap__windows: true
   tap_threshold_ms: 200
   wheel_easing: 0.3
-  wheel_speed_multiplier: 5
+  wheel_speed_multiplier: 5.0
   wheel_step_size: 80.0
   wheel_step_size_large: 250.0
 classname: AppConfig
@@ -326,7 +326,7 @@ keymaps:
     toggle continuous mode: null
     toggle continuous mode until closed: null
     toggle free mode: OptionLeft tap
-    toggle overlay: CmdLeft tap
+    toggle overlay: CmdLeft double tap
     toggle overlay lock: null
     undo last key: Backspace
     wheel down: i
@@ -420,15 +420,15 @@ style_configs:
   - 0.996078431372549
   - 0.996078431372549
   - 0.996078431372549
-  - 1
-  text_shadow_blur_radius: 3
+  - 1.0
+  text_shadow_blur_radius: 3.0
   text_shadow_offset:
-  - 1
-  - 1
+  - 1.0
+  - 1.0
   text_shadow_rgba:
   - 0.00392156862745098
   - 0.00392156862745098
   - 0.00392156862745098
-  - 1
+  - 1.0
   text_y_offset: 0.0
   window_opacity: 0.9

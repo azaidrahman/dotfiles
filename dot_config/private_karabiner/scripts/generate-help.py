@@ -130,6 +130,38 @@ def parse_yaml(path):
     return sections
 
 
+def parse_yaml_grouped(path):
+    """Like parse_yaml but comments within a section start a new group.
+
+    Returns {section: [[group1], [group2], ...]}
+    """
+    sections = {}
+    current = None
+    group = []
+    with open(path) as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if re.match(r'^[a-z][\w-]*:\s*$', stripped):
+                if current and group:
+                    sections.setdefault(current, []).append(group)
+                current = stripped.rstrip(': ')
+                group = []
+                continue
+            if stripped.startswith('#'):
+                if current and group:
+                    sections.setdefault(current, []).append(group)
+                    group = []
+                continue
+            if current and stripped.startswith('- '):
+                val = stripped[2:].strip()
+                group.append(val)
+    if current and group:
+        sections.setdefault(current, []).append(group)
+    return sections
+
+
 def parse_entry(entry):
     """Parse 'key | label | extra' or 'key | label'."""
     parts = [p.strip() for p in entry.split('|')]
@@ -146,6 +178,28 @@ def help_text(entries):
         items.append((key, f"{key}:{label}"))
     items.sort(key=lambda x: qwerty_pos(x[0]))
     return ', '.join(t for _, t in items)
+
+
+def help_text_grouped(groups, sort=True):
+    """Format groups of entries as newline-separated sections.
+
+    Each group is comma-separated internally. Groups are joined by \\n.
+    If only one group, falls back to plain comma-separated (no newlines).
+    """
+    lines = []
+    for group in groups:
+        items = []
+        for entry in group:
+            # Support both "key:label" (hyperkeys) and "key | label" (others)
+            if '|' in entry:
+                key, label, _ = parse_entry(entry)
+                items.append((key, f"{key}:{label}"))
+            else:
+                items.append((entry[0] if entry else '', entry))
+        if sort:
+            items.sort(key=lambda x: qwerty_pos(x[0]))
+        lines.append(', '.join(t for _, t in items))
+    return '\\n'.join(lines)
 
 
 # -- App-launch rules ---------------------------------------------------------
@@ -355,18 +409,22 @@ def generate_workspace_rules(ws_entries, ws_shift_entries):
 dir_path = sys.argv[1]
 yaml_path = os.path.join(dir_path, 'scripts', 'help-text.yaml')
 shortcuts_path = os.path.join(dir_path, 'scripts', 'shortcuts.yaml')
+hyperkeys_path = os.path.join(dir_path, 'scripts', 'hyperkeys.yaml')
 pool_path = os.path.join(dir_path, 'scripts', 'fkey-pool.json')
 edn_path = os.path.join(dir_path, 'karabiner.edn')
 
 app_sections = parse_yaml(yaml_path)
+app_grouped = parse_yaml_grouped(yaml_path)
 shortcut_sections = parse_yaml(shortcuts_path) if os.path.exists(shortcuts_path) else {}
+shortcut_grouped = parse_yaml_grouped(shortcuts_path) if os.path.exists(shortcuts_path) else {}
 pool_map = load_pool(pool_path)
 
 edn = open(edn_path).read()
 
 # -- Help text -----------------------------------------------------------------
 
-app_t = help_text(app_sections.get('app', []))
+app_groups = app_grouped.get('app', [])
+app_t = help_text_grouped(app_groups) if len(app_groups) > 1 else help_text(app_sections.get('app', []))
 
 # Workspace help text (merge unshifted + shifted by key)
 ws_entries = app_sections.get('workspace', [])
@@ -399,7 +457,8 @@ ws_t = ', '.join(ws_items)
 layer_help_lines = []
 for ln in sorted(LAYERS.keys()):
     entries = shortcut_sections.get(ln, [])
-    t = help_text(entries) if entries else ''
+    groups = shortcut_grouped.get(ln, [])
+    t = help_text_grouped(groups) if len(groups) > 1 else (help_text(entries) if entries else '')
     n = ln[-1]
     layer_help_lines.append(
         f'       :show-{ln}-help {{:noti {{:id "org.pqrs.notificaion_message_layer{n}"\n'
@@ -407,6 +466,17 @@ for ln in sorted(LAYERS.keys()):
         f'       :clear-{ln}-help {{:noti {{:id "org.pqrs.notificaion_message_layer{n}"\n'
         f'                              :text ""}}}}'
     )
+
+# Hyper help text (entries are already in "key:label" format)
+hyper_grouped = parse_yaml_grouped(hyperkeys_path) if os.path.exists(hyperkeys_path) else {}
+hyper_groups = hyper_grouped.get('hyper', [])
+hyper_t = help_text_grouped(hyper_groups, sort=False) if hyper_groups else ''
+hyper_help_line = (
+    '       :show-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"\n'
+    '                                :text "' + hyper_t + '"}}\n'
+    '       :clear-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"\n'
+    '                                 :text ""}}\n'
+) if hyper_t else ''
 
 help_block = (
     ';; BEGIN HELP-TEXT (auto-generated from scripts/help-text.yaml)\n'
@@ -419,14 +489,12 @@ help_block = (
     '       :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"\n'
     '                              :text ""}}\n'
     + '\n'.join(layer_help_lines) + '\n'
-    '       :show-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"\n'
-    '                                :text "h:← j:↓ k:↑ l:→ | u:home p:end | x:⌫ ⇧x:⌦ | ⇧h/l:tabs ⇧j/k:apps | ⌘:select ⌥:word | f:expose spc:lang"}}\n'
-    '       :clear-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"\n'
-    '                                 :text ""}}}\n'
+    + hyper_help_line
+    + '}\n'
     ';; END HELP-TEXT'
 )
 
-edn = re.sub(r';; BEGIN HELP-TEXT.*?;; END HELP-TEXT', help_block, edn, flags=re.DOTALL)
+edn = re.sub(r';; BEGIN HELP-TEXT.*?;; END HELP-TEXT', lambda m: help_block, edn, flags=re.DOTALL)
 
 # -- App rules -----------------------------------------------------------------
 
