@@ -1,3 +1,36 @@
+workspace:
+  # key | label | aerospace command  (opt+key)
+  - 1 | ws1 | workspace 1
+  - 2 | ws2 | workspace 2
+  - q | ws3 | workspace 3
+  - w | ws4 | workspace 4
+  - e | ws5 | workspace 5
+  - h | ← | focus --boundaries-action wrap-around-the-workspace left
+  - j | ↓ | focus --boundaries-action wrap-around-the-workspace down
+  - k | ↑ | focus --boundaries-action wrap-around-the-workspace up
+  - l | → | focus --boundaries-action wrap-around-the-workspace right
+  - o | back | focus-back-and-forth
+  - p | full | fullscreen
+  - f | float | layout floating tiling
+  - 8 | vacc | layout v_accordion
+  - 9 | hacc | layout h_accordion
+  - 0 | tile | layout tiles horizontal vertical
+  - - | -size | resize smart -70
+  - = | +size | resize smart +70
+
+workspace-shift:
+  # key | label | aerospace command  (opt+shift+key)
+  - 1 | →ws1 | move-node-to-workspace 1 --focus-follows-window
+  - 2 | →ws2 | move-node-to-workspace 2 --focus-follows-window
+  - q | →ws3 | move-node-to-workspace 3 --focus-follows-window
+  - w | →ws4 | move-node-to-workspace 4 --focus-follows-window
+  - e | →ws5 | move-node-to-workspace 5 --focus-follows-window
+  - h | mv← | move left
+  - j | mv↓ | move down
+  - k | mv↑ | move up
+  - l | mv→ | move right
+  - p | nfull | macos-native-fullscreen
+
 app:
   # key | label | app (or !GokuCommand)
   - w | WA | Whatsapp
@@ -6,7 +39,7 @@ app:
   # - E | todoist | Todoist
   - r | arc | Arc
   - t | ghostty | Ghostty
-  - T | quickT | !TOSf13
+  - T | quickT | !TOSf12
   - u | conductor | Conductor
   - i | IINA | IINA
   - I | ytmusic | Youtube Music
@@ -26,15 +59,3 @@ app:
   - b | telegram | Telegram
   - n | ino | Inoreader
   - m | spotify | Spotify
-
-l1:
-  - o | 1p
-  - p | dot
-  - l | todoist
-  - s | cleanshotx
-
-l2:
-  - o | 1p
-  - p | dot
-  - l | todoist
-  - s | cleanshotx

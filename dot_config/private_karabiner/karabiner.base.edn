@@ -29,24 +29,34 @@
 
  :templates {:open          "open -a '%s'",
              :open-vivaldi  "open -n -a Vivaldi --args --profile-directory='%s'"
+             :aero          "/opt/homebrew/bin/aerospace %s"
              :show-time     "~/.config/karabiner/scripts/show-time.sh"
              :hide-time     "killall time-hud 2>/dev/null"
              ; :cycle-or-open "~/.config/karabiner/scripts/cycle-or-open.sh '%s'"
             }
 
+;; BEGIN HELP-TEXT (auto-generated from scripts/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:Messages, e:obsidian, t:ghostty, T:quickT, i:IINA, o:todo, p:teams, a:claude, s:slack, F:alfred, f:fantastical, G:safari, g:Iphone, k:KM, l:outlook, c:switch, V:Arc, v:vivaldi, n:ino,m:spotify"
-}}
+                              :text ""}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
+       :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
+                             :text ""}}
+       :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
+                              :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
-                             :text "o:1p, p:dot, l:todoist, s:cleanshotx"}}
+                             :text ""}}
        :clear-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
                               :text ""}}
        :show-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
-                             :text "o:1p, p:dot, l:todoist, s:cleanshotx"}}
+                             :text ""}}
        :clear-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
-                              :text ""}}}
+                              :text ""}}
+       :show-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"
+                                :text "h:← j:↓ k:↑ l:→ | u:home p:end | x:⌫ ⇧x:⌦ | ⇧h/l:tabs ⇧j/k:apps | ⌘:select ⌥:word | f:expose spc:lang"}}
+       :clear-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"
+                                 :text ""}}}
+;; END HELP-TEXT
 
  :main
  [{:des "Global app shortcut"
@@ -56,11 +66,15 @@
     ;; Layer 2 trigger: Left Control + Right Option (with hint overlay)
     [:!Tright_option [:show-l2-help ["shortcut-l2" 1]] nil {:afterup [:clear-l2-help ["shortcut-l2" 0]]}]
 
+    ;; Left option hold → show workspace help (option modifier still sent)
+    [:left_option [:show-ws-help :left_option] nil {:afterup [:clear-ws-help]}]
+
     ;; Double-tap right_option to show time notification
     [:right_option [:show-time] ["ro-tapped" 1] {:afterup [:hide-time ["ro-tapped" 0]]}]
     ;; Hold right_option to activate app launcher layer (shows key hints overlay)
     [:right_option [:show-app-help ["app-launch" 1] ["ro-tapped" 1]] nil {:afterup [:clear-app-help ["app-launch" 0]] :delayed {:invoked ["ro-tapped" 0] :canceled ["ro-tapped" 0]}}]
 
+;; BEGIN APP-RULES (auto-generated from scripts/help-text.yaml)
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]          :app-launch]
     [:!Se [:open "Todoist"]           :app-launch]
@@ -89,6 +103,7 @@
     [:v [:open "Vivaldi"]           :app-launch]
     [:n [:open "Inoreader"]         :app-launch]
     [:m [:open "Spotify"]           :app-launch]
+;; END APP-RULES
    ]
   }
   {:des "Hyper Navigation"
@@ -135,7 +150,7 @@
   {:des "CapsLock to Hyper"
    :rules
    [;; caps_lock → hyper (right modifiers), tap → escape
-    [:##caps_lock :!QWEright_shift nil {:alone :escape}]
+    [:##caps_lock [:!QWEright_shift :show-hyper-help] nil {:alone :escape :afterup :clear-hyper-help}]
     ;; hyper+escape → toggle caps_lock
     [:!QWER#Pescape :!Tcaps_lock]
     ;; hyper+space → language switch (ctrl+space)
@@ -158,6 +173,9 @@
   ;  :rules
   ;  [[:##left_command :left_control :ghostty-utm {:alone :left_command}]
   ;   [:##left_control :left_command :ghostty-utm {:alone :left_control}]]}
+
+;; BEGIN WORKSPACE-RULES (auto-generated from scripts/help-text.yaml)
+;; END WORKSPACE-RULES
 
   ;; {{LAYERS}}
   ]
