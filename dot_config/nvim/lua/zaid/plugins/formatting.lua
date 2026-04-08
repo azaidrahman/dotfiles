@@ -18,6 +18,7 @@ return {
 		}
 		conform.formatters.prettier_yaml = {
 			command = "prettier",
+			stdin = true,
 			args = {
 				"--stdin-filepath", "$FILENAME",
 				"--tab-width", "2",

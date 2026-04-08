@@ -22,6 +22,7 @@ l2:
   - p | dot | chezmoi dotfiles (alt)
   - s | cleanshotx | CleanShot X (alt)
   - l | todoist | Todoist (alt)
+  - c | claude | open:Claude
 
 l3:
   - [ | b prev-space | Browser previous space

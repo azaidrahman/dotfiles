@@ -79,6 +79,9 @@
     [:!Cslash :show-l3-help :shortcut-l3 {:afterup :clear-l3-help}]
     [:!Oslash :show-ws-help nil {:afterup :clear-ws-help}]
 
+;; BEGIN SHORTCUT-DIRECT (auto-generated from config/shortcuts.yaml)
+;; END SHORTCUT-DIRECT
+
 ;; BEGIN APP-RULES (auto-generated from scripts/help-text.yaml)
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]          :app-launch]

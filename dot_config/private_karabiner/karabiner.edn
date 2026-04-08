@@ -36,11 +36,11 @@
 
 ;; BEGIN HELP-TEXT (auto-generated from config/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, T:quickT, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, a:claude, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
+                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, T:quickT, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 8:vacc, 0:tile, 1:ws1/→ws1, =:+size, 9:hacc, 2:ws2/→ws2, -:-size"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 9:hacc, =:+size, 2:ws2/→ws2, -:-size, 0:tile, 8:vacc, 1:ws1/→ws1"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
@@ -48,7 +48,7 @@
        :clear-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
                               :text ""}}
        :show-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
-                             :text "o:1p, p:dot, s:cleanshotx, l:todoist"}}
+                             :text "o:1p, p:dot, s:cleanshotx, l:todoist, c:claude"}}
        :clear-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
                               :text ""}}
        :show-l3-help {:noti {:id "org.pqrs.notificaion_message_layer3"
@@ -87,7 +87,11 @@
     [:!Cslash :show-l3-help :shortcut-l3 {:afterup :clear-l3-help}]
     [:!Oslash :show-ws-help nil {:afterup :clear-ws-help}]
 
-;; BEGIN APP-RULES (auto-generated from config/help-text.yaml)
+;; BEGIN SHORTCUT-DIRECT (auto-generated from config/shortcuts.yaml)
+    [:!Tc      [:open "Claude"]    :shortcut-l2]   ;; l2+c → open:Claude
+;; END SHORTCUT-DIRECT
+
+;; BEGIN APP-RULES (auto-generated from config/app.yaml)
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]              :app-launch]
     [:!St :!TOSf12                        :app-launch]
@@ -106,7 +110,6 @@
     [:i [:open "IINA"]                    :app-launch]
     [:o [:open "Orbstack"]                :app-launch]
     [:p [:open "Microsoft Teams"]         :app-launch]
-    [:a [:open "Claude"]                  :app-launch]
     [:s [:open "Slack"]                   :app-launch]
     [:f [:open "Calendar"]                :app-launch]
     [:g [:open "iPhone Mirroring"]        :app-launch]
@@ -117,6 +120,7 @@
     [:b [:open "Telegram"]                :app-launch]
     [:n [:open "Inoreader"]               :app-launch]
     [:m [:open "Spotify"]                 :app-launch]
+    ; [:a [:open "Claude"]            :app-launch]
 ;; END APP-RULES
    ]
   }

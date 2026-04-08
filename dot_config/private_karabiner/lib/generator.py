@@ -106,9 +106,26 @@ def generate_layer(pool_map, layer_name, entries):
     from_mod, condition, des = LAYERS[layer_name]
     n = layer_name[-1]
 
-    parsed = []
+    pool_entries = []   # (key, label, action=None) — go through fkey pool
+    direct_rules = []   # (key, label, goku_to) — emit directly without pool
+
     for entry in entries:
-        key, label, _ = parse_entry(entry)
+        key, label, action = parse_entry(entry)
+        gk = GOKU_NAMES.get(key, key)
+        from_str = f":{from_mod}{gk}"
+        if action and action.startswith('open:'):
+            app = action[len('open:'):]
+            goku_to = f'[:open "{app}"]'
+            direct_rules.append((key, label, from_str, goku_to))
+        elif action and action.startswith('!'):
+            goku_to = f':{action}'
+            direct_rules.append((key, label, from_str, goku_to))
+        else:
+            pool_entries.append((key, label))
+
+    # Pool-based entries
+    parsed = []
+    for key, label in pool_entries:
         slot = get_or_assign(pool_map, layer_name, key)
         parsed.append((slot, key, label))
     parsed.sort()
@@ -133,6 +150,20 @@ def generate_layer(pool_map, layer_name, entries):
             rule = f"    [{from_str:<28s}{goku_to:<15s}:{condition}]   ;; {key} -> {human} ({label})"
         else:
             rule = f"    [{from_str:<10s}{goku_to:<15s}:{condition}]   ;; {key} -> {human} ({label})"
+        rule_lines.append(rule)
+
+    # Direct-action entries (appended after pool entries)
+    if direct_rules and rule_lines:
+        rule_lines.append('')
+        rule_lines.append('    ;; --- direct actions ---')
+    elif direct_rules:
+        rule_lines.append('    ;; --- direct actions ---')
+    for key, label, from_str, goku_to in sorted(direct_rules, key=lambda x: qwerty_pos(x[0])):
+        gk = GOKU_NAMES.get(key, key)
+        if len(gk) > 1:
+            rule = f"    [{from_str:<28s}{goku_to:<15s}:{condition}]   ;; {key} (direct: {label})"
+        else:
+            rule = f"    [{from_str:<10s}{goku_to:<15s}:{condition}]   ;; {key} (direct: {label})"
         rule_lines.append(rule)
 
     header = f';; BEGIN SHORTCUT-LAYER-{n} (auto-generated from config/shortcuts.yaml)'
@@ -173,6 +204,41 @@ def print_mapping(pool_map, layer_name, entries):
     for _, key, human, label, desc in parsed:
         desc_str = f'  ({desc})' if desc else ''
         print(f"    {key:<6s} -> {human:<24s} {label}{desc_str}")
+
+
+# -- Shortcut layer direct actions --------------------------------------------
+
+def generate_shortcut_direct_rules(shortcut_sections):
+    """Generate direct-action rules for shortcut layer entries with open:/! actions.
+
+    These are injected into the Global app shortcut rule block, which appears
+    before the static layer blocks in layers.edn — so they take precedence.
+    """
+    lines = []
+    for ln in sorted(LAYERS.keys()):
+        from_mod, condition, _ = LAYERS[ln]
+        entries = shortcut_sections.get(ln, [])
+        for entry in entries:
+            key, label, action = parse_entry(entry)
+            if not action:
+                continue
+            gk = GOKU_NAMES.get(key, key)
+            from_str = f":{from_mod}{gk}"
+            if action.startswith('open:'):
+                app = action[len('open:'):]
+                to_str = f'[:open "{app}"]'
+            elif action.startswith('!'):
+                to_str = f':{action}'
+            else:
+                continue
+            w = 28 if len(gk) > 1 else 10
+            lines.append(f'    [{from_str:<{w}s}{to_str:<20s}:{condition}]   ;; {ln}+{key} → {action}')
+
+    header = ';; BEGIN SHORTCUT-DIRECT (auto-generated from config/shortcuts.yaml)'
+    footer = ';; END SHORTCUT-DIRECT'
+    if not lines:
+        return f'{header}\n{footer}'
+    return header + '\n' + '\n'.join(lines) + '\n' + footer
 
 
 # -- Workspace rules (aerospace CLI) ------------------------------------------

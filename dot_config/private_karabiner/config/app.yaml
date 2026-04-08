@@ -1,0 +1,31 @@
+# App launcher definitions (right_option + key)
+# Format: key | label | app name (or !GokuCommand)
+#
+# Uppercase key = shifted variant (right_option + shift + key)
+# Prefix app with ! to use a raw goku command instead of open -a
+
+app:
+  - w | WA | Whatsapp
+  - W | messages | Messages
+  - e | obsidian | Obsidian
+  - r | arc | Arc
+  - t | ghostty | Ghostty
+  - T | quickT | !TOSf12
+  - u | conductor | Conductor
+  - i | IINA | IINA
+  - I | ytmusic | Youtube Music
+  - o | orb | Orbstack
+  - p | teams | Microsoft Teams
+  - s | slack | Slack
+  - f | cal | Calendar
+  - F | alfred | Alfred Preferences
+  - g | iPhone | iPhone Mirroring
+  - G | safari | Safari
+  - k | KM | Keyboard Maestro
+  - l | outlook | Microsoft Outlook
+  - c | switch | !Cgrave_accent_and_tilde
+  - v | vivaldi | Vivaldi
+  - V | arc | Arc
+  - b | telegram | Telegram
+  - n | ino | Inoreader
+  - m | spotify | Spotify
