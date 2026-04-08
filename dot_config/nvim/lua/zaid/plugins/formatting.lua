@@ -16,6 +16,14 @@ return {
 				"--single-attribute-per-line",
 			},
 		}
+		conform.formatters.prettier_yaml = {
+			command = "prettier",
+			args = {
+				"--stdin-filepath", "$FILENAME",
+				"--tab-width", "2",
+				"--use-tabs", "false",
+			},
+		}
 		conform.formatters.shfmt = {
 			prepend_args = { "-i", "4" },
 		}
@@ -45,7 +53,7 @@ return {
 				zsh = { "beautysh" },
 
 				-- Data / Docs
-				yaml = { "prettier" },
+				yaml = { "prettier_yaml" },
 				markdown = { "prettier" },
 				["markdown.mdx"] = { "prettier", "markdownlint-cli2", "markdown-toc" },
 				lua = { "stylua" },
