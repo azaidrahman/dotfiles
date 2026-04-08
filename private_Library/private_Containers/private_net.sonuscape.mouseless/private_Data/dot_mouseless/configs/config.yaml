@@ -325,7 +325,7 @@ keymaps:
     toggle app enabled: null
     toggle continuous mode: null
     toggle continuous mode until closed: null
-    toggle free mode: OptionLeft tap
+    toggle free mode: OptionLeft double tap
     toggle overlay: CmdLeft double tap
     toggle overlay lock: null
     undo last key: Backspace
