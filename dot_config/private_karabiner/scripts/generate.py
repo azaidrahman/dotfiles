@@ -16,6 +16,7 @@ from lib.parser import (parse_yaml, parse_yaml_grouped, parse_entry,
                          help_text, help_text_grouped, qwerty_pos)
 from lib.pool import load_pool, save_pool, POOL_SIZE
 from lib.generator import (LAYERS, generate_app_rules, generate_layer,
+                            generate_shortcut_direct_rules,
                             generate_workspace_rules, generate_help_block,
                             generate_hyper_rules, generate_hyper_help,
                             load_hyperkeys, print_mapping)
@@ -24,6 +25,7 @@ from lib.generator import (LAYERS, generate_app_rules, generate_layer,
 
 dir_path = sys.argv[1]
 config = os.path.join(dir_path, 'config')
+app_path = os.path.join(config, 'app.yaml')
 yaml_path = os.path.join(config, 'help-text.yaml')
 shortcuts_path = os.path.join(config, 'shortcuts.yaml')
 hyperkeys_path = os.path.join(config, 'hyperkeys.yaml')
@@ -32,8 +34,9 @@ edn_path = os.path.join(dir_path, 'karabiner.edn')
 
 # -- Load ---------------------------------------------------------------------
 
-app_sections = parse_yaml(yaml_path)
-app_grouped = parse_yaml_grouped(yaml_path)
+app_sections = parse_yaml(app_path)
+app_grouped = parse_yaml_grouped(app_path)
+ws_sections = parse_yaml(yaml_path)
 shortcut_sections = parse_yaml(shortcuts_path) if os.path.exists(shortcuts_path) else {}
 shortcut_grouped = parse_yaml_grouped(shortcuts_path) if os.path.exists(shortcuts_path) else {}
 pool_map = load_pool(pool_path)
@@ -46,8 +49,8 @@ app_groups = app_grouped.get('app', [])
 app_t = help_text_grouped(app_groups) if len(app_groups) > 1 else help_text(app_sections.get('app', []))
 
 # Workspace help text (merge unshifted + shifted by key)
-ws_entries = app_sections.get('workspace', [])
-ws_shift_entries = app_sections.get('workspace-shift', [])
+ws_entries = ws_sections.get('workspace', [])
+ws_shift_entries = ws_sections.get('workspace-shift', [])
 
 ws_labels = {}
 for entry in ws_entries:
@@ -108,19 +111,20 @@ if m:
 
 rules, warnings = generate_app_rules(app_sections.get('app', []), existing)
 rules_block = (
-    ';; BEGIN APP-RULES (auto-generated from config/help-text.yaml)\n'
+    ';; BEGIN APP-RULES (auto-generated from config/app.yaml)\n'
     + rules + '\n'
     ';; END APP-RULES'
 )
 edn = re.sub(r';; BEGIN APP-RULES.*?;; END APP-RULES', rules_block, edn, flags=re.DOTALL)
 
-# Shortcut layers
+# Shortcut direct actions (override static layer F-key rules in karabiner.edn)
+direct_block = generate_shortcut_direct_rules(shortcut_sections)
+edn = re.sub(r';; BEGIN SHORTCUT-DIRECT.*?;; END SHORTCUT-DIRECT', direct_block, edn, flags=re.DOTALL)
+
+# Shortcut layers (pool management + print_mapping only — static layer EDN is in layers.edn)
 for ln in sorted(LAYERS.keys()):
-    n = ln[-1]
     entries = shortcut_sections.get(ln, [])
-    block = generate_layer(pool_map, ln, entries)
-    pattern = rf';; BEGIN SHORTCUT-LAYER-{n}.*?;; END SHORTCUT-LAYER-{n}'
-    edn = re.sub(pattern, block, edn, flags=re.DOTALL)
+    generate_layer(pool_map, ln, entries)
 
 # Workspace rules
 ws_rules = generate_workspace_rules(ws_entries, ws_shift_entries)
