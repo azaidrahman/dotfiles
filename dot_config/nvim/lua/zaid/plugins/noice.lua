@@ -77,6 +77,13 @@ return {
 						},
 						opts = { skip = true },
 					},
+					{
+						filter = {
+							event = "notify",
+							find = "nvim%-cmp is not available",
+						},
+						opts = { skip = true },
+					},
 				},
 				messages = {
 					enabled = false,

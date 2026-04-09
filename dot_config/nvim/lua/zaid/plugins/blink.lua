@@ -29,6 +29,13 @@ return {
 					module = "blink-cmp-supermaven",
 					async = true,
 					score_offset = 100,
+					-- Strip documentation to prevent preview window overlap
+					transform_items = function(_, items)
+						for _, item in ipairs(items) do
+							item.documentation = nil
+						end
+						return items
+					end,
 				},
 			},
 		},
@@ -49,6 +56,10 @@ return {
 			-- Tab/S-Tab for navigation + snippet jumping
 			["<Tab>"] = { "select_next", "snippet_forward", "fallback" },
 			["<S-Tab>"] = { "select_prev", "snippet_backward", "fallback" },
+
+			-- Arrow key navigation
+			["<Down>"] = { "select_next", "fallback" },
+			["<Up>"] = { "select_prev", "fallback" },
 
 			-- Snippet jumping (dedicated keys)
 			["<C-j>"] = { "snippet_forward", "fallback" },
@@ -107,8 +118,7 @@ return {
 				},
 			},
 			documentation = {
-				auto_show = true,
-				auto_show_delay_ms = 200,
+				auto_show = false,
 				window = { border = "rounded" },
 			},
 			ghost_text = { enabled = true },
