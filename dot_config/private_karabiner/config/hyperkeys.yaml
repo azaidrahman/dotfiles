@@ -92,6 +92,9 @@ hyper:
   \:
     -: "!CTOSbackslash" # alfred pin bookmarks
 
+  e:
+    -: "!CTOSe" # alfred open windows
+
 misc:
   spacebar:
     cmd: "!TCspacebar" # emoji
