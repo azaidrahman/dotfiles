@@ -121,10 +121,17 @@ edn = re.sub(r';; BEGIN APP-RULES.*?;; END APP-RULES', rules_block, edn, flags=r
 direct_block = generate_shortcut_direct_rules(shortcut_sections)
 edn = re.sub(r';; BEGIN SHORTCUT-DIRECT.*?;; END SHORTCUT-DIRECT', direct_block, edn, flags=re.DOTALL)
 
-# Shortcut layers (pool management + print_mapping only — static layer EDN is in layers.edn)
+# Shortcut layers — inject generated block if BEGIN/END markers exist in EDN
 for ln in sorted(LAYERS.keys()):
     entries = shortcut_sections.get(ln, [])
-    generate_layer(pool_map, ln, entries)
+    block = generate_layer(pool_map, ln, entries)
+    n = ln[-1]
+    edn = re.sub(
+        f';; BEGIN SHORTCUT-LAYER-{n}.*?;; END SHORTCUT-LAYER-{n}',
+        block,
+        edn,
+        flags=re.DOTALL
+    )
 
 # Workspace rules
 ws_rules = generate_workspace_rules(ws_entries, ws_shift_entries)
