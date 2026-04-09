@@ -40,7 +40,7 @@
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, =:+size, -:-size, 2:ws2/→ws2, 0:tile, 8:vacc, 9:hacc, 1:ws1/→ws1"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 9:hacc, 2:ws2/→ws2, -:-size, 0:tile, 8:vacc, =:+size, 1:ws1/→ws1"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
@@ -385,5 +385,14 @@
     [:!Tgrave_accent_and_tilde      :!COSf20       :shortcut-l2]   ;; ` → cmd+opt+shift+F20
     [:!Tspacebar                    :!CTOSf20      :shortcut-l2]   ;; space → ctrl+cmd+opt+shift+F20
    ]}
+
+;; BEGIN SHORTCUT-LAYER-3 (auto-generated from config/shortcuts.yaml)
+  {:des "Shortcut Layer 3 (Cmd+RightOpt)"
+   :rules
+   [;; --- F13 ---
+    [:!Copen_bracket             :!Sf13         :shortcut-l3]   ;; [ -> shift+F13 (b prev-space)
+    [:!Cclose_bracket            :!TSf13        :shortcut-l3]   ;; ] -> ctrl+shift+F13 (b next-space)
+   ]}
+;; END SHORTCUT-LAYER-3
   ]
 }

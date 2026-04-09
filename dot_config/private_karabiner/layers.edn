@@ -131,3 +131,6 @@
     [:!Tgrave_accent_and_tilde      :!COSf20       :shortcut-l2]   ;; ` → cmd+opt+shift+F20
     [:!Tspacebar                    :!CTOSf20      :shortcut-l2]   ;; space → ctrl+cmd+opt+shift+F20
    ]}
+
+;; BEGIN SHORTCUT-LAYER-3 (auto-generated from config/shortcuts.yaml)
+;; END SHORTCUT-LAYER-3
