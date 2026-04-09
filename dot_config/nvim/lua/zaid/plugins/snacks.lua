@@ -177,16 +177,7 @@ return {
 				},
 				sections = {
 					{ section = "header" },
-					{
-						pane = 2,
-						section = "terminal",
-						-- install from https://gitlab.com/dwt1/shell-color-scripts.git
-						-- https://gitlab.com/dwt1/shell-color-scripts
-						cmd = "colorscript -e square",
-						height = 5,
-						padding = 1,
-					},
-					{ section = "keys", gap = 1, padding = 1 },
+{ section = "keys", gap = 1, padding = 1 },
 					{
 						pane = 2,
 						icon = " ",

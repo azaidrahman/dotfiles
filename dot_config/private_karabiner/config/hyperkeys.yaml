@@ -80,6 +80,9 @@ hyper:
   c:
     -: "!CTOSc" # alfred clip
 
+  s:
+    -: "!CTOSs" # alfred snippet
+
   -:
     -: "!CTOShyphen" # alfred arc bookmarks
 
