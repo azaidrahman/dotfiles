@@ -7,3 +7,4 @@ Emoji\ Pack/
 .config/mpv/
 .config/wezterm/
 .config/karabiner/karabiner.json
+.config/nvim/lazy-lock.json
