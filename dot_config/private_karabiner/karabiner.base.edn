@@ -86,7 +86,7 @@
     ;; Shifted shortcuts
     [:!Sw [:open "Messages"]          :app-launch]
     [:!Se [:open "Todoist"]           :app-launch]
-    [:!St :!TOSf13                    :app-launch]  ;; quick terminal (ghostty)
+    ; [:!St :!TOSf13                    :app-launch]  ;; quick terminal (ghostty)
     [:!Sf [:open "Alfred Preferences"]:app-launch]
     [:!Si [:open "Youtube Music"]:app-launch]
     [:!Sg [:open "Safari"]            :app-launch]
