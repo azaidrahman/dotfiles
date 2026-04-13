@@ -1,3 +1,12 @@
 #!/bin/bash
 # {{ include "dot_config/private_karabiner/karabiner.edn" | sha256sum }}
+set -euo pipefail
+
+KARABINER_JSON="$HOME/.config/karabiner/karabiner.json"
+if [ ! -f "$KARABINER_JSON" ]; then
+  cat > "$KARABINER_JSON" <<'EOF'
+{"global":{"show_in_menu_bar":true},"profiles":[{"complex_modifications":{"rules":[]},"name":"Zaid","selected":true}]}
+EOF
+fi
+
 goku
