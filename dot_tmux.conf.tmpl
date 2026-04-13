@@ -29,6 +29,10 @@ bind \\ split-window -h -c "#{pane_current_path}"
 unbind \"
 bind - split-window -v -c "#{pane_current_path}"
 
+
+# Size windows to the most recently active client, not the smallest.
+set -g window-size latest
+
 # Status bar
 # set -g status-bg black
 # set -g status-fg white
