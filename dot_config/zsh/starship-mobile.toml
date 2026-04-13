@@ -1,0 +1,67 @@
+# Minimal ASCII starship config for mobile / SSH sessions (Termius etc.)
+# No Nerd Font glyphs, no emojis, short format to avoid wrapping on narrow widths.
+
+format = "$time$directory$git_branch$git_status$character"
+add_newline = false
+
+[time]
+disabled = false
+format = "[\\[$time\\] ]($style)"
+style   = "bold cyan"
+time_format = "%H:%M"
+
+[directory]
+truncation_length = 2
+truncate_to_repo  = true
+style             = "bold blue"
+format            = "[$path]($style) "
+read_only         = " ro"
+
+[git_branch]
+symbol = "git:"
+format = "[$symbol$branch]($style) "
+style  = "bold magenta"
+
+[git_status]
+format = "[$all_status$ahead_behind]($style) "
+style  = "yellow"
+ahead     = ">"
+behind    = "<"
+diverged  = "<>"
+conflicted = "!"
+untracked  = "?"
+modified   = "*"
+staged     = "+"
+stashed    = "$"
+
+[character]
+success_symbol = "[$](bold green)"
+error_symbol   = "[$](bold red)"
+
+# Explicitly disable modules that default to Nerd Font icons
+[aws]
+disabled = true
+[gcloud]
+disabled = true
+[kubernetes]
+disabled = true
+[docker_context]
+disabled = true
+[package]
+disabled = true
+[nodejs]
+disabled = true
+[python]
+disabled = true
+[rust]
+disabled = true
+[golang]
+disabled = true
+[terraform]
+disabled = true
+[cmd_duration]
+disabled = true
+[battery]
+disabled = true
+[memory_usage]
+disabled = true
