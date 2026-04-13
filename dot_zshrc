@@ -6,6 +6,23 @@ fi
 # ~/.zshrc
 ZSH_DIR="$HOME/.config/zsh"
 
+# Auto-attach to dedicated quick terminal tmux session
+if [[ -n "$GHOSTTY_QUICK_TERMINAL" && -z "$TMUX" ]] && command -v tmux >/dev/null 2>&1; then
+    exec tmux new-session -A -s quickterminal
+fi
+
+# When connecting over SSH (e.g. Termius from iPhone), use the mobile starship
+# config (ASCII-only, no Nerd Font glyphs) and auto-attach to the "mobile"
+# tmux session, which has a simplified status bar.
+if [[ -n "$SSH_CONNECTION" || -n "$SSH_TTY" ]]; then
+    export STARSHIP_CONFIG="$HOME/.config/zsh/starship-mobile.toml"
+    # Force a simple TERM that Termius handles cleanly (truecolor is hit-or-miss)
+    [[ -z "$COLORTERM" ]] && export TERM="xterm-256color"
+    if [[ -z "$TMUX" ]] && command -v tmux >/dev/null 2>&1; then
+        exec ~/.tmux/scripts/mobile-attach.sh
+    fi
+fi
+
 # Add to PATH only if not already present
 path_prepend() { [[ ":$PATH:" != *":$1:"* ]] && export PATH="$1:$PATH"; }
 path_append()  { [[ ":$PATH:" != *":$1:"* ]] && export PATH="$PATH:$1"; }
