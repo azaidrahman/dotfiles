@@ -1,10 +1,13 @@
 #!/bin/bash
 # {{ include "dot_config/private_karabiner/karabiner.edn" | sha256sum }}
-# {{ include "dot_config/private_karabiner/data/devices.json" | sha256sum }}
+{{- $devFile := joinPath "dot_config/private_karabiner/data" (printf "devices_%s.json" .chezmoi.hostname) -}}
+{{- if stat (joinPath .chezmoi.sourceDir $devFile) }}
+# {{ include $devFile | sha256sum }}
+{{- end }}
 set -euo pipefail
 
 KARABINER_JSON="$HOME/.config/karabiner/karabiner.json"
-DEVICES_JSON="$HOME/.config/karabiner/data/devices.json"
+DEVICES_JSON="$HOME/.config/karabiner/data/devices_$(hostname -s).json"
 
 if [ ! -f "$KARABINER_JSON" ]; then
   cat > "$KARABINER_JSON" <<'EOF'
