@@ -1,8 +1,11 @@
 #!/bin/bash
 # {{ include "dot_config/private_karabiner/karabiner.edn" | sha256sum }}
+# {{ include "dot_config/private_karabiner/data/devices.json" | sha256sum }}
 set -euo pipefail
 
 KARABINER_JSON="$HOME/.config/karabiner/karabiner.json"
+DEVICES_JSON="$HOME/.config/karabiner/data/devices.json"
+
 if [ ! -f "$KARABINER_JSON" ]; then
   cat > "$KARABINER_JSON" <<'EOF'
 {"global":{"show_in_menu_bar":true},"profiles":[{"complex_modifications":{"rules":[]},"name":"Zaid","selected":true}]}
@@ -10,3 +13,27 @@ EOF
 fi
 
 goku
+
+# Merge saved device settings back (goku doesn't touch devices, but on a
+# fresh machine the profile starts empty — this ensures they're always present)
+if [ -f "$DEVICES_JSON" ]; then
+  python3 - "$KARABINER_JSON" "$DEVICES_JSON" <<'PYEOF'
+import json, sys
+
+karabiner_path, devices_path = sys.argv[1], sys.argv[2]
+
+with open(karabiner_path) as f:
+    k = json.load(f)
+with open(devices_path) as f:
+    devices = json.load(f)
+
+for p in k.get("profiles", []):
+    if p.get("name") == "Zaid":
+        p["devices"] = devices
+        break
+
+with open(karabiner_path, "w") as f:
+    json.dump(k, f, indent=2)
+    f.write("\n")
+PYEOF
+fi
