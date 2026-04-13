@@ -44,7 +44,7 @@ macos-titlebar-style = hidden
 confirm-close-surface = false
 
 # keybind = global:alt+s=toggle_quick_terminal
-keybind = global:ctrl+shift+alt+f12=toggle_quick_terminal
+keybind = global:ctrl+grave_accent=toggle_quick_terminal
 
 # This does not work with GLFW builds.
 macos-option-as-alt = true
