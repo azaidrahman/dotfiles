@@ -15,7 +15,7 @@ l1:
   - p | dot | chezmoi dotfiles
   - s | cleanshotx | CleanShot X capture
   - l | todoist | Todoist quick add
-  - c | claude | Claude quick 
+  - c | claude | Claude quick
 
 l2:
   - o | 1p | 1Password (alt)

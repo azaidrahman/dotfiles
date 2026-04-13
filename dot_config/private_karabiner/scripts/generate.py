@@ -100,8 +100,16 @@ hyper_help_line = (
 
 # -- Replace EDN blocks -------------------------------------------------------
 
+changed_blocks = []
+
+def replace_block(edn, pattern, new_block, label):
+    old_m = re.search(pattern, edn, re.DOTALL)
+    if old_m and old_m.group(0) != new_block:
+        changed_blocks.append(label)
+    return re.sub(pattern, lambda m: new_block, edn, flags=re.DOTALL)
+
 help_block = generate_help_block(app_t, ws_t, layer_help_lines, hyper_help_line)
-edn = re.sub(r';; BEGIN HELP-TEXT.*?;; END HELP-TEXT', lambda m: help_block, edn, flags=re.DOTALL)
+edn = replace_block(edn, r';; BEGIN HELP-TEXT.*?;; END HELP-TEXT', help_block, 'help-text')
 
 # App rules
 existing = ''
@@ -115,23 +123,18 @@ rules_block = (
     + rules + '\n'
     ';; END APP-RULES'
 )
-edn = re.sub(r';; BEGIN APP-RULES.*?;; END APP-RULES', rules_block, edn, flags=re.DOTALL)
+edn = replace_block(edn, r';; BEGIN APP-RULES.*?;; END APP-RULES', rules_block, 'app-rules')
 
 # Shortcut direct actions (override static layer F-key rules in karabiner.edn)
 direct_block = generate_shortcut_direct_rules(shortcut_sections)
-edn = re.sub(r';; BEGIN SHORTCUT-DIRECT.*?;; END SHORTCUT-DIRECT', direct_block, edn, flags=re.DOTALL)
+edn = replace_block(edn, r';; BEGIN SHORTCUT-DIRECT.*?;; END SHORTCUT-DIRECT', direct_block, 'shortcut-direct')
 
 # Shortcut layers — inject generated block if BEGIN/END markers exist in EDN
 for ln in sorted(LAYERS.keys()):
     entries = shortcut_sections.get(ln, [])
     block = generate_layer(pool_map, ln, entries)
     n = ln[-1]
-    edn = re.sub(
-        f';; BEGIN SHORTCUT-LAYER-{n}.*?;; END SHORTCUT-LAYER-{n}',
-        block,
-        edn,
-        flags=re.DOTALL
-    )
+    edn = replace_block(edn, f';; BEGIN SHORTCUT-LAYER-{n}.*?;; END SHORTCUT-LAYER-{n}', block, f'shortcut-layer-{n}')
 
 # Workspace rules
 ws_rules = generate_workspace_rules(ws_entries, ws_shift_entries)
@@ -150,12 +153,12 @@ if ws_rules:
 else:
     ws_block = ws_block_header + '\n' + ws_block_footer
 
-edn = re.sub(r';; BEGIN WORKSPACE-RULES.*?;; END WORKSPACE-RULES', ws_block, edn, flags=re.DOTALL)
+edn = replace_block(edn, r';; BEGIN WORKSPACE-RULES.*?;; END WORKSPACE-RULES', ws_block, 'workspace-rules')
 
 # Hyper rules
 hyper_block = generate_hyper_rules(hyper_data, hyper_labels)
 if hyper_block:
-    edn = re.sub(r';; BEGIN HYPER-RULES.*?;; END HYPER-RULES', hyper_block, edn, flags=re.DOTALL)
+    edn = replace_block(edn, r';; BEGIN HYPER-RULES.*?;; END HYPER-RULES', hyper_block, 'hyper-rules')
 
 # -- Write --------------------------------------------------------------------
 
@@ -163,6 +166,11 @@ open(edn_path, 'w').write(edn)
 save_pool(pool_path, pool_map)
 
 # -- Summary ------------------------------------------------------------------
+
+if changed_blocks:
+    print(f"  updated: {', '.join(changed_blocks)}")
+else:
+    print("  (no changes)")
 
 if warnings:
     print("\n\033[33m! YAML <-> EDN out of sync:\033[0m")
