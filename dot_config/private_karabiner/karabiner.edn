@@ -40,7 +40,7 @@
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 8:vacc, 1:ws1/→ws1, 9:hacc, =:+size, -:-size, 2:ws2/→ws2, 0:tile"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 8:vacc, -:-size, 0:tile, =:+size, 2:ws2/→ws2, 9:hacc, 1:ws1/→ws1"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
