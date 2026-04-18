@@ -56,6 +56,11 @@ end, { desc = '[Y]ank selection with [R]elative path' })
 
 vim.keymap.set("n", "<Esc>", ":nohl<CR>", { desc = "Clear search hl", silent = true })
 
+-- Disable <Esc> to build the habit of using <C-c> to escape
+vim.keymap.set("i", "<Esc>", "<nop>", { desc = "Disabled — use <C-c>" })
+vim.keymap.set("v", "<Esc>", "<nop>", { desc = "Disabled — use <C-c>" })
+vim.keymap.set("s", "<Esc>", "<nop>", { desc = "Disabled — use <C-c>" })
+
 -- Unmaps Q in normal mode
 vim.keymap.set("n", "Q", "<nop>", { desc = "Disabled" })
 

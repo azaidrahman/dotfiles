@@ -7,16 +7,34 @@
     },
     "simple_modifications": [
       {
-        "from": {"key_code": "left_command"},
-        "to": [{"key_code": "left_control"}]
+        "from": {
+          "key_code": "left_command"
+        },
+        "to": [
+          {
+            "key_code": "left_control"
+          }
+        ]
       },
       {
-        "from": {"key_code": "left_control"},
-        "to": [{"key_code": "left_command"}]
+        "from": {
+          "key_code": "left_control"
+        },
+        "to": [
+          {
+            "key_code": "left_command"
+          }
+        ]
       },
       {
-        "from": {"key_code": "right_control"},
-        "to": [{"key_code": "right_command"}]
+        "from": {
+          "key_code": "right_control"
+        },
+        "to": [
+          {
+            "key_code": "right_command"
+          }
+        ]
       }
     ]
   },
@@ -33,12 +51,24 @@
     "mouse_flip_vertical_wheel": true,
     "simple_modifications": [
       {
-        "from": {"pointing_button": "button5"},
-        "to": [{"pointing_button": "button1"}]
+        "from": {
+          "pointing_button": "button4"
+        },
+        "to": [
+          {
+            "apple_vendor_keyboard_key_code": "mission_control"
+          }
+        ]
       },
       {
-        "from": {"pointing_button": "button4"},
-        "to": [{"apple_vendor_keyboard_key_code": "mission_control"}]
+        "from": {
+          "pointing_button": "button5"
+        },
+        "to": [
+          {
+            "pointing_button": "button1"
+          }
+        ]
       }
     ]
   }
