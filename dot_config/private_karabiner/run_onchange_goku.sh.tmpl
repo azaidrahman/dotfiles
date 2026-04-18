@@ -1,5 +1,6 @@
 #!/bin/bash
 # {{ include "dot_config/private_karabiner/karabiner.edn" | sha256sum }}
+# {{ include "dot_config/private_karabiner/data/devices_apple.json" | sha256sum }}
 {{- $devFile := joinPath "dot_config/private_karabiner/data" (printf "devices_%s.json" .chezmoi.hostname) -}}
 {{- if stat (joinPath .chezmoi.sourceDir $devFile) }}
 # {{ include $devFile | sha256sum }}
@@ -7,7 +8,8 @@
 set -euo pipefail
 
 KARABINER_JSON="$HOME/.config/karabiner/karabiner.json"
-DEVICES_JSON="$HOME/.config/karabiner/data/devices_$(hostname -s).json"
+APPLE_JSON="$HOME/.config/karabiner/data/devices_apple.json"
+HOST_JSON="$HOME/.config/karabiner/data/devices_$(hostname -s).json"
 
 if [ ! -f "$KARABINER_JSON" ]; then
   cat > "$KARABINER_JSON" <<'EOF'
@@ -18,25 +20,45 @@ fi
 goku
 
 # Merge saved device settings back (goku doesn't touch devices, but on a
-# fresh machine the profile starts empty — this ensures they're always present)
-if [ -f "$DEVICES_JSON" ]; then
-  python3 - "$KARABINER_JSON" "$DEVICES_JSON" <<'PYEOF'
-import json, sys
+# fresh machine the profile starts empty — this ensures they're always present).
+# Apple-keyboard settings sync across machines; per-host file covers the rest.
+python3 - "$KARABINER_JSON" "$APPLE_JSON" "$HOST_JSON" <<'PYEOF'
+import json, os, sys
 
-karabiner_path, devices_path = sys.argv[1], sys.argv[2]
+karabiner_path, apple_path, host_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+def load(p):
+    if p and os.path.exists(p):
+        with open(p) as f:
+            return json.load(f)
+    return []
+
+def dev_key(d):
+    ids = d.get("identifiers", {})
+    return (
+        ids.get("vendor_id"),
+        ids.get("product_id"),
+        ids.get("is_keyboard", False),
+        ids.get("is_pointing_device", False),
+    )
 
 with open(karabiner_path) as f:
     k = json.load(f)
-with open(devices_path) as f:
-    devices = json.load(f)
+
+apple = load(apple_path)
+host = load(host_path)
+
+# Host-specific wins over Apple-shared on exact identifier match
+merged = {}
+for d in apple + host:
+    merged[dev_key(d)] = d
 
 for p in k.get("profiles", []):
     if p.get("name") == "Zaid":
-        p["devices"] = devices
+        p["devices"] = list(merged.values())
         break
 
 with open(karabiner_path, "w") as f:
     json.dump(k, f, indent=2)
     f.write("\n")
 PYEOF
-fi
