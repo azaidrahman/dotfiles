@@ -1,0 +1,21 @@
+{{/*
+  Chezmoi config template. Generates ~/.config/chezmoi/chezmoi.toml on `chezmoi init`.
+  Prompts once per machine for personal/work emails; cached values skip the prompt.
+  Literal {{...}} in [merge] are escaped via {{`...`}} so they pass through unevaluated.
+*/ -}}
+{{- $personalEmail := promptStringOnce . "personalEmail" "Personal email" -}}
+{{- $workEmail     := promptStringOnce . "workEmail"     "Work email"     -}}
+
+encryption = "age"
+
+[age]
+  identity = "~/.config/chezmoi/key.txt"
+  recipient = "age1m2hnsvfd40797au99d5y3xdn4wzl6jgf98ddp2f249yq0shunpsq50z5ta"
+
+[merge]
+  command = "nvim"
+  args = ["-d", "{{`{{ .Destination }}`}}", "{{`{{ .Source }}`}}", "{{`{{ .Target }}`}}"]
+
+[data]
+  personalEmail = {{ $personalEmail | quote }}
+  workEmail     = {{ $workEmail     | quote }}

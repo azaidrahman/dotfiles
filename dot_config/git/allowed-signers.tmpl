@@ -1,0 +1,6 @@
+# git-allowed-signers(5) — whitelist for `git log --show-signature` verification.
+# SSH pubkeys are public by design; email principals come from chezmoi template data
+# so they don't get baked into the source repo.
+# Format: <principal> [namespaces=<csv>] <key-type> <base64>
+{{ .personalEmail }} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM03J8pvVltYwxTbBkr3/nfN/qmLXmXtE8A9HCToyovL
+{{ .workEmail }} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK+RKQKLiD4MzerLtLj/99tVguCIAYYSqxrC2itvABQZ
