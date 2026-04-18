@@ -1,0 +1,55 @@
+#!/bin/bash
+# Verify that the macOS keychain has the 1Password service-account tokens that
+# git-credential-op relies on. If either is missing, fail chezmoi apply with
+# instructions — it's better to find out now than at the first `git push`.
+#
+# Re-runs whenever this script's rendered content changes (chezmoi run_onchange_).
+# That's enough to catch first-install gaps on a new device; token rotation is
+# tracked separately by the `op-sa-health` zsh function.
+
+{{ if eq .chezmoi.os "darwin" -}}
+set -eu
+
+missing=()
+for entry in op-service-account-token op-service-account-token-personal; do
+    if ! security find-generic-password -a "$USER" -s "$entry" -w >/dev/null 2>&1; then
+        missing+=("$entry")
+    fi
+done
+
+if [ ${#missing[@]} -gt 0 ]; then
+    cat >&2 <<EOF
+
+╭──────────────────────────────────────────────────────────────────────────╮
+│ Missing 1Password service-account tokens in keychain on {{ .chezmoi.hostname }} │
+╰──────────────────────────────────────────────────────────────────────────╯
+
+git-credential-op needs these keychain entries on every device. Without them,
+git push/pull to github.com and bitbucket.org will fail.
+
+Missing entries:
+EOF
+    for entry in "${missing[@]}"; do
+        echo "  - $entry" >&2
+    done
+    cat >&2 <<'EOF'
+
+To bootstrap, create a service account in 1Password scoped to the matching
+vault, then add its token to the keychain:
+
+  # Gamuda SA (scoped to Gamuda vault) — used for bitbucket.org
+  security add-generic-password -a "$USER" -s op-service-account-token \
+      -T /usr/bin/security -w <paste-gamuda-sa-token>
+
+  # Personal SA (scoped to Personal Development vault) — used for github.com
+  security add-generic-password -a "$USER" -s op-service-account-token-personal \
+      -T /usr/bin/security -w <paste-personal-sa-token>
+
+Re-run `chezmoi apply` after adding them.
+
+EOF
+    exit 1
+fi
+
+echo "✓ keychain has both SA tokens on {{ .chezmoi.hostname }}"
+{{ end -}}

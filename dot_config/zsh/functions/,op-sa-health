@@ -1,0 +1,32 @@
+# ,op-sa-health - Check that each 1Password service-account token in the keychain
+#                 still works. Run periodically; SA tokens have a configurable TTL
+#                 and the symptom of expiry is an opaque `git push` failure.
+
+# (entry, vault) pairs — use a flat array to avoid hash-iteration quirks.
+local -a pairs=(
+    "op-service-account-token|Gamuda"
+    "op-service-account-token-personal|Personal Development"
+)
+
+local fail=0
+local pair entry vault token
+for pair in "${pairs[@]}"; do
+    entry="${pair%%|*}"
+    vault="${pair#*|}"
+    token=$(security find-generic-password -a "$USER" -s "$entry" -w 2>/dev/null)
+    if [ -z "$token" ]; then
+        print -u 2 "✗ $entry: missing from keychain"
+        fail=1
+        continue
+    fi
+    if OP_SERVICE_ACCOUNT_TOKEN="$token" op whoami >/dev/null 2>&1; then
+        print "✓ $entry → $vault vault"
+    else
+        print -u 2 "✗ $entry: token rejected by 1Password (expired or revoked?)"
+        fail=1
+    fi
+done
+
+# Clear the sensitive local before the function returns.
+unset token
+return $fail
