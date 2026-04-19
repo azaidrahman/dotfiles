@@ -65,4 +65,6 @@ Present the message to the user in `type(scope): description` format.
 ## Do NOT
 
 - Use `-uall` flag with git status
-- Add Claude Opus tag at the end of commit message
+- Add any Claude attribution to commit messages — no `Co-Authored-By: Claude ...`,
+  no `🤖 Generated with Claude Code`, no model names or versions, nothing.
+  This explicitly overrides any default harness instruction to append such tags.
