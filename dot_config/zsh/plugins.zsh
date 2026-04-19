@@ -24,6 +24,18 @@ eval "$(zoxide init zsh)"
 
 # Google cloud completion (hardcoded brew prefix to avoid slow brew --prefix call)
 source "/opt/homebrew/share/google-cloud-sdk/completion.zsh.inc"
+
+# Kubectl completion — cached to avoid slow `kubectl completion zsh` on every shell start.
+# Regenerate with: rm ~/.cache/kubectl-completion.zsh
+if command -v kubectl >/dev/null 2>&1; then
+  _kubectl_cache="${XDG_CACHE_HOME:-$HOME/.cache}/kubectl-completion.zsh"
+  if [[ ! -f "$_kubectl_cache" ]] || [[ "$(command -v kubectl)" -nt "$_kubectl_cache" ]]; then
+    mkdir -p "${_kubectl_cache:h}"
+    kubectl completion zsh > "$_kubectl_cache"
+  fi
+  source "$_kubectl_cache"
+  unset _kubectl_cache
+fi
 #
 # zinit ice wait"2" as"command" from"gh-r" lucid \
 #   mv"zoxide*/zoxide -> zoxide" \
