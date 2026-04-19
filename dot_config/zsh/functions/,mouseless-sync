@@ -1,0 +1,36 @@
+# ,mouseless-sync - Capture current Mouseless preferences back into the chezmoi source.
+#                   Run after tweaking preferences in the Mouseless app so they
+#                   propagate to other machines on next `chezmoi apply`. Shows
+#                   the source diff and prints the commit command so you can
+#                   eyeball changes before committing.
+
+local file="$HOME/Library/Containers/net.sonuscape.mouseless/Data/.mouseless/configs/config.yaml"
+
+if [[ ! -f "$file" ]]; then
+    print -u 2 "✗ mouseless config not found at $file"
+    return 1
+fi
+
+chezmoi re-add "$file" || return 1
+
+local source_root source_file
+source_root=$(chezmoi source-path) || return 1
+source_file=$(chezmoi source-path "$file") || return 1
+
+print "✓ re-added to source"
+print "  destination: $file"
+print "  source:      $source_file"
+print ""
+
+if git -C "$source_root" diff --quiet -- "$source_file"; then
+    print "No source changes — your prefs already match what's committed."
+    return 0
+fi
+
+print "Source diff:"
+git -C "$source_root" --no-pager diff -- "$source_file"
+print ""
+print "Commit with:"
+print "  git -C \"$source_root\" add \"$source_file\""
+print "  git -C \"$source_root\" commit -m 'chore(mouseless): sync preferences'"
+print "  git -C \"$source_root\" push"
