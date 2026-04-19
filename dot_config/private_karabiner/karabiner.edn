@@ -36,11 +36,11 @@
 
 ;; BEGIN HELP-TEXT (auto-generated from config/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, y:sioyek, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, s:slack, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
+                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, y:sioyek, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, s:slack, d:t3 code, f:cal, F:alfred, g:iPhone, G:safari, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 8:vacc, -:-size, 0:tile, =:+size, 2:ws2/→ws2, 9:hacc, 1:ws1/→ws1"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, =:+size, 9:hacc, 1:ws1/→ws1, 8:vacc, 0:tile, 2:ws2/→ws2, -:-size"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
@@ -98,7 +98,6 @@
     [:!Sf [:open "Alfred Preferences"]    :app-launch]
     [:!Sg [:open "Safari"]                :app-launch]
     [:!Sv [:open "Arc"]                   :app-launch]
-    ; [:!Se [:open "Todoist"]           :app-launch]
     ; [:!St :!TOSf13                    :app-launch]  ;; quick terminal (ghostty)
 
     ;; Unshifted shortcuts
@@ -112,6 +111,7 @@
     [:o [:open "Orbstack"]                :app-launch]
     [:p [:open "Microsoft Teams"]         :app-launch]
     [:s [:open "Slack"]                   :app-launch]
+    [:d [:open "T3 Code (Alpha)"]         :app-launch]
     [:f [:open "Calendar"]                :app-launch]
     [:g [:open "iPhone Mirroring"]        :app-launch]
     [:k [:open "Keyboard Maestro"]        :app-launch]
@@ -121,7 +121,6 @@
     [:b [:open "Telegram"]                :app-launch]
     [:n [:open "Inoreader"]               :app-launch]
     [:m [:open "Spotify"]                 :app-launch]
-    ; [:a [:open "Claude"]            :app-launch]
 ;; END APP-RULES
    ]
   }
