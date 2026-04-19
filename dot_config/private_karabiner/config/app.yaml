@@ -17,6 +17,7 @@ app:
   - o | orb | Orbstack
   - p | teams | Microsoft Teams
   - s | slack | Slack
+  - d | t3 code | T3 Code (Alpha)
   - f | cal | Calendar
   - F | alfred | Alfred Preferences
   - g | iPhone | iPhone Mirroring

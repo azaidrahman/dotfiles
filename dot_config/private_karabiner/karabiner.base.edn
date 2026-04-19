@@ -82,35 +82,36 @@
 ;; BEGIN SHORTCUT-DIRECT (auto-generated from config/shortcuts.yaml)
 ;; END SHORTCUT-DIRECT
 
-;; BEGIN APP-RULES (auto-generated from scripts/help-text.yaml)
+;; BEGIN APP-RULES (auto-generated from config/app.yaml)
     ;; Shifted shortcuts
-    [:!Sw [:open "Messages"]          :app-launch]
-    [:!Se [:open "Todoist"]           :app-launch]
+    [:!Sw [:open "Messages"]              :app-launch]
+    [:!Si [:open "Youtube Music"]         :app-launch]
+    [:!Sf [:open "Alfred Preferences"]    :app-launch]
+    [:!Sg [:open "Safari"]                :app-launch]
+    [:!Sv [:open "Arc"]                   :app-launch]
     ; [:!St :!TOSf13                    :app-launch]  ;; quick terminal (ghostty)
-    [:!Sf [:open "Alfred Preferences"]:app-launch]
-    [:!Si [:open "Youtube Music"]:app-launch]
-    [:!Sg [:open "Safari"]            :app-launch]
-    ; [:!Sv [:open "Arc"]               :app-launch]
 
     ;; Unshifted shortcuts
-    [:w [:open "Whatsapp"]          :app-launch]
-    [:e [:open "Obsidian"]          :app-launch]
-    [:r [:open "Arc"]               :app-launch]
-    [:t [:open "Ghostty"]           :app-launch]
-    [:i [:open "IINA"]              :app-launch]
-    [:o [:open "Orbstack"]          :app-launch]
-    [:p [:open "Microsoft Teams"]   :app-launch]
-    [:a [:open "Claude"]            :app-launch]
-    [:s [:open "Slack"]             :app-launch]
-    [:f [:open "Calendar"]          :app-launch]
-    [:g [:open "iPhone Mirroring"]  :app-launch]
-    [:k [:open "Keyboard Maestro"]  :app-launch]
-    [:l [:open "Microsoft Outlook"] :app-launch]
-    [:c :!Cgrave_accent_and_tilde   :app-launch]  ;; cycle windows
-    ; [:v [:open-vivaldi "Default"] :app-launch]
-    [:v [:open "Vivaldi"]           :app-launch]
-    [:n [:open "Inoreader"]         :app-launch]
-    [:m [:open "Spotify"]           :app-launch]
+    [:w [:open "Whatsapp"]                :app-launch]
+    [:e [:open "Obsidian"]                :app-launch]
+    [:r [:open "Arc"]                     :app-launch]
+    [:t [:open "Ghostty"]                 :app-launch]
+    [:y [:open "Sioyek"]                  :app-launch]
+    [:u [:open "Conductor"]               :app-launch]
+    [:i [:open "IINA"]                    :app-launch]
+    [:o [:open "Orbstack"]                :app-launch]
+    [:p [:open "Microsoft Teams"]         :app-launch]
+    [:s [:open "Slack"]                   :app-launch]
+    [:d [:open "T3 Code (Alpha)"]         :app-launch]
+    [:f [:open "Calendar"]                :app-launch]
+    [:g [:open "iPhone Mirroring"]        :app-launch]
+    [:k [:open "Keyboard Maestro"]        :app-launch]
+    [:l [:open "Microsoft Outlook"]       :app-launch]
+    [:c :!Cgrave_accent_and_tilde         :app-launch]
+    [:v [:open "Vivaldi"]                 :app-launch]
+    [:b [:open "Telegram"]                :app-launch]
+    [:n [:open "Inoreader"]               :app-launch]
+    [:m [:open "Spotify"]                 :app-launch]
 ;; END APP-RULES
    ]
   }

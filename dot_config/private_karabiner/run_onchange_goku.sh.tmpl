@@ -17,7 +17,7 @@ if [ ! -f "$KARABINER_JSON" ]; then
 EOF
 fi
 
-goku
+GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn" goku
 
 # Merge saved device settings back (goku doesn't touch devices, but on a
 # fresh machine the profile starts empty — this ensures they're always present).
