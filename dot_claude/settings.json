@@ -1,131 +1,79 @@
 {
-    "permissions": {
-        "allow": [
-            "Read",
-            "Grep",
-            "Glob",
-            "Bash(rg *)",
-            "Bash(find *)",
-            "Bash(fd *)",
-            "Bash(grep *)",
-            "Bash(cat *)",
-            "Bash(head *)",
-            "Bash(tail *)",
-            "Bash(ls *)",
-            "WebSearch",
-            "WebFetch"
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(fd *)",
+      "Bash(grep *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(ls *)",
+      "WebSearch",
+      "WebFetch"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/allow-readonly.sh",
+            "timeout": 5
+          }
         ]
-    },
-    "hooks": {
-        "Notification": [
-            {
-                "matcher": "permission_prompt",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage ~/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\""
-                    }
-                ]
-            },
-            {
-                "matcher": "idle_prompt",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && WINDOW=$(tmux display-message -p '#{window_index}' 2>/dev/null || echo '0') && WNAME=$(tmux display-message -p '#{window_name}' 2>/dev/null || echo 'claude') && MSG=$(jq -r '.message') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message \"$MSG\" -contentImage ~/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\" && ~/.tmux/scripts/log-alert.sh \"$SESSION\" \"$WINDOW\" \"$WNAME\" CLAUDE"
-                    }
-                ]
-            }
-        ],
-        "Stop": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo 'unknown') && WINDOW=$(tmux display-message -p '#{window_index}' 2>/dev/null || echo '0') && WNAME=$(tmux display-message -p '#{window_name}' 2>/dev/null || echo 'claude') && terminal-notifier -title 'Claude Code' -subtitle \"Session: $SESSION\" -message 'Claude finished' -contentImage ~/.claude/claude-logo.png -sound Glass -group \"claude-$SESSION\" && ~/.tmux/scripts/log-alert.sh \"$SESSION\" \"$WINDOW\" \"$WNAME\" CLAUDE"
-                    }
-                ]
-            },
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "[ -n \"$SUPERSET_HOME_DIR\" ] && [ -x \"$SUPERSET_HOME_DIR/hooks/notify.sh\" ] && \"$SUPERSET_HOME_DIR/hooks/notify.sh\" || true"
-                    }
-                ]
-            }
-        ],
-        "UserPromptSubmit": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "[ -n \"$SUPERSET_HOME_DIR\" ] && [ -x \"$SUPERSET_HOME_DIR/hooks/notify.sh\" ] && \"$SUPERSET_HOME_DIR/hooks/notify.sh\" || true"
-                    }
-                ]
-            }
-        ],
-        "PostToolUse": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "[ -n \"$SUPERSET_HOME_DIR\" ] && [ -x \"$SUPERSET_HOME_DIR/hooks/notify.sh\" ] && \"$SUPERSET_HOME_DIR/hooks/notify.sh\" || true"
-                    }
-                ]
-            }
-        ],
-        "PostToolUseFailure": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "[ -n \"$SUPERSET_HOME_DIR\" ] && [ -x \"$SUPERSET_HOME_DIR/hooks/notify.sh\" ] && \"$SUPERSET_HOME_DIR/hooks/notify.sh\" || true"
-                    }
-                ]
-            }
-        ],
-        "PermissionRequest": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "[ -n \"$SUPERSET_HOME_DIR\" ] && [ -x \"$SUPERSET_HOME_DIR/hooks/notify.sh\" ] && \"$SUPERSET_HOME_DIR/hooks/notify.sh\" || true"
-                    }
-                ]
-            }
-        ],
-        "PreToolUse": [
-            {
-                "matcher": "Bash",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "bash ~/.claude/hooks/allow-readonly.sh",
-                        "timeout": 5
-                    }
-                ]
-            }
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/notify-tmux.sh permission_prompt"
+          }
         ]
-    },
-    "statusLine": {
-        "type": "command",
-        "command": "jq -r '[ .model.display_name, \"ctx:\\(.context_window.used_percentage // 0)%\", (if .worktree.name then \"wt:\\(.worktree.name)\" else null end), (if .worktree.branch then \"br:\\(.worktree.branch)\" else null end), (if .rate_limits.five_hour then \"5h:\\(.rate_limits.five_hour.used_percentage | round)%\" else null end), (if .rate_limits.seven_day then \"7d:\\(.rate_limits.seven_day.used_percentage | round)%\" else null end) ] | map(select(. != null)) | join(\"  |  \")'"
-    },
-    "enabledPlugins": {
-        "pyright-lsp@claude-plugins-official": true,
-        "context7@claude-plugins-official": true,
-        "hookify@claude-plugins-official": true,
-        "superpowers@claude-plugins-official": true,
-        "code-review@claude-plugins-official": true,
-        "commit-commands@claude-plugins-official": true,
-        "security-guidance@claude-plugins-official": true,
-        "swift-lsp@claude-plugins-official": true
-    },
-    "effortLevel": "high",
-    "skipDangerousModePermissionPrompt": true,
-    "model": "opus"
+      },
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/notify-tmux.sh idle_prompt"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/notify-tmux.sh stop"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "jq -r '[ .model.display_name, \"ctx:\\(.context_window.used_percentage // 0)%\", (if .worktree.name then \"wt:\\(.worktree.name)\" else null end), (if .worktree.branch then \"br:\\(.worktree.branch)\" else null end), (if .rate_limits.five_hour then \"5h:\\(.rate_limits.five_hour.used_percentage | round)%\" else null end), (if .rate_limits.seven_day then \"7d:\\(.rate_limits.seven_day.used_percentage | round)%\" else null end) ] | map(select(. != null)) | join(\"  |  \")'"
+  },
+  "enabledPlugins": {
+    "pyright-lsp@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true
+  },
+  "effortLevel": "high",
+  "skipDangerousModePermissionPrompt": true
 }
