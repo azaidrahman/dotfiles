@@ -1,7 +1,7 @@
 app_version: 0.4.3
 behavior_configs:
 - base_move_speed: 20
-  base_wheel_speed: 40.0
+  base_wheel_speed: 30
   free_mode_auto_off_s: 40
   grid_action_level: subgrid
   hide_cursor_on_click: false
@@ -17,7 +17,7 @@ behavior_configs:
   send_escape_after_global_alt_tap__windows: true
   tap_threshold_ms: 200
   wheel_easing: 0.3
-  wheel_speed_multiplier: 3.0
+  wheel_speed_multiplier: 5
   wheel_step_size: 80.0
   wheel_step_size_large: 250.0
 classname: AppConfig
