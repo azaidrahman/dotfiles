@@ -6,10 +6,7 @@ set -euo pipefail
 BREWFILE="${HOME}/.config/homebrew/Brewfile"
 IGNOREFILE="${HOME}/.config/homebrew/brewignore"
 
-echo "Running brew bundle install..."
-brew bundle install --file="$BREWFILE"
-
-# Build skip lists from brewignore
+# Build skip lists from brewignore (applied to both install and cleanup)
 CASK_SKIP=""
 BREW_SKIP=""
 if [[ -f "$IGNOREFILE" ]]; then
@@ -26,6 +23,9 @@ fi
 
 export HOMEBREW_BUNDLE_CASK_SKIP="$CASK_SKIP"
 export HOMEBREW_BUNDLE_BREW_SKIP="$BREW_SKIP"
+
+echo "Running brew bundle install (no-upgrade: skips upgrades to avoid sudo-needy casks hanging apply)..."
+brew bundle install --no-upgrade --file="$BREWFILE"
 
 # Show what would be removed and ask for confirmation
 cleanup_list=$(brew bundle cleanup --file="$BREWFILE" 2>/dev/null || true)
