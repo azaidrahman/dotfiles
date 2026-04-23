@@ -1,7 +1,7 @@
 # Packages to ignore from brew sync-status and auto-sync
 # One per line, prefix with "brew" or "cask" (or omit prefix to match both)
 cask magicquit
-cask claude-code@latest
+brew claude-code@latest
 cask google-drive
 cask multipass
 cask virtualbox
