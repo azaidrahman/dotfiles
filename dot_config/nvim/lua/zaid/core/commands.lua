@@ -3,6 +3,19 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 	group = vim.api.nvim_create_augroup("kickstart-highlight-yank", { clear = true }),
 	callback = function()
 		vim.hl.on_yank()
+		if vim.v.event.operator ~= "y" then
+			return
+		end
+		local lines = vim.v.event.regcontents or {}
+		local line_count = #lines
+		local char_count = 0
+		for _, l in ipairs(lines) do
+			char_count = char_count + #l
+		end
+		local msg = line_count == 1
+			and string.format("%d chars", char_count)
+			or string.format("%d lines, %d chars", line_count, char_count)
+		vim.notify(msg, vim.log.levels.INFO, { title = "Yanked" })
 	end,
 })
 
