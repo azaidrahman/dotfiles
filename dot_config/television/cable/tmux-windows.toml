@@ -5,7 +5,7 @@ requirements = ["tmux"]
 
 [source]
 no_sort = true
-command = "bash -c \"tmux list-windows -a -F '#{session_last_attached}\t#{window_stack_index}\t#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_command}' | sort -rn -t'\t' -k1,1 -k2,2n | cut -f3-\""
+command = "bash -c \"tmux list-windows -a -F '#{window_stack_index}\t#{session_last_attached}\t#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_command}' | sort -t'\t' -k1,1n -k2,2nr | cut -f3-\""
 display = "{split:\t:0}: {split:\t:2} [{split:\t:1}]"
 output = "{split:\t:0}:{split:\t:1}"
 
