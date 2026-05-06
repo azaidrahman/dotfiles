@@ -51,7 +51,7 @@ end
 
 M.yank_path = function(path, label)
   vim.fn.setreg('+', path)
-  print('Yanked ' .. label .. ' path: ' .. path)
+  vim.notify(path, vim.log.levels.INFO, { title = 'Yanked ' .. label .. ' path' })
 end
 
 M.yank_visual_with_path = function(path, label)
@@ -70,7 +70,7 @@ M.yank_visual_with_path = function(path, label)
 
   M.exit_visual_mode()
 
-  print('Yanked ' .. label .. ' with lines ' .. line_range)
+  vim.notify(path_with_lines, vim.log.levels.INFO, { title = 'Yanked ' .. label .. ' selection' })
 end
 
 return M

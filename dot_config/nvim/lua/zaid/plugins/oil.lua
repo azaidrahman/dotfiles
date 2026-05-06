@@ -29,6 +29,24 @@ return {
 				["<C-l>"] = false,
 				["<M-h>"] = "actions.select_split",
 				["q"] = "actions.close",
+				["gy"] = {
+					desc = "Yank entry path to clipboard",
+					callback = function()
+						local oil = require("oil")
+						local entry = oil.get_cursor_entry()
+						local dir = oil.get_current_dir()
+						if not entry or not dir then
+							return
+						end
+						local name = entry.name
+						if entry.type == "directory" then
+							name = name .. "/"
+						end
+						local path = dir .. name
+						vim.fn.setreg("+", path)
+						vim.notify(path, vim.log.levels.INFO, { title = "Yanked path" })
+					end,
+				},
 			},
 			delete_to_trash = true,
 			view_options = {
