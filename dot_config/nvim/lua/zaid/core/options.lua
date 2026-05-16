@@ -53,7 +53,9 @@ vim.opt.mouse = "a"
 
 -- filetype extensions
 vim.filetype.add({
-    extension = {
-        MD = "markdown",
-    },
+	extension = {
+		MD = "markdown",
+	},
 })
+
+vim.opt.textwidth = 120

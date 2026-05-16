@@ -14,7 +14,8 @@
       "Bash(ls *)",
       "WebSearch",
       "WebFetch"
-    ]
+    ],
+    "defaultMode": "auto"
   },
   "hooks": {
     "PreToolUse": [
@@ -75,5 +76,8 @@
     "swift-lsp@claude-plugins-official": true
   },
   "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-ansi",
+  "editorMode": "vim",
+  "skipAutoPermissionPrompt": true
 }
