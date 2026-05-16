@@ -24,8 +24,24 @@ fi
 export HOMEBREW_BUNDLE_CASK_SKIP="$CASK_SKIP"
 export HOMEBREW_BUNDLE_BREW_SKIP="$BREW_SKIP"
 
-echo "Running brew bundle install (no-upgrade: skips upgrades to avoid sudo-needy casks hanging apply)..."
-brew bundle install --no-upgrade --file="$BREWFILE"
+# Show what would be installed and ask for confirmation
+install_list=$(brew bundle check --verbose --no-upgrade --file="$BREWFILE" 2>/dev/null | grep -v '^The Brewfile' || true)
+
+if [[ -n "$install_list" ]]; then
+    echo "The following packages from your Brewfile are missing:"
+    echo "$install_list"
+    echo ""
+    printf "Install these packages? [y/N] "
+    read -r answer </dev/tty
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        echo "Running brew bundle install (no-upgrade: skips upgrades to avoid sudo-needy casks hanging apply)..."
+        brew bundle install --no-upgrade --file="$BREWFILE"
+    else
+        echo "Skipping install."
+    fi
+else
+    echo "All Brewfile packages already installed."
+fi
 
 # Show what would be removed and ask for confirmation
 cleanup_list=$(brew bundle cleanup --file="$BREWFILE" 2>/dev/null || true)

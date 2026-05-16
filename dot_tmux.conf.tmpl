@@ -90,7 +90,8 @@ bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "pbcopy"
 # Dont exit copy mode when draggin with mouse
 unbind -T copy-mode-vi MouseDragEnd1Pane
 
-
+set -g extended-keys on
+set -g extended-keys-format csi-u
 
 # Tmux-jump to character (https://github.com/schasse/tmux-jump)
 set -g @plugin 'schasse/tmux-jump'
