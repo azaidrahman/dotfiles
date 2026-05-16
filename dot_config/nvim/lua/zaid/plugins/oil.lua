@@ -61,5 +61,11 @@ return {
 				vim.opt_local.cursorline = true
 			end,
 		})
+
+		vim.api.nvim_create_autocmd("FocusGained", {
+			callback = function()
+				require("oil.view").rerender_all_oil_buffers({ refetch = true })
+			end,
+		})
 	end,
 }
