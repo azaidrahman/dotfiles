@@ -84,9 +84,9 @@ return {
 				overrides = function(colors)
 					local theme = colors.theme
 					return {
-						NormalFloat = { bg = "none" },
-						FloatBorder = { bg = "none" },
-						FloatTitle = { bg = "none" },
+						NormalFloat = { bg = "#1f2030" },
+						FloatBorder = { bg = "#1f2030", fg = "#54546d" },
+						FloatTitle = { bg = "#1f2030" },
 						Pmenu = {
 							fg = theme.ui.shade0,
 							bg = "NONE",
@@ -166,6 +166,11 @@ return {
 					sidebars = transparent and "transparent" or "dark",
 					floats = transparent and "transparent" or "dark",
 				},
+				on_highlights = function(hl, c)
+					hl.NormalFloat = { bg = "#1f2030" }
+					hl.FloatBorder = { bg = "#1f2030", fg = "#54546d" }
+					hl.FloatTitle = { bg = "#1f2030" }
+				end,
 				on_colors = function(colors)
 					colors.bg = transparent and colors.none or bg
 					colors.bg_dark = transparent and colors.none or bg_dark
