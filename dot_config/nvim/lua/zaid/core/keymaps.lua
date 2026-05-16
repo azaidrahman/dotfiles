@@ -42,6 +42,16 @@ vim.keymap.set('n', '<leader>ya', function()
   yank.yank_path(yank.get_buffer_absolute(), 'absolute')
 end, { desc = '[Y]ank [A]bsolute path to clipboard' })
 
+vim.keymap.set('n', '<C-g>', function()
+  local path = vim.bo.filetype == 'oil'
+    and require('oil').get_current_dir()
+    or yank.get_buffer_absolute()
+
+  vim.cmd('file')              -- native <C-g> output
+  vim.fn.setreg('+', path)
+  vim.notify(path, vim.log.levels.INFO, { title = 'Yanked path' })
+end, { desc = 'Show + yank current buffer/oil path' })
+
 vim.keymap.set('n', '<leader>yr', function()
   yank.yank_path(yank.get_buffer_cwd_relative(), 'relative')
 end, { desc = '[Y]ank [R]elative path to clipboard' })
