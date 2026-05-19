@@ -5,22 +5,23 @@ requirements = ["tmux"]
 
 [source]
 no_sort = true
-command = "bash -c \"tmux list-windows -a -F '#{window_stack_index}\t#{session_last_attached}\t#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_command}' | sort -t'\t' -k1,1n -k2,2nr | cut -f3-\""
-display = "{split:\t:0}: {split:\t:2} [{split:\t:1}]"
-output = "{split:\t:0}:{split:\t:1}"
+ansi = true
+command = "~/.tmux/scripts/tv-tmux-windows.sh"
+watch = 1.0
+output = "{strip_ansi|split:\t:1}"
 
 [keybindings]
 enter = "actions:select"
 
 [preview]
-command = "tmux capture-pane -t '{split:\t:0}:{split:\t:1}' -p 2>/dev/null || echo 'No preview available'"
+command = "tmux capture-pane -t '{strip_ansi|split:\t:1}' -p 2>/dev/null || echo 'No preview available'"
 
 [actions.select]
 description = "Switch to the selected window"
-command = "tmux switch-client -t '{split:\t:0}:{split:\t:1}'"
+command = "tmux switch-client -t '{strip_ansi|split:\t:1}'"
 mode = "execute"
 
 [actions.kill]
 description = "Kill the selected window"
-command = "tmux kill-window -t '{split:\t:0}:{split:\t:1}'"
+command = "tmux kill-window -t '{strip_ansi|split:\t:1}'"
 mode = "fork"
