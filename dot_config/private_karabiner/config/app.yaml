@@ -14,6 +14,7 @@ app:
   - u | conductor | Conductor
   - i | IINA | IINA
   - I | ytmusic | Youtube Music
+  - j | jira | Jira
   - o | orb | Orbstack
   - p | teams | Microsoft Teams
   - s | slack | Slack
