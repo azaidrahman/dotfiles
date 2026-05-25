@@ -24,6 +24,9 @@ set -g allow-passthrough on
 unbind r
 bind r source-file "~/.tmux.conf"
 
+# Renumber windows sequentially
+bind R move-window -r
+
 unbind %
 bind \\ split-window -h -c "#{pane_current_path}"
 unbind \"
