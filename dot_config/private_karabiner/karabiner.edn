@@ -32,6 +32,7 @@
              :aero          "/opt/homebrew/bin/aerospace %s"
              :show-time     "~/.config/karabiner/scripts/show-time.sh"
              :hide-time     "killall time-hud 2>/dev/null"
+             :toggle-topbar "~/.config/karabiner/scripts/toggle-top-bar"
             }
 
 ;; BEGIN HELP-TEXT (auto-generated from config/help-text.yaml)
@@ -192,6 +193,11 @@
     [:!QWERslash :show-hyper-help nil {:afterup :clear-hyper-help}]
    ]}
 ;; END HYPER-RULES
+
+  {:des "Hyper shell commands"
+   :rules
+   [;; hyper+t → toggle mouse between current position and top of screen
+    [:!QWERt [:toggle-topbar]]]}
 
   {:des "CapsLock to Hyper"
    :rules
