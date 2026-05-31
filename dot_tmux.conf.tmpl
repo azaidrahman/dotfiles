@@ -1,184 +1,22 @@
-# Enable 256-color and true color support in tmux
-set -g default-terminal "tmux-256color"
-set -g terminal-overrides ",xterm-ghostty:RGB,*256color*:Tc"
+{{- /* Thin loader for modular tmux config in ~/.tmux/conf.d/.
+       Fragments are split by concern; see docs/superpowers/specs/.
 
-# GENERAL
-set -g set-clipboard on
-set -g mouse on
-set -g status-interval 3
-set -g detach-on-destroy off
+       Headless hosts run plain stock tmux: visual.conf is skipped and the theme
+       plugin is dropped (see plugins.conf.tmpl). Add a hostname to $headless to
+       strip a box entirely. Keep this list in sync with plugins.conf.tmpl. */ -}}
+{{- $headless := list -}}
+{{- $minimal := has .chezmoi.hostname $headless -}}
+# Non-visual options and keybindings
+source-file ~/.tmux/conf.d/options.conf
+source-file ~/.tmux/conf.d/keys.conf
 
-# Set prefix key
-unbind C-b
-# NOTE: IF ON MAC change C-space at Keyboard -> Input Sources 
-set -g prefix C-space
-bind C-space send-prefix
+# Plugins + TPM (declares plugins, then runs tpm)
+source-file ~/.tmux/conf.d/plugins.conf
 
-# unbind z
-# bind z run-shell "~/.tmux/scripts/tmux-zen.sh 90"
-bind-key z resize-pane -Z
-
-set -g allow-passthrough on
-
-# Refresh tmux config with r
-unbind r
-bind r source-file "~/.tmux.conf"
-
-# Renumber windows sequentially
-bind R move-window -r
-
-unbind %
-bind \\ split-window -h -c "#{pane_current_path}"
-unbind \"
-bind - split-window -v -c "#{pane_current_path}"
-
-
-# Size windows to the most recently active client, not the smallest.
-set -g window-size latest
-
-# Status bar
-# set -g status-bg black
-# set -g status-fg white
-# set -g status-left-length 20
-# set -g status-right-length 150
-# set -g status-left "#[fg=green]#S #[fg=white]#I #[fg=yellow]#P "
-# set -g status-right "#[fg=green]#H #[fg=white]%a %d-%b-%y #[fg=yellow]%R "
-
-# New window in same path
-bind c new-window -c "#{pane_current_path}"
-
-# Resurrect
-bind C-s run '~/.tmux/plugins/tmux-resurrect/scripts/save.sh'
-bind C-r run '~/.tmux/plugins/tmux-resurrect/scripts/restore.sh'
-
-# Use vim arrows to resize
-bind -r j resize-pane -D 5
-bind -r k resize-pane -U 5
-bind -r h resize-pane -L 5
-bind -r l resize-pane -R 5
-bind -r m resize-pane -Z # Use m key to maximize pane
-
-# Use vim arrows to move between panes
-bind -r J select-pane -D
-bind -r K select-pane -U
-bind -r H select-pane -L
-bind -r L select-pane -R
-
-# Switch to last active window/session
-bind o run-shell "~/.tmux/scripts/switch-last.sh"
-
-# Television: fuzzy tmux window picker (sorted by recent activity)
-bind-key "f" display-popup -E -w 80% -h 70% -d '#{pane_current_path}' -T ' Windows ' 'tv'
-
-# Television: windows needing attention (bells from Claude, activity)
-bind-key "a" display-popup -E -w 80% -h 70% -T ' Alerts ' 'tv tmux-alerts'
-
-# Monitor bells (Claude Code rings bell on completion)
-set -gw monitor-bell on
-set -g bell-action any
-
-
-unbind [
-bind v copy-mode
-
-# Enable vi mode to allow vim movements
-set-window-option -g mode-keys vi
-
-# Start selecting textwith "v"
-bind-key -T copy-mode-vi v send-keys -X begin-selection
-
-# Copy text with "y"
-bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "pbcopy"
-
-# Dont exit copy mode when draggin with mouse
-unbind -T copy-mode-vi MouseDragEnd1Pane
-
-set -g extended-keys on
-set -g extended-keys-format csi-u
-
-# Tmux-jump to character (https://github.com/schasse/tmux-jump)
-set -g @plugin 'schasse/tmux-jump'
-set -g @jump-key 'g'
-
-# set -g @plugin 'fabioluciano/tmux-tokyo-night'
-# set -g @theme_variation 'moon'
-# set -g @theme_left_separator ''
-# set -g @theme_right_separator ''
-# set -g @theme_plugins 'datetime,battery'
-# set -g @theme_transparent_status_bar 'true'
-# set -g @theme_plugin_datetime_format "%D %l:%M %p"
-
-# https://github.com/janoamaral/tokyo-night-tmux
-set -g @plugin "janoamaral/tokyo-night-tmux"
-set -g @tokyo-night-tmux_show_wbg 0
-set -g @tokyo-night-tmux_show_hostname 1
-set -g @tokyo-night-tmux_transparent 1
-set -g @tokyo-night-tmux_theme storm
-set -g @tokyo-night-tmux_window_id_style none
-set -g @tokyo-night-tmux_show_datetime 1
-set -g @tokyo-night-tmux_date_format DMY
-set -g @tokyo-night-tmux_time_format 12H
-# set -g @tokyo-night-tmux_show_music 1
-set -g @tokyo-night-tmux_show_git 1
-set -g @tokyo-night-tmux_show_path 1
-set -g @tokyo-night-tmux_path_format relative # 'relative' or 'full'
-set -g @tokyo-night-tmux_path_max_length 30
-
-set -g @plugin 'tmux-plugins/tpm'
-set -g @plugin 'tmux-plugins/tmux-sensible'
-set -g @plugin 'christoomey/vim-tmux-navigator'
-# Other examples:
-set -g @plugin 'tmux-plugins/tmux-resurrect'
-set -g @plugin 'tmux-plugins/tmux-continuum'
-
-set -g @continuum-restore 'on'
-
-set-hook -g after-resize-pane 'run "~/.tmux/scripts/zoom-indicator.sh"'
-set-hook -g after-select-pane 'run "~/.tmux/scripts/zoom-indicator.sh"'
-set-hook -g after-select-window 'run "~/.tmux/scripts/zoom-indicator.sh"'
-# Log bell alerts to file for TV channel, send terminal-notifier
-set-hook -g alert-bell 'run-shell "~/.tmux/scripts/log-alert.sh \"#{session_name}\" \"#{window_index}\" \"#{window_name}\" BELL"'
-# Clear alerts + terminal-notifier when focusing a pane
-set-hook -g pane-focus-in 'run-shell "~/.tmux/scripts/clear-alert.sh #{session_name} #{window_index}"'
-# Track window/session focus for prefix+o (last active anything)
-set-hook -ga after-select-window 'run-shell "~/.tmux/scripts/track-focus.sh #{session_name}:#{window_index}"'
-set-hook -g client-session-changed 'run-shell "~/.tmux/scripts/track-focus.sh #{session_name}:#{window_index}"'
-
-set -g status-position bottom
-
-
-# # Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
-# set-environment -g TMUX_PLUGIN_MANAGER_PATH '~/.config/tmux/plugins/'
-# run '~/.tmux/plugins/tpm/tpm'
-# run '${TMUX_PLUGIN_MANAGER_PATH}tpm/tpm'
-
-# set-environment -g TMUX_PLUGIN_MANAGER_PATH '/Users/zaid/.config/tmux/plugins/'
-set-environment -g PATH '/opt/homebrew/bin:/bin:/usr/bin'
-run '~/.tmux/plugins/tpm/tpm'
-
-# setting here to override plugin stuff
-set -g pane-border-style fg=#8DAFFF
-set -g pane-active-border-style fg=colour82
-# set -g status-style bg=#8DAFFF
-
-# Show pane title above each pane (overrides tokyo-night's `off`)
-set -g pane-border-status top
-set -g pane-border-format " #{pane_title} "
-
-# Dim inactive panes (ghostty bg is #002b36)
-set -g window-style 'bg=#001520'
-set -g window-active-style 'bg=#002b36'
-
-# Override widgets to use custom scripts (survives plugin updates)
-run-shell 'tmux set -g status-right "$(tmux show-options -gv status-right | sed "s|plugins/tokyo-night-tmux/src/path-widget.sh|scripts/path-widget.sh|")"'
-run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|plugins/tokyo-night-tmux/src/hostname-widget.sh|scripts/hostname-widget.sh|")"'
-
-# Override session bar color per device: cyan for aqua, dark purple for onyx
-{{ if eq .chezmoi.hostname "aqua" -}}
-run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|fg=#414868,bg=#7aa2f7|fg=#000000,bg=#04d1f9|")"'
-{{ else if eq .chezmoi.hostname "onyx" -}}
-run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|fg=#414868,bg=#7aa2f7|fg=##FFFFFF,bg=##5B21B6|")"'
-{{ else -}}
-run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|fg=#414868,bg=#7aa2f7|fg=#000000,bg=#4D95F3|")"'
+{{ if not $minimal -}}
+# Visual styling — must run after TPM; skipped on minimal hosts
+source-file ~/.tmux/conf.d/visual.conf
 {{ end -}}
 
+# Hooks
+source-file ~/.tmux/conf.d/hooks.conf

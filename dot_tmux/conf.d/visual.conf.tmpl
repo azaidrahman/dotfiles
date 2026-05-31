@@ -1,0 +1,27 @@
+# Visual styling. Runs AFTER TPM so it overrides the theme plugin's defaults.
+# This whole file is skipped on headless/minimal hosts (see the loader).
+
+# Pane borders (override tokyo-night)
+set -g pane-border-style fg=#8DAFFF
+set -g pane-active-border-style fg=colour82
+
+# Show pane title above each pane (overrides tokyo-night's `off`)
+set -g pane-border-status top
+set -g pane-border-format " #{pane_title} "
+
+# Dim inactive panes (ghostty bg is #002b36)
+set -g window-style 'bg=#001520'
+set -g window-active-style 'bg=#002b36'
+
+# Override widgets to use custom scripts (survives plugin updates)
+run-shell 'tmux set -g status-right "$(tmux show-options -gv status-right | sed "s|plugins/tokyo-night-tmux/src/path-widget.sh|scripts/path-widget.sh|")"'
+run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|plugins/tokyo-night-tmux/src/hostname-widget.sh|scripts/hostname-widget.sh|")"'
+
+# Override session bar color per device: cyan for aqua, dark purple for onyx
+{{ if eq .chezmoi.hostname "aqua" -}}
+run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|fg=#414868,bg=#7aa2f7|fg=#000000,bg=#04d1f9|")"'
+{{ else if eq .chezmoi.hostname "onyx" -}}
+run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|fg=#414868,bg=#7aa2f7|fg=##FFFFFF,bg=##5B21B6|")"'
+{{ else -}}
+run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|fg=#414868,bg=#7aa2f7|fg=#000000,bg=#4D95F3|")"'
+{{ end -}}
