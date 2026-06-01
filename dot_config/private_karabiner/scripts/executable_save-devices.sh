@@ -46,11 +46,11 @@ apple = [d for d in devices if is_apple(d)]
 host = [d for d in devices if not is_apple(d)]
 
 with open(apple_path, "w") as f:
-    json.dump(apple, f, indent=2)
+    json.dump(apple, f, indent=4)
     f.write("\n")
 
 with open(host_path, "w") as f:
-    json.dump(host, f, indent=2)
+    json.dump(host, f, indent=4)
     f.write("\n")
 
 print(f"Apple (shared):  {len(apple)} entries -> {apple_path}")
