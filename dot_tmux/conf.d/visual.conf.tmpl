@@ -5,6 +5,12 @@
 set -g pane-border-style fg=#8DAFFF
 set -g pane-active-border-style fg=colour82
 
+# Slim window tabs (override tokyo-night). Strips the leading shell/ssh icon,
+# the boxed pane-id badge, and the last-window arrow; tightens padding to a
+# single space. #W keeps the Claude-status glyph the notify hook prepends.
+set -g window-status-format "#[fg=#a9b1d6,bg=default,nobold,nodim] #I #W #[default]"
+set -g window-status-current-format "#[fg=#73daca,bg=#414868,bold] #I #W #[default]"
+
 # Show pane title below each pane (overrides tokyo-night's `off`)
 set -g pane-border-status bottom
 set -g pane-border-format " #{pane_title} "
