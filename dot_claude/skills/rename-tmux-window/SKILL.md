@@ -11,11 +11,19 @@ Rename the tmux window this Claude session is running in. Works only inside tmux
 ## 1. Decide the name
 
 - **If the user gave a name** (skill argument or in their message): use it verbatim, trimmed.
-- **Otherwise**: summarize what this session is currently working on into a short
-  **2–4 word, lowercase, kebab-case** title (e.g. `tmux-window-shortcuts`,
-  `auth-token-refresh`). No punctuation, no trailing/leading hyphens.
+- **Otherwise, prioritize the Jira ticket.** Branches follow `<type>/<KEY>-<slug>`,
+  so check the current branch for a ticket key (`[A-Z]+-[0-9]+`):
 
-Keep it terse — it's a tab label, not a sentence.
+  ```bash
+  BRANCH=$(git -C "$(tmux display-message -p '#{pane_current_path}')" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  TICKET=$(printf '%s' "$BRANCH" | grep -oE '[A-Z]+-[0-9]+' | head -1)
+  ```
+
+  - **Ticket found** → lead with it, then a 1–3 word topic: `GTI-273 auth-refresh`.
+  - **No ticket** → summarize what this session is working on into a short
+    **2–4 word, lowercase, kebab-case** title (e.g. `tmux-window-shortcuts`).
+
+Keep it terse — it's a tab label, not a sentence. No trailing/leading hyphens.
 
 ## 2. Apply it (preserves the Claude status glyph)
 
