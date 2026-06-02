@@ -15,7 +15,7 @@ Rename the tmux window this Claude session is running in. Works only inside tmux
   so check the current branch for a ticket key (`[A-Z]+-[0-9]+`):
 
   ```bash
-  BRANCH=$(git -C "$(tmux display-message -p '#{pane_current_path}')" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  BRANCH=$(git -C "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_current_path}')" rev-parse --abbrev-ref HEAD 2>/dev/null)
   TICKET=$(printf '%s' "$BRANCH" | grep -oE '[A-Z]+-[0-9]+' | head -1)
   ```
 
@@ -28,12 +28,18 @@ Keep it terse — it's a tab label, not a sentence. No trailing/leading hyphens.
 ## 2. Apply it (preserves the Claude status glyph)
 
 A status hook may prefix a glyph (`●`/`⚠`/`⏸`/`✓`) to the window name. Keep it by
-storing the base name in `@claude_base` and re-rendering any current glyph:
+storing the base name in `@claude_base` and re-rendering any current glyph.
+
+**Target `$TMUX_PANE`, not the bare query.** `tmux display-message -p '...'` reports
+the *attached client's active window* — whichever the user is looking at right now —
+not the window this Claude pane lives in. If the user has switched away, that renames
+the wrong window. `$TMUX_PANE` is the env var tmux sets to this process's own pane, so
+`-t "$TMUX_PANE"` always resolves to Claude's window:
 
 ```bash
 NAME="<the name from step 1>"
-WID=$(tmux display-message -p '#{window_id}')
-CUR=$(tmux display-message -p '#{window_name}')
+WID=$(tmux display-message -p -t "$TMUX_PANE" '#{window_id}')
+CUR=$(tmux display-message -p -t "$TMUX_PANE" '#{window_name}')
 GLYPH=$(printf '%s' "$CUR" | grep -oE '^[●⚠⏸✓]' || true)
 tmux set-option -w -t "$WID" @claude_base "$NAME"
 tmux rename-window -t "$WID" "${GLYPH:+$GLYPH }$NAME"
