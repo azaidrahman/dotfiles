@@ -83,11 +83,24 @@
     "code-review@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true
+    "swift-lsp@claude-plugins-official": true,
+    "atlassian@claude-plugins-official": true,
+    "meta@gtech-skills": true,
+    "platform@gtech-skills": true,
+    "general@gtech-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "gtech-skills": {
+      "source": {
+        "source": "git",
+        "url": "https://bitbucket.org/get-rnd/gtech-skills.git"
+      }
+    }
   },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-ansi",
   "editorMode": "vim",
+  "preferredNotifChannel": "ghostty",
   "skipAutoPermissionPrompt": true
 }
