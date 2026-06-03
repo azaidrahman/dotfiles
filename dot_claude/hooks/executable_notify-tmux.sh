@@ -121,9 +121,17 @@ window_status() {
 
 notify() {
     command -v terminal-notifier >/dev/null || return 0
+    # Subtitle = session + the window's topic, so concurrent sessions are easy to
+    # tell apart. Prefer @claude_base (the clean auto-named topic, no status glyph);
+    # fall back to the window name with any leading glyph/spaces stripped.
+    local label sub
+    label=$(tmux show-options -wqv -t "$WIN_ID" @claude_base 2>/dev/null)
+    [ -z "$label" ] && label=$(printf '%s' "$WNAME" | sed -E 's/^[^[:alnum:]]+[[:space:]]*//')
+    sub="$SESSION"
+    [ -n "$label" ] && sub="$SESSION · $label"
     terminal-notifier \
         -title 'Claude Code' \
-        -subtitle "Session: $SESSION" \
+        -subtitle "$sub" \
         -message "$1" \
         -contentImage "$LOGO" \
         -sound Glass \
