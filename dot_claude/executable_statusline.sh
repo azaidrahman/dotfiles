@@ -5,18 +5,17 @@ input=$(cat)
 dir=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty')
 [ -z "$dir" ] && dir="$PWD"
 
-# Git-derived worktree name + branch (works for linked worktrees too)
+# Git worktree name + branch in a single git call (line 1 = toplevel, line 2 = branch)
 wt=""
 br=""
-if toplevel=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null); then
-  wt=$(basename "$toplevel")
-  br=$(git -C "$dir" symbolic-ref --quiet --short HEAD 2>/dev/null \
-       || git -C "$dir" rev-parse --short HEAD 2>/dev/null)
+if gitinfo=$(git -C "$dir" rev-parse --show-toplevel --abbrev-ref HEAD 2>/dev/null); then
+  wt=$(basename "$(printf '%s' "$gitinfo" | sed -n 1p)")
+  br=$(printf '%s' "$gitinfo" | sed -n 2p)
 fi
 
-# Everything except the vim-mode indicator comes from the status line JSON
-rest=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" '
-  [
+# Single jq pass: emit "<vim mode>\t<rest of segments>"
+out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" '
+  (.vim.mode // "") + "\t" + ([
     .model.display_name,
     "ctx:\(.context_window.used_percentage // 0)%",
     (if $wt != "" then "wt:\($wt)" else null end),
@@ -27,19 +26,19 @@ rest=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" '
         else "5h:\(.rate_limits.five_hour.used_percentage | round)%" end)
      else null end),
     (if .rate_limits.seven_day then "7d:\(.rate_limits.seven_day.used_percentage | round)%" else null end)
-  ]
-  | map(select(. != null)) | join("  |  ")')
+  ] | map(select(. != null)) | join("  |  "))')
+
+mode=${out%%$'\t'*}
+rest=${out#*$'\t'}
 
 # Vim-mode indicator: blue (#78B0FF) for INSERT, gray for everything else
-mode=$(printf '%s' "$input" | jq -r '.vim.mode // empty')
 if [ -n "$mode" ]; then
-  reset=$'\033[0m'
   if [ "$mode" = "INSERT" ]; then
     color=$'\033[38;2;120;176;255m'   # #78B0FF
   else
     color=$'\033[38;2;128;128;128m'   # gray
   fi
-  printf '%s%s%s  |  %s\n' "$color" "$mode" "$reset" "$rest"
+  printf '%s%s\033[0m  |  %s\n' "$color" "$mode" "$rest"
 else
   printf '%s\n' "$rest"
 fi
