@@ -10,6 +10,11 @@ set -u
 
 SESSION="${MOBILE_SESSION:-mobile}"
 
+# Window-level options that mobile-link-menu.sh copies onto a borrowed window.
+# Unset them before unlinking so the shared window reverts to its normal
+# (desktop) styling once it leaves mobile. Keep in sync with mobile-link-menu.sh.
+STRIP_OPTS="window-style window-active-style pane-border-status pane-border-style pane-active-border-style"
+
 tmux has-session -t "=$SESSION" 2>/dev/null || exit 0
 
 mapfile -t borrowed < <(
@@ -18,6 +23,9 @@ mapfile -t borrowed < <(
 )
 
 for idx in "${borrowed[@]}"; do
+  for opt in $STRIP_OPTS; do
+    tmux set -uw -t "$SESSION:$idx" "$opt" 2>/dev/null || true
+  done
   tmux unlink-window -t "$SESSION:$idx" 2>/dev/null || true
 done
 

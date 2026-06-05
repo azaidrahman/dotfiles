@@ -83,8 +83,10 @@ untouched.
 - Build `display-menu` items: label `"<session>:<idx>  <name> (<cmd>)"`,
   shortcut keys `1`–`9` for the first nine entries (the rest remain
   arrow-selectable with no shortcut), command
-  `link-window -s <window_id> -t mobile:`. No `-d` flag, so the link
-  **auto-selects** the window in the destination, jumping you onto it.
+  `run-shell '~/.tmux/scripts/mobile-link-menu.sh borrow <window_id>'`.
+- **Borrow mode** (`mobile-link-menu.sh borrow <window_id>`): `link-window`s the
+  window into `mobile` (no `-d`, so it **auto-selects** and you jump onto it),
+  then strips its window-level styling — see the styling note below.
 - Render with an explicit client target:
   `tmux display-menu -c "$client" -T ' Link window → mobile ' -x C -y C "${items[@]}"`.
 - Empty list → `tmux display-message 'No other windows to link'` and exit 0.
@@ -95,6 +97,18 @@ passes the triggering client via `#{client_name}` (expanded by tmux at
 invocation time, with the triggering client's context) and the script forwards
 it with `display-menu -c`. Without this, the menu fails to render or targets the
 wrong client.
+
+**Window-scoped styling is the second load-bearing mechanic.** The status bar is
+a *session* option, so mobile's stripped status line wraps any window
+automatically. But `window-style`/`window-active-style` (the pane background) and
+`pane-border-status`/`pane-border-style`/`pane-active-border-style` (borders +
+the title bar) are *window* options with **no session scope** — `set -t mobile
+window-style …` only sets the *current* window, which is why visual-mobile.conf's
+strip historically applied only to mobile's own window 0. A window linked in from
+the desktop therefore keeps inheriting the **global** desktop theme (the teal
+`window-style`, the `pane-border-status bottom` title bar). Borrow mode fixes
+this by copying these options (`STRIP_OPTS`) from mobile's own (unlinked) window
+onto the freshly-linked window.
 
 ### `mobile-unlink-all.sh` — cleanup
 
@@ -107,6 +121,11 @@ wrong client.
   `unlink-window` (no `-k`) refuses to destroy a window's last link, so a
   borrowed window is only removed from `mobile` and never orphaned or killed in
   its home session.
+- Before unlinking each borrowed window, **unset** its `STRIP_OPTS` window
+  options (`set -uw`). Because window options are shared across a link, borrow
+  mode's strip also restyled the window in its home session; unsetting reverts it
+  to the global desktop styling once it leaves `mobile`. (Same `STRIP_OPTS` list
+  as `mobile-link-menu.sh` — kept in sync by comment.)
 
 ### `visual-mobile.conf` additions
 
@@ -134,6 +153,13 @@ needed.
   linked into `mobile`, a later restore may recreate them as separate windows
   rather than links. Not solved here; the simultaneous phone-and-desktop case it
   depends on is out of scope.
+- **Borrowed windows are restyled in their home session too** while linked in,
+  because `window-style`/border options are shared across the link. They are
+  restored on detach (unlink unsets them), so this is only visible if you view
+  the same window on the desktop *while* it is borrowed — the out-of-scope
+  simultaneous case. Assumes desktop windows use the **global** style (no
+  per-window override); a window carrying its own per-window style would be
+  reverted to global rather than to that custom style.
 
 ## Verification
 
