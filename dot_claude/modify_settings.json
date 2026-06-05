@@ -83,7 +83,8 @@ cat <<'JSON' | jq --arg effort "$effort" '.effortLevel = $effort'
   },
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/statusline.sh"
+    "command": "bash ~/.claude/statusline.sh",
+    "hideVimModeIndicator": true
   },
   "enabledPlugins": {
     "pyright-lsp@claude-plugins-official": true,
@@ -111,7 +112,6 @@ cat <<'JSON' | jq --arg effort "$effort" '.effortLevel = $effort'
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-daltonized",
   "editorMode": "vim",
-  "hideVimModeIndicator": true,
   "preferredNotifChannel": "ghostty",
   "skipAutoPermissionPrompt": true
 }
