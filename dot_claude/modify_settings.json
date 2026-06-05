@@ -111,6 +111,7 @@ cat <<'JSON' | jq --arg effort "$effort" '.effortLevel = $effort'
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-daltonized",
   "editorMode": "vim",
+  "hideVimModeIndicator": true,
   "preferredNotifChannel": "ghostty",
   "skipAutoPermissionPrompt": true
 }
