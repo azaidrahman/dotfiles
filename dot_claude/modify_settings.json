@@ -1,3 +1,13 @@
+#!/usr/bin/env bash
+# chezmoi modify_ script for ~/.claude/settings.json
+# Renders the managed settings below, but PRESERVES the live `effortLevel`
+# (it changes per session via /effort and we don't want it tracked as drift).
+set -euo pipefail
+
+current=$(cat)
+effort=$(printf '%s' "$current" | jq -r '.effortLevel // "medium"' 2>/dev/null || printf 'medium')
+
+cat <<'JSON' | jq --arg effort "$effort" '.effortLevel = $effort'
 {
   "permissions": {
     "allow": [
@@ -73,7 +83,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "jq -r '[ .model.display_name, \"ctx:\\(.context_window.used_percentage // 0)%\", (if .worktree.name then \"wt:\\(.worktree.name)\" else null end), (if .worktree.branch then \"br:\\(.worktree.branch)\" else null end), (if .rate_limits.five_hour then (if .rate_limits.five_hour.used_percentage > 50 then \"5h:\\(.rate_limits.five_hour.used_percentage | round)% (back at \\(.rate_limits.five_hour.resets_at | strflocaltime(\"%H:%M\")))\" else \"5h:\\(.rate_limits.five_hour.used_percentage | round)%\" end) else null end), (if .rate_limits.seven_day then \"7d:\\(.rate_limits.seven_day.used_percentage | round)%\" else null end) ] | map(select(. != null)) | join(\"  |  \")'"
+    "command": "bash ~/.claude/statusline.sh"
   },
   "enabledPlugins": {
     "pyright-lsp@claude-plugins-official": true,
@@ -97,10 +107,11 @@
       }
     }
   },
-  "effortLevel": "high",
+  "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
-  "theme": "dark-ansi",
+  "theme": "dark-daltonized",
   "editorMode": "vim",
   "preferredNotifChannel": "ghostty",
   "skipAutoPermissionPrompt": true
 }
+JSON
