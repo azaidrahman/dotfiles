@@ -157,7 +157,8 @@ func run() error {
 				).
 				Value(&w.WSVariant),
 		).WithHideFunc(func() bool { return w.Layer != "workspace" }),
-		// 3. Flat key + label.
+		// 3. Flat key — its own screen and permissive (empty passes) so you can
+		// scroll on to the label, and Esc here always returns to the layer page.
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Key to map").
@@ -166,11 +167,15 @@ func run() error {
 					return validateKey(s, layerByID[w.Layer].AllowUpper)
 				})).
 				Value(&w.Key),
+		).WithHideFunc(func() bool { return !w.isFlat() }),
+		// 3b. Flat label — the submit of the key/label pair: this is where the
+		// required key + label block lands. Esc still goes back to fix the key.
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Label (short, shown in help overlay)").
 				Validate(func(s string) error {
 					if strings.TrimSpace(w.Key) == "" {
-						return fmt.Errorf("enter a key first (↑ to go back)")
+						return fmt.Errorf("enter a key first (↑/esc to go back)")
 					}
 					if err := validateKey(strings.TrimSpace(w.Key), layerByID[w.Layer].AllowUpper); err != nil {
 						return err
@@ -251,17 +256,20 @@ func run() error {
 				}, w).
 				Value(&w.Overwrite),
 		).WithHideFunc(func() bool { return !(w.Layer == "hyper" && hyperCollision()) }),
-		// 13. Hyper action + label.
+		// 13. Hyper action — own screen, permissive so you can scroll to the label.
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Action (goku key code, or comma-separated sequence)").
 				Validate(optional(validateAction)).
 				Value(&w.HyperAct),
+		).WithHideFunc(func() bool { return w.Layer != "hyper" }),
+		// 13b. Hyper label — submit of the action/label pair; block lands here.
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Label (help overlay)").
 				Validate(func(s string) error {
 					if strings.TrimSpace(w.HyperAct) == "" {
-						return fmt.Errorf("enter an action first (↑ to go back)")
+						return fmt.Errorf("enter an action first (↑/esc to go back)")
 					}
 					if err := validateAction(strings.TrimSpace(w.HyperAct)); err != nil {
 						return err
