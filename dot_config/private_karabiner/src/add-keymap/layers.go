@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/charmbracelet/huh"
 )
 
 // Layer describes one addressable layer family.
@@ -11,20 +13,32 @@ type Layer struct {
 	File       string // YAML filename relative to the karabiner source dir
 	Section    string // section name within that file (set per-variant for workspace)
 	AllowUpper bool   // uppercase = shift variant (app/workspace)
+	Desc       string // how the layer is triggered (shown in the layer picker)
 }
 
 // layerByID returns base metadata for a layer id. Workspace section is decided
 // at prompt time (base vs shift); File stays constant.
 var layerByID = map[string]Layer{
-	"app":       {ID: "app", File: "config/app.yaml", Section: "app", AllowUpper: true},
-	"workspace": {ID: "workspace", File: "config/help-text.yaml", Section: "workspace", AllowUpper: true},
-	"l1":        {ID: "l1", File: "config/shortcuts.yaml", Section: "l1"},
-	"l2":        {ID: "l2", File: "config/shortcuts.yaml", Section: "l2"},
-	"l3":        {ID: "l3", File: "config/shortcuts.yaml", Section: "l3"},
-	"hyper":     {ID: "hyper", File: "config/hyperkeys.yaml", Section: "hyper"},
+	"app":       {ID: "app", File: "config/app.yaml", Section: "app", AllowUpper: true, Desc: "hold Right ⌥, then a key launches an app"},
+	"workspace": {ID: "workspace", File: "config/help-text.yaml", Section: "workspace", AllowUpper: true, Desc: "hold Left ⌥, aerospace window/workspace control"},
+	"l1":        {ID: "l1", File: "config/shortcuts.yaml", Section: "l1", Desc: "Right ⌥ + ⇧ shortcut layer"},
+	"l2":        {ID: "l2", File: "config/shortcuts.yaml", Section: "l2", Desc: "Right ⌥ + ⌃ shortcut layer"},
+	"l3":        {ID: "l3", File: "config/shortcuts.yaml", Section: "l3", Desc: "Right ⌥ + ⌘ shortcut layer"},
+	"hyper":     {ID: "hyper", File: "config/hyperkeys.yaml", Section: "hyper", Desc: "CapsLock held (⌘⌃⌥⇧)"},
 }
 
 var layerOrder = []string{"app", "workspace", "l1", "l2", "l3", "hyper"}
+
+// layerOptions builds the layer picker entries: "id — how it's triggered".
+// The option value stays the bare id so layerByID lookups keep working.
+func layerOptions() []huh.Option[string] {
+	opts := make([]huh.Option[string], 0, len(layerOrder))
+	for _, id := range layerOrder {
+		l := layerByID[id]
+		opts = append(opts, huh.NewOption(fmt.Sprintf("%-9s — %s", l.ID, l.Desc), l.ID))
+	}
+	return opts
+}
 
 // buildFlatLine renders a "- key | label[ | extra]" YAML item (no indent).
 func buildFlatLine(key, label, extra string) string {
