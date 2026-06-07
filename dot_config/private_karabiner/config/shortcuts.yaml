@@ -29,3 +29,5 @@ l2:
 l3:
   - [ | b prev-space | Browser previous space
   - ] | b next-space | Browser next space
+  - - | b prev-tab
+  - = | b next-tab
