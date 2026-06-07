@@ -132,6 +132,26 @@ right YAML, runs `./build.sh`, reports the assigned key/F-key combo, and offers 
 For shortcut layers (l1/l2/l3) you can pick an auto-assigned **F-key combo** (to bind
 in Alfred/Keyboard Maestro) or a **direct action** (`open:App` or a raw goku combo).
 
+### One-liner (non-interactive)
+
+Pass `-layer` to skip all prompts — for scripts and AI agents. It validates, edits
+the YAML, builds, prints the resulting mapping, and (with `-deploy`) applies + recompiles.
+Collisions error unless `-overwrite` is given. Run `add-keymap -h` for full flag docs.
+
+```bash
+add-keymap -layer l2 -key g -label gemini                  # auto F-key combo
+add-keymap -layer l1 -key d -label dots -action open:Finder
+add-keymap -layer app -key V -label arc -action Arc        # uppercase = shift+V
+add-keymap -layer workspace -key h -label 'mv←' -action 'move left' -shift
+add-keymap -layer hyper -key m -mod cmd -label spot -action '!Cspacebar'
+add-keymap -layer l3 -key '[' -label prev -action '!Sf13' -overwrite -deploy
+```
+
+`-action` semantics per layer: **app** = app name or `!gokuCombo`; **workspace** =
+aerospace command (`-shift` writes the opt+shift variant); **l1/l2/l3** = omit for an
+F-key pool slot, or `open:App` / `!gokuCombo` for a direct action; **hyper** = a goku
+key code or comma-separated sequence, placed under `-mod` (default `-`).
+
 **Rebuild the binary after changing Go source** (`src/add-keymap/`):
 
 ```bash
