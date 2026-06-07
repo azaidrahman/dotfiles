@@ -250,31 +250,75 @@ func runHyper(srcDir string, layer Layer) error {
 	}
 	text := string(b)
 
-	key := promptHyperKey(text)
+	var key string
+	if err := runForm(huh.NewGroup(
+		huh.NewInput().
+			Title("Key to map (under CapsLock/hyper)").
+			Validate(func(s string) error { return validateKey(strings.TrimSpace(s), false) }).
+			Value(&key),
+	)); err != nil {
+		return err
+	}
+	key = strings.TrimSpace(key)
 	existing := hyperModsForKey(text, key)
 
-	var mod string
-	for {
-		mod = askMenu("\nModifier slot:", hyperModSlots)
-		if !existing[mod] {
-			break
+	mod := hyperModSlots[0]
+	if err := runForm(huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Modifier slot").
+			Options(huh.NewOptions(hyperModSlots...)...).
+			Value(&mod),
+	)); err != nil {
+		return err
+	}
+	if existing[mod] {
+		ok := false
+		if err := runForm(huh.NewGroup(
+			huh.NewConfirm().
+				Title(fmt.Sprintf("hyper+%s already maps %q — overwrite?", key, mod)).
+				Value(&ok),
+		)); err != nil {
+			return err
 		}
-		if confirm(fmt.Sprintf("hyper+%s already maps %q — overwrite?", key, mod)) {
-			break
+		if !ok {
+			return fmt.Errorf("cancelled")
 		}
 	}
 
-	rawAction := askText("\nAction (goku key code, or comma-separated sequence):")
-	if strings.HasPrefix(rawAction, "!") || strings.HasPrefix(rawAction, "#") {
-		if err := validateGokuCombo(rawAction); err != nil {
-			return err
-		}
+	var rawAction, label string
+	if err := runForm(huh.NewGroup(
+		huh.NewInput().
+			Title("Action (goku key code, or comma-separated sequence)").
+			Validate(func(s string) error {
+				s = strings.TrimSpace(s)
+				if s == "" {
+					return fmt.Errorf("action cannot be empty")
+				}
+				if strings.HasPrefix(s, "!") || strings.HasPrefix(s, "#") {
+					return validateGokuCombo(s)
+				}
+				return nil
+			}).
+			Value(&rawAction),
+		huh.NewInput().
+			Title("Label (help overlay)").
+			Validate(noPipe).
+			Value(&label),
+	)); err != nil {
+		return err
 	}
-	label := askText("Label (help overlay):")
+	rawAction = strings.TrimSpace(rawAction)
+	label = strings.TrimSpace(label)
 	action := hyperAction(rawAction)
 
 	fmt.Printf("\nWill add under hyper.%s:\n    %s: %s # %s\n", key, mod, action, label)
-	if !confirm("Proceed?") {
+	proceed := false
+	if err := runForm(huh.NewGroup(
+		huh.NewConfirm().Title("Proceed?").Value(&proceed),
+	)); err != nil {
+		return err
+	}
+	if !proceed {
 		return fmt.Errorf("cancelled")
 	}
 
@@ -285,24 +329,11 @@ func runHyper(srcDir string, layer Layer) error {
 	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
 		return err
 	}
-
 	if err := build(srcDir); err != nil {
 		return err
 	}
 	fmt.Printf("\n✓ Mapped: CapsLock + %s + %s → %s (%s)\n", mod, key, action, label)
 	return maybeDeploy(srcDir)
-}
-
-// promptHyperKey validates a hyper key (no shift variants).
-func promptHyperKey(text string) string {
-	for {
-		key := askText("\nKey to map (under CapsLock/hyper):")
-		if err := validateKey(key, false); err != nil {
-			fmt.Println(" ", err)
-			continue
-		}
-		return key
-	}
 }
 
 // reportFlat prints the resulting mapping after a build.
@@ -334,7 +365,13 @@ func reportFlat(srcDir string, layer Layer, section, key, extra string) {
 
 // maybeDeploy offers to chezmoi apply + goku.
 func maybeDeploy(srcDir string) error {
-	if confirm("\nDeploy now (chezmoi apply && goku)?") {
+	deployNow := false
+	if err := runForm(huh.NewGroup(
+		huh.NewConfirm().Title("Deploy now (chezmoi apply && goku)?").Value(&deployNow),
+	)); err != nil {
+		return err
+	}
+	if deployNow {
 		return deploy(srcDir)
 	}
 	fmt.Println("\nSkipped. To deploy later:\n  chezmoi apply && goku")
