@@ -162,13 +162,21 @@ func run() error {
 			huh.NewInput().
 				Title("Key to map").
 				DescriptionFunc(func() string { return freeKeyHint(flatExisting()) }, w).
-				Validate(func(s string) error {
-					return validateKey(strings.TrimSpace(s), layerByID[w.Layer].AllowUpper)
-				}).
+				Validate(optional(func(s string) error {
+					return validateKey(s, layerByID[w.Layer].AllowUpper)
+				})).
 				Value(&w.Key),
 			huh.NewInput().
 				Title("Label (short, shown in help overlay)").
-				Validate(noPipe).
+				Validate(func(s string) error {
+					if strings.TrimSpace(w.Key) == "" {
+						return fmt.Errorf("enter a key first (↑ to go back)")
+					}
+					if err := validateKey(strings.TrimSpace(w.Key), layerByID[w.Layer].AllowUpper); err != nil {
+						return err
+					}
+					return noPipe(s)
+				}).
 				Value(&w.Label),
 		).WithHideFunc(func() bool { return !w.isFlat() }),
 		// 4. Flat overwrite confirm (only on collision).
@@ -247,20 +255,19 @@ func run() error {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Action (goku key code, or comma-separated sequence)").
-				Validate(func(s string) error {
-					s = strings.TrimSpace(s)
-					if s == "" {
-						return fmt.Errorf("action cannot be empty")
-					}
-					if strings.HasPrefix(s, "!") || strings.HasPrefix(s, "#") {
-						return validateGokuCombo(s)
-					}
-					return nil
-				}).
+				Validate(optional(validateAction)).
 				Value(&w.HyperAct),
 			huh.NewInput().
 				Title("Label (help overlay)").
-				Validate(noPipe).
+				Validate(func(s string) error {
+					if strings.TrimSpace(w.HyperAct) == "" {
+						return fmt.Errorf("enter an action first (↑ to go back)")
+					}
+					if err := validateAction(strings.TrimSpace(w.HyperAct)); err != nil {
+						return err
+					}
+					return noPipe(s)
+				}).
 				Value(&w.HyperLbl),
 		).WithHideFunc(func() bool { return w.Layer != "hyper" }),
 		// 14. Review + proceed.
@@ -403,6 +410,29 @@ func noPipe(s string) error {
 	}
 	if strings.Contains(s, "|") {
 		return fmt.Errorf("value cannot contain '|'")
+	}
+	return nil
+}
+
+// optional wraps a validator so an empty field passes — used on the first field
+// of a multi-field group (Key, Action) so the user can scroll down to the next
+// field without being blocked. The group's last field re-checks it, so the
+// block lands at the group's submit instead of mid-scroll.
+func optional(v func(string) error) func(string) error {
+	return func(s string) error {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return nil
+		}
+		return v(s)
+	}
+}
+
+// validateAction checks a hyper action: a goku combo when it starts with ! or #,
+// otherwise any non-empty token/sequence.
+func validateAction(s string) error {
+	if strings.HasPrefix(s, "!") || strings.HasPrefix(s, "#") {
+		return validateGokuCombo(s)
 	}
 	return nil
 }
