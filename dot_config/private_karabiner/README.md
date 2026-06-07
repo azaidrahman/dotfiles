@@ -117,6 +117,31 @@ hyper:
 - Actions can be sequences: `["!Sdown_arrow", "!Sdown_arrow", "!Sdown_arrow"]`
 - `misc` section defines help-only entries (rules stay in `karabiner.base.edn`)
 
+## Interactive: `add-keymap`
+
+Instead of hand-editing YAML, run the wizard to add a keymap to any layer:
+
+```bash
+./scripts/executable_add-keymap     # or, once deployed: ~/.config/karabiner/scripts/add-keymap
+```
+
+It prompts for layer → key (with validation + collision check) → target, writes the
+right YAML, runs `./build.sh`, reports the assigned key/F-key combo, and offers to
+`chezmoi apply && goku`.
+
+For shortcut layers (l1/l2/l3) you can pick an auto-assigned **F-key combo** (to bind
+in Alfred/Keyboard Maestro) or a **direct action** (`open:App` or a raw goku combo).
+
+**Rebuild the binary after changing Go source** (`src/add-keymap/`):
+
+```bash
+./src/add-keymap/build.sh
+```
+
+Requires Go (build-time only; the committed binary needs nothing at runtime). The
+wizard resolves the chezmoi *source* dir via `chezmoi source-path`; set
+`ADDKEYMAP_SOURCE=/path/to/dir` to override (used for testing).
+
 ## Help Overlays
 
 Press `/` while in any layer to show its help overlay. Release to dismiss.
