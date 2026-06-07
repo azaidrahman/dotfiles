@@ -157,18 +157,31 @@ func run() error {
 				).
 				Value(&w.WSVariant),
 		).WithHideFunc(func() bool { return w.Layer != "workspace" }),
-		// 3. Flat key + label.
+		// 3. Flat key — its own screen and permissive (empty passes) so you can
+		// scroll on to the label, and Esc here always returns to the layer page.
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Key to map").
 				DescriptionFunc(func() string { return freeKeyHint(flatExisting()) }, w).
-				Validate(func(s string) error {
-					return validateKey(strings.TrimSpace(s), layerByID[w.Layer].AllowUpper)
-				}).
+				Validate(optional(func(s string) error {
+					return validateKey(s, layerByID[w.Layer].AllowUpper)
+				})).
 				Value(&w.Key),
+		).WithHideFunc(func() bool { return !w.isFlat() }),
+		// 3b. Flat label — the submit of the key/label pair: this is where the
+		// required key + label block lands. Esc still goes back to fix the key.
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Label (short, shown in help overlay)").
-				Validate(noPipe).
+				Validate(func(s string) error {
+					if strings.TrimSpace(w.Key) == "" {
+						return fmt.Errorf("enter a key first (↑/esc to go back)")
+					}
+					if err := validateKey(strings.TrimSpace(w.Key), layerByID[w.Layer].AllowUpper); err != nil {
+						return err
+					}
+					return noPipe(s)
+				}).
 				Value(&w.Label),
 		).WithHideFunc(func() bool { return !w.isFlat() }),
 		// 4. Flat overwrite confirm (only on collision).
@@ -243,24 +256,26 @@ func run() error {
 				}, w).
 				Value(&w.Overwrite),
 		).WithHideFunc(func() bool { return !(w.Layer == "hyper" && hyperCollision()) }),
-		// 13. Hyper action + label.
+		// 13. Hyper action — own screen, permissive so you can scroll to the label.
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Action (goku key code, or comma-separated sequence)").
-				Validate(func(s string) error {
-					s = strings.TrimSpace(s)
-					if s == "" {
-						return fmt.Errorf("action cannot be empty")
-					}
-					if strings.HasPrefix(s, "!") || strings.HasPrefix(s, "#") {
-						return validateGokuCombo(s)
-					}
-					return nil
-				}).
+				Validate(optional(validateAction)).
 				Value(&w.HyperAct),
+		).WithHideFunc(func() bool { return w.Layer != "hyper" }),
+		// 13b. Hyper label — submit of the action/label pair; block lands here.
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Label (help overlay)").
-				Validate(noPipe).
+				Validate(func(s string) error {
+					if strings.TrimSpace(w.HyperAct) == "" {
+						return fmt.Errorf("enter an action first (↑/esc to go back)")
+					}
+					if err := validateAction(strings.TrimSpace(w.HyperAct)); err != nil {
+						return err
+					}
+					return noPipe(s)
+				}).
 				Value(&w.HyperLbl),
 		).WithHideFunc(func() bool { return w.Layer != "hyper" }),
 		// 14. Review + proceed.
@@ -403,6 +418,29 @@ func noPipe(s string) error {
 	}
 	if strings.Contains(s, "|") {
 		return fmt.Errorf("value cannot contain '|'")
+	}
+	return nil
+}
+
+// optional wraps a validator so an empty field passes — used on the first field
+// of a multi-field group (Key, Action) so the user can scroll down to the next
+// field without being blocked. The group's last field re-checks it, so the
+// block lands at the group's submit instead of mid-scroll.
+func optional(v func(string) error) func(string) error {
+	return func(s string) error {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return nil
+		}
+		return v(s)
+	}
+}
+
+// validateAction checks a hyper action: a goku combo when it starts with ! or #,
+// otherwise any non-empty token/sequence.
+func validateAction(s string) error {
+	if strings.HasPrefix(s, "!") || strings.HasPrefix(s, "#") {
+		return validateGokuCombo(s)
 	}
 	return nil
 }

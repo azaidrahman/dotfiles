@@ -52,17 +52,20 @@ func ensureTTY() error {
 	return nil
 }
 
-// backEscKeyMap is the default huh keymap with Esc added as a "back" key
-// (alongside shift+tab) for the field types this wizard uses. Esc is disabled
-// on the first screen and yields to select-filter mode, so it can't quit.
-// Quitting stays on Ctrl-C.
+// backEscKeyMap is the default huh keymap with consistent navigation across
+// every screen: Esc / shift+tab go back, and on text Input fields ↑/↓ also move
+// between fields (so a focused input doesn't trap you — you can arrow out or Esc
+// back without it interfering with typed letters; ↑/↓/Esc aren't text). Selects
+// keep ↑/↓ for choosing options. Esc is disabled on the first screen and yields
+// to select-filter mode, so it can't quit; Ctrl-C quits.
 func backEscKeyMap() *huh.KeyMap {
 	km := huh.NewDefaultKeyMap()
 	back := key.NewBinding(key.WithKeys("esc", "shift+tab"), key.WithHelp("esc", "back"))
-	km.Input.Prev = back
 	km.Select.Prev = back
 	km.Confirm.Prev = back
 	km.Note.Prev = back
+	km.Input.Prev = key.NewBinding(key.WithKeys("esc", "shift+tab", "up"), key.WithHelp("esc/↑", "back"))
+	km.Input.Next = key.NewBinding(key.WithKeys("enter", "tab", "down"), key.WithHelp("↓/enter", "next"))
 	return km
 }
 
