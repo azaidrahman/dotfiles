@@ -41,7 +41,7 @@
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, -:-size, 0:tile, 9:hacc, 2:ws2/→ws2, 1:ws1/→ws1, =:+size, 8:vacc"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, =:+size, -:-size, 0:tile, 9:hacc, 2:ws2/→ws2, 1:ws1/→ws1, 8:vacc"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
@@ -53,7 +53,7 @@
        :clear-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
                               :text ""}}
        :show-l3-help {:noti {:id "org.pqrs.notificaion_message_layer3"
-                             :text "[:b prev-space, ]:b next-space"}}
+                             :text "[:b prev-space, ]:b next-space, -:b prev-tab, =:b next-tab"}}
        :clear-l3-help {:noti {:id "org.pqrs.notificaion_message_layer3"
                               :text ""}}
        :show-hyper-help {:noti {:id "org.pqrs.notificaion_message_hyper"
@@ -403,6 +403,8 @@
    [;; --- F13 ---
     [:!Copen_bracket             :!Sf13         :shortcut-l3]   ;; [ -> shift+F13 (b prev-space)
     [:!Cclose_bracket            :!TSf13        :shortcut-l3]   ;; ] -> ctrl+shift+F13 (b next-space)
+    [:!Chyphen                   :!COSf13       :shortcut-l3]   ;; - -> cmd+opt+shift+F13 (b prev-tab)
+    [:!Cequal_sign               :!CTOSf13      :shortcut-l3]   ;; = -> ctrl+cmd+opt+shift+F13 (b next-tab)
    ]}
 ;; END SHORTCUT-LAYER-3
   ]
