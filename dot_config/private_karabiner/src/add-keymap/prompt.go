@@ -44,12 +44,6 @@ func askText(prompt string) string {
 	}
 }
 
-// askOptionalText prompts for a line that may be empty.
-func askOptionalText(prompt string) string {
-	fmt.Printf("%s ", prompt)
-	return readLine()
-}
-
 // confirm asks a [y/N] question; default is No.
 func confirm(prompt string) bool {
 	fmt.Printf("%s [y/N] ", prompt)
