@@ -9,9 +9,17 @@ import (
 )
 
 // resolveSourceDir returns the chezmoi *source* path of the karabiner config dir.
-// Primary: `chezmoi source-path ~/.config/karabiner`. Fallback: two levels up
-// from the running binary (…/karabiner/scripts/add-keymap -> …/karabiner).
+// Order: $ADDKEYMAP_SOURCE override, then `chezmoi source-path ~/.config/karabiner`,
+// then two levels up from the running binary.
 func resolveSourceDir() (string, error) {
+	// Explicit override (used for testing / non-standard setups).
+	if env := os.Getenv("ADDKEYMAP_SOURCE"); env != "" {
+		if _, statErr := os.Stat(filepath.Join(env, "build.sh")); statErr == nil {
+			return env, nil
+		}
+		return "", fmt.Errorf("ADDKEYMAP_SOURCE=%q has no build.sh", env)
+	}
+
 	home, _ := os.UserHomeDir()
 	target := filepath.Join(home, ".config", "karabiner")
 	out, err := exec.Command("chezmoi", "source-path", target).Output()
