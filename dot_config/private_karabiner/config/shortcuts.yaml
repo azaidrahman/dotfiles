@@ -16,6 +16,7 @@ l1:
   - s | cleanshotx | CleanShot X capture
   - l | todoist | Todoist quick add
   - c | claude | Claude quick
+  - g | gemini | Gemini quick
 
 l2:
   - o | 1p | 1Password (alt)
@@ -23,6 +24,7 @@ l2:
   - s | cleanshotx | CleanShot X (alt)
   - l | todoist | Todoist (alt)
   - c | claude | open:Claude
+  - g | gemini | open:Gemini
 
 l3:
   - [ | b prev-space | Browser previous space

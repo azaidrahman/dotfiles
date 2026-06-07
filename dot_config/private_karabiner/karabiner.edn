@@ -41,15 +41,15 @@
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, 8:vacc, 0:tile, 2:ws2/→ws2, 9:hacc, -:-size, 1:ws1/→ws1, =:+size"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, -:-size, 0:tile, 9:hacc, 2:ws2/→ws2, 1:ws1/→ws1, =:+size, 8:vacc"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
-                             :text "o:1p, p:dot, s:cleanshotx, l:todoist, c:claude"}}
+                             :text "o:1p, p:dot, s:cleanshotx, g:gemini, l:todoist, c:claude"}}
        :clear-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
                               :text ""}}
        :show-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
-                             :text "o:1p, p:dot, s:cleanshotx, l:todoist, c:claude"}}
+                             :text "o:1p, p:dot, s:cleanshotx, g:gemini, l:todoist, c:claude"}}
        :clear-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"
                               :text ""}}
        :show-l3-help {:noti {:id "org.pqrs.notificaion_message_layer3"
@@ -90,6 +90,7 @@
 
 ;; BEGIN SHORTCUT-DIRECT (auto-generated from config/shortcuts.yaml)
     [:!Tc      [:open "Claude"]    :shortcut-l2]   ;; l2+c → open:Claude
+    [:!Tg      [:open "Gemini"]    :shortcut-l2]   ;; l2+g → open:Gemini
 ;; END SHORTCUT-DIRECT
 
 ;; BEGIN APP-RULES (auto-generated from config/app.yaml)
