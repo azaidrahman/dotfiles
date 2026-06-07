@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -10,10 +11,18 @@ import (
 
 var stdin = bufio.NewReader(os.Stdin)
 
-// readLine reads one trimmed line from stdin.
+// readLine reads one trimmed line from stdin. On end-of-input (e.g. piped input
+// runs out) it aborts rather than returning "" forever, which would make the
+// re-prompting loops in askMenu/askText spin endlessly. For unattended use,
+// prefer the non-interactive flag mode (see -h).
 func readLine() string {
-	s, _ := stdin.ReadString('\n')
-	return strings.TrimSpace(s)
+	s, err := stdin.ReadString('\n')
+	line := strings.TrimSpace(s)
+	if err == io.EOF && line == "" {
+		fmt.Fprintln(os.Stderr, "\nadd-keymap: unexpected end of input — for unattended use, run with flags (see -h)")
+		os.Exit(1)
+	}
+	return line
 }
 
 // askMenu prints a numbered menu and returns the chosen item (loops until valid).
