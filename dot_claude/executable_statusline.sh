@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Code status line: [vim mode] | model | ctx | worktree | branch | rate limits
+# Claude Code status line: [vim mode] | model | effort | ctx | worktree | branch | rate limits
 input=$(cat)
 
 dir=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty')
@@ -17,6 +17,7 @@ fi
 out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" '
   (.vim.mode // "") + "\t" + ([
     .model.display_name,
+    (if .effort.level then "eff:\(.effort.level)" else null end),
     "ctx:\(.context_window.used_percentage // 0)%",
     (if $wt != "" then "wt:\($wt)" else null end),
     (if $br != "" then "br:\($br)" else null end),
