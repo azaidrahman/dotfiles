@@ -30,3 +30,15 @@ func TestValidateGokuCombo(t *testing.T) {
 		t.Errorf("combo with unknown modifier Z should fail")
 	}
 }
+
+func TestHyperAction(t *testing.T) {
+	if hyperAction("left_arrow") != "left_arrow" {
+		t.Errorf("bare identifier should stay unquoted")
+	}
+	if hyperAction("!Sleft_arrow") != `"!Sleft_arrow"` {
+		t.Errorf("combo should be quoted")
+	}
+	if hyperAction("!Sup_arrow, !Sup_arrow") != `["!Sup_arrow", "!Sup_arrow"]` {
+		t.Errorf("sequence rendering wrong: %s", hyperAction("!Sup_arrow, !Sup_arrow"))
+	}
+}
