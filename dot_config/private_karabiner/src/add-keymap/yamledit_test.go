@@ -65,3 +65,74 @@ other:
 		t.Errorf("overwrite mismatch:\n--got--\n%s\n--want--\n%s", got, want)
 	}
 }
+
+const sampleHyper = `hyper:
+  h:
+    -: left_arrow # ←
+    shift: "!TStab" # prevTab
+
+  j:
+    -: down_arrow # ↓
+
+misc:
+  escape:
+    -: "!Tcaps_lock" # caps
+`
+
+func TestHyperModsForKey(t *testing.T) {
+	mods := hyperModsForKey(sampleHyper, "h")
+	if !mods["-"] || !mods["shift"] {
+		t.Errorf("expected - and shift mods for h, got %v", mods)
+	}
+	if len(hyperModsForKey(sampleHyper, "z")) != 0 {
+		t.Errorf("expected no mods for absent key z")
+	}
+}
+
+func TestUpsertHyperNewMod(t *testing.T) {
+	got, err := upsertHyperEntry(sampleHyper, "h", "cmd", `"!Sleft_arrow"`, "sel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `hyper:
+  h:
+    -: left_arrow # ←
+    shift: "!TStab" # prevTab
+    cmd: "!Sleft_arrow" # sel
+
+  j:
+    -: down_arrow # ↓
+
+misc:
+  escape:
+    -: "!Tcaps_lock" # caps
+`
+	if got != want {
+		t.Errorf("hyper new-mod mismatch:\n--got--\n%s\n--want--\n%s", got, want)
+	}
+}
+
+func TestUpsertHyperNewKey(t *testing.T) {
+	got, err := upsertHyperEntry(sampleHyper, "m", "-", "spotlight", "find")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `hyper:
+  h:
+    -: left_arrow # ←
+    shift: "!TStab" # prevTab
+
+  j:
+    -: down_arrow # ↓
+
+  m:
+    -: spotlight # find
+
+misc:
+  escape:
+    -: "!Tcaps_lock" # caps
+`
+	if got != want {
+		t.Errorf("hyper new-key mismatch:\n--got--\n%s\n--want--\n%s", got, want)
+	}
+}
