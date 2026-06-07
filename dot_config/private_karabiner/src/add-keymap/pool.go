@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -31,7 +32,12 @@ var allMods = []struct{ human, goku string }{
 }
 
 // slotToCombo renders a pool slot index as a human combo like "cmd+F16".
+// An out-of-range slot (only reachable from a corrupt fkey-pool.json) renders
+// defensively rather than panicking.
 func slotToCombo(slot int) string {
+	if slot < 0 || slot >= len(fkeyPool)*len(allMods) {
+		return fmt.Sprintf("slot#%d", slot)
+	}
 	fkey := fkeyPool[slot/len(allMods)]
 	mod := allMods[slot%len(allMods)]
 	return mod.human + strings.ToUpper(fkey)

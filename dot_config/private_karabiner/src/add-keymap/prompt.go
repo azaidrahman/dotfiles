@@ -44,6 +44,19 @@ func askText(prompt string) string {
 	}
 }
 
+// askTextNoPipe prompts for non-empty text that contains no '|' — used for
+// fields written into the pipe-delimited "key | label | extra" YAML format,
+// where a '|' would silently corrupt parsing.
+func askTextNoPipe(prompt string) string {
+	for {
+		s := askText(prompt)
+		if !strings.Contains(s, "|") {
+			return s
+		}
+		fmt.Println("  value cannot contain '|'")
+	}
+}
+
 // confirm asks a [y/N] question; default is No.
 func confirm(prompt string) bool {
 	fmt.Printf("%s [y/N] ", prompt)

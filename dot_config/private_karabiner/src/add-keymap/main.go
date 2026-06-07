@@ -49,14 +49,14 @@ func runFlat(srcDir string, layer Layer) error {
 
 	key := promptKey(text, section, layer.AllowUpper)
 
-	label := askText("\nLabel (short, shown in help overlay):")
+	label := askTextNoPipe("\nLabel (short, shown in help overlay):")
 
 	var extra string
 	switch layer.ID {
 	case "app":
 		extra = promptAppTarget()
 	case "workspace":
-		extra = askText("\nAerospace command (e.g. 'workspace 1'):")
+		extra = askTextNoPipe("\nAerospace command (e.g. 'workspace 1'):")
 	case "l1", "l2", "l3":
 		extra = promptShortcutTarget()
 	}
@@ -177,7 +177,7 @@ func promptAppTarget() string {
 			return c
 		}
 	}
-	return askText("App name (as in /Applications, e.g. 'Microsoft Teams'):")
+	return askTextNoPipe("App name (as in /Applications, e.g. 'Microsoft Teams'):")
 }
 
 // promptShortcutTarget returns the YAML extra field for an l1/l2/l3 entry.
@@ -191,7 +191,7 @@ func promptShortcutTarget() string {
 	case strings.HasPrefix(choice, "F-key"):
 		return "" // blank → pool
 	case strings.HasPrefix(choice, "Direct: open"):
-		return "open:" + askText("App name:")
+		return "open:" + askTextNoPipe("App name:")
 	default:
 		for {
 			c := askText("Goku combo (e.g. !CSf13):")

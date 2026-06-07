@@ -17,6 +17,16 @@ func TestSlotToCombo(t *testing.T) {
 	}
 }
 
+func TestSlotToComboOutOfRange(t *testing.T) {
+	// 112 is one past the last valid slot (7 fkeys * 16 mods). Must not panic.
+	if got := slotToCombo(112); got != "slot#112" {
+		t.Errorf("slotToCombo(112) = %q, want slot#112", got)
+	}
+	if got := slotToCombo(-1); got != "slot#-1" {
+		t.Errorf("slotToCombo(-1) = %q, want slot#-1", got)
+	}
+}
+
 func TestComboForKey(t *testing.T) {
 	pool := map[string]int{"l1:o": 0, "l1:c": 10}
 	got, ok := comboForKey(pool, "l1", "o")
