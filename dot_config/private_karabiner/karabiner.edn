@@ -37,11 +37,11 @@
 
 ;; BEGIN HELP-TEXT (auto-generated from config/help-text.yaml)
  :tos {:show-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
-                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, y:sioyek, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, s:slack, d:t3 code, f:cal, F:alfred, g:iPhone, G:safari, j:jira, k:KM, l:outlook, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
+                              :text "w:WA, W:messages, e:obsidian, r:arc, t:ghostty, y:sioyek, u:conductor, i:IINA, I:ytmusic, o:orb, p:teams, s:slack, d:t3 code, f:cal, F:alfred, g:iPhone, G:safari, j:jira, k:KM, l:outlook, x:mixlet, c:switch, v:vivaldi, V:arc, b:telegram, n:ino, m:spotify"}}
        :clear-app-help {:noti {:id "org.pqrs.notificaion_message_global_shortcut"
                                :text ""}}
        :show-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
-                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, =:+size, -:-size, 0:tile, 9:hacc, 2:ws2/→ws2, 1:ws1/→ws1, 8:vacc"}}
+                             :text "q:ws3/→ws3, w:ws4/→ws4, e:ws5/→ws5, o:back, p:full/nfull, f:float, h:←/mv←, j:↓/mv↓, k:↑/mv↑, l:→/mv→, -:-size, 9:hacc, 1:ws1/→ws1, 8:vacc, 2:ws2/→ws2, 0:tile, =:+size"}}
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
@@ -119,6 +119,7 @@
     [:j [:open "Jira"]                    :app-launch]
     [:k [:open "Keyboard Maestro"]        :app-launch]
     [:l [:open "Microsoft Outlook"]       :app-launch]
+    [:x [:open "Mixlet"]                  :app-launch]
     [:c :!Cgrave_accent_and_tilde         :app-launch]
     [:v [:open "Vivaldi"]                 :app-launch]
     [:b [:open "Telegram"]                :app-launch]
