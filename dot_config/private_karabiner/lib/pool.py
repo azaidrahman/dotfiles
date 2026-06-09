@@ -1,26 +1,10 @@
 """F-key pool management for shortcut layer key assignments."""
 import json, os
 
-FKEY_POOL = ['f13', 'f14', 'f16', 'f17', 'f18', 'f19', 'f20']
-
-ALL_MODS = [
-    ('',              ''),
-    ('ctrl+',         '!T'),
-    ('cmd+',          '!C'),
-    ('opt+',          '!O'),
-    ('ctrl+cmd+',     '!CT'),
-    ('ctrl+opt+',     '!TO'),
-    ('cmd+opt+',      '!CO'),
-    ('ctrl+cmd+opt+', '!CTO'),
-    ('shift+',              '!S'),
-    ('ctrl+shift+',         '!TS'),
-    ('cmd+shift+',          '!CS'),
-    ('opt+shift+',          '!OS'),
-    ('ctrl+cmd+shift+',     '!CTS'),
-    ('ctrl+opt+shift+',     '!TOS'),
-    ('cmd+opt+shift+',      '!COS'),
-    ('ctrl+cmd+opt+shift+', '!CTOS'),
-]
+# FKEY_POOL and ALL_MODS are the canonical pool/modifier tables, loaded from
+# data/keymap-tables.json (shared with the Go CLI). Their order is significant —
+# it defines slot allocation.
+from .tables import FKEY_POOL, ALL_MODS
 
 POOL_SIZE = len(FKEY_POOL) * len(ALL_MODS)  # 128
 

@@ -94,6 +94,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if err := loadTables(srcDir); err != nil {
+		return err
+	}
 	fmt.Println("add-keymap — karabiner source:", srcDir)
 
 	// Pre-read every layer file once so the live hint/collision funcs below can

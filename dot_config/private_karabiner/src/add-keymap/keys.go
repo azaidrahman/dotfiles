@@ -5,25 +5,8 @@ import (
 	"strings"
 )
 
-// specialNames maps a literal symbol (as typed in YAML) to its goku key name.
-// Mirrors GOKU_NAMES in lib/parser.py.
-var specialNames = map[string]string{
-	"-": "hyphen", "=": "equal_sign", "[": "open_bracket", "]": "close_bracket",
-	";": "semicolon", "'": "quote", ",": "comma", ".": "period",
-	"/": "slash", "\\": "backslash", "`": "grave_accent_and_tilde",
-	"space": "spacebar",
-}
-
-// longNames is the set of accepted multi-char key tokens (e.g. "space", "hyphen").
-// Accept both the symbol form ("-") and the long form ("hyphen").
-var longNames = func() map[string]bool {
-	m := map[string]bool{}
-	for sym, long := range specialNames {
-		m[sym] = true
-		m[long] = true
-	}
-	return m
-}()
+// specialNames (symbol -> goku key name) and longNames (accepted multi-char key
+// tokens) are loaded from data/keymap-tables.json by loadTables; see tables.go.
 
 const qwertyLetters = "abcdefghijklmnopqrstuvwxyz"
 const digits = "0123456789"

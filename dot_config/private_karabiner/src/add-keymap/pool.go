@@ -7,29 +7,10 @@ import (
 	"strings"
 )
 
-// Mirrors FKEY_POOL and ALL_MODS in lib/pool.py. Pool *allocation* stays in
-// Python (generate.py); this table only renders an already-assigned slot for
-// display. Keep in sync with lib/pool.py if that table changes.
-var fkeyPool = []string{"f13", "f14", "f16", "f17", "f18", "f19", "f20"}
-
-var allMods = []struct{ human, goku string }{
-	{"", ""},
-	{"ctrl+", "!T"},
-	{"cmd+", "!C"},
-	{"opt+", "!O"},
-	{"ctrl+cmd+", "!CT"},
-	{"ctrl+opt+", "!TO"},
-	{"cmd+opt+", "!CO"},
-	{"ctrl+cmd+opt+", "!CTO"},
-	{"shift+", "!S"},
-	{"ctrl+shift+", "!TS"},
-	{"cmd+shift+", "!CS"},
-	{"opt+shift+", "!OS"},
-	{"ctrl+cmd+shift+", "!CTS"},
-	{"ctrl+opt+shift+", "!TOS"},
-	{"cmd+opt+shift+", "!COS"},
-	{"ctrl+cmd+opt+shift+", "!CTOS"},
-}
+// fkeyPool and allMods (the pool/modifier tables) are loaded from
+// data/keymap-tables.json by loadTables (see tables.go) — the same JSON the
+// Python build reads, so allocation here can never drift from generate.py. Pool
+// *allocation* stays in Python; this side only renders an already-assigned slot.
 
 // slotToCombo renders a pool slot index as a human combo like "cmd+F16".
 // An out-of-range slot (only reachable from a corrupt fkey-pool.json) renders

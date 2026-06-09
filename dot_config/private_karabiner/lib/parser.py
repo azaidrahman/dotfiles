@@ -1,14 +1,11 @@
 """YAML parsing, entry parsing, QWERTY sorting, and help text formatting."""
 import re
 
-QWERTY = list("qwertyuiop[]\\asdfghjkl;'zxcvbnm,./")
+# Re-exported from the shared table so existing `from .parser import GOKU_NAMES`
+# importers keep working; the canonical definition lives in data/keymap-tables.json.
+from .tables import GOKU_NAMES  # noqa: F401
 
-GOKU_NAMES = {
-    '-': 'hyphen', '=': 'equal_sign', '[': 'open_bracket', ']': 'close_bracket',
-    ';': 'semicolon', "'": 'quote', ',': 'comma', '.': 'period',
-    '/': 'slash', '\\': 'backslash', '`': 'grave_accent_and_tilde',
-    'space': 'spacebar',
-}
+QWERTY = list("qwertyuiop[]\\asdfghjkl;'zxcvbnm,./")
 
 
 def qwerty_pos(key):
