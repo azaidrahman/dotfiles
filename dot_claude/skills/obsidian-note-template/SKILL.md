@@ -45,7 +45,7 @@ Short baseline explanation.
 2. Read existing related notes before creating new notes.
 3. Reuse existing notes when appropriate instead of creating duplicates.
 4. If a note already exists, edit it instead of creating a competing note.
-5. Add backlinks from relevant existing notes when helpful.
+5. After creating or editing a note, always add backlinks to it from the related existing notes you found in step 2. This is a default step, not optional. Place each backlink contextually where it is relevant in the neighbor note, and also add it to that note's References section. Keep each backlink to a short, natural sentence so neighbor notes are not over-written.
 6. Verify generated or edited notes contain no em dash characters.
 
 ## Tag guidance

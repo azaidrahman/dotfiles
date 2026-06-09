@@ -52,6 +52,18 @@ HELP
             fi
         fi
         ;;
+    update)
+        shift
+        # Pull latest source, then SHOW pending changes and stop — do NOT auto-apply.
+        # Why: `chezmoi apply` can hang the shell ("zsh: suspended (tty output)") when a
+        # locally-modified target triggers chezmoi's overwrite prompt and a run_onchange
+        # script (e.g. goku) fires between prompts (SIGTTOU). Review, reconcile any
+        # externally-edited targets, then run `cz apply` deliberately.
+        command chezmoi git -- pull --autostash --rebase || return 1
+        echo "\033[34m[cz]\033[0m source updated — pending changes:"
+        command chezmoi status
+        echo "\033[33m[cz]\033[0m review above, then run 'cz apply' (reconcile 'M' targets first: 'cz re-add <file>' keeps your edit, 'cz apply --force <file>' discards it)"
+        ;;
     *)
         command chezmoi "$@"
         ;;
