@@ -60,8 +60,28 @@ HELP
         # script (e.g. goku) fires between prompts (SIGTTOU). Review, reconcile any
         # externally-edited targets, then run `cz apply` deliberately.
         command chezmoi git -- pull --autostash --rebase || return 1
+        local status_out
+        status_out="$(command chezmoi status)"
         echo "\033[34m[cz]\033[0m source updated — pending changes:"
-        command chezmoi status
+        [[ -n "$status_out" ]] && print -r -- "$status_out"
+
+        # Karabiner's edn is generated; a binding only goes live once goku recompiles
+        # karabiner.json. If this update touched anything under karabiner, offer to apply
+        # just that subtree and recompile. Scoping the apply to ~/.config/karabiner avoids
+        # the global SIGTTOU hang described above; the explicit goku run doesn't trust the
+        # hash-gated run_onchange hook to have fired against the fresh edn.
+        if grep -q 'karabiner' <<< "$status_out"; then
+            echo -n "\033[34m[cz]\033[0m karabiner config changed — apply it and run goku now? [y/N] "
+            if read -q; then
+                echo
+                command chezmoi apply "$HOME/.config/karabiner" \
+                && GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn" goku \
+                && echo "\033[32m[cz]\033[0m goku recompiled karabiner.json" \
+                || { echo "\033[31m[cz]\033[0m apply/goku failed"; return 1; }
+            else
+                echo
+            fi
+        fi
         echo "\033[33m[cz]\033[0m review above, then run 'cz apply' (reconcile 'M' targets first: 'cz re-add <file>' keeps your edit, 'cz apply --force <file>' discards it)"
         ;;
     *)
