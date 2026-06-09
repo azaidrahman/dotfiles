@@ -32,14 +32,19 @@ out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" '
 mode=${out%%$'\t'*}
 rest=${out#*$'\t'}
 
-# Vim-mode indicator: blue (#78B0FF) for INSERT, gray for everything else
+# Vim-mode indicator: blue for INSERT, gray otherwise.
+# Deliberately 256-color (not 24-bit) and NO trailing newline:
+#  - tmux here reports RGB=no, so a truecolor SGR gets re-downsampled every
+#    repaint; an explicit 256-color code is tmux-native and stable per frame.
+#  - a trailing \n makes Claude Code treat this as a 2-line status and redraw
+#    both rows, which flickers/duplicates during generation.
 if [ -n "$mode" ]; then
   if [ "$mode" = "INSERT" ]; then
-    color=$'\033[38;2;120;176;255m'   # #78B0FF
+    color=$'\033[38;5;75m'    # light blue (~#5fafff)
   else
-    color=$'\033[38;2;128;128;128m'   # gray
+    color=$'\033[38;5;244m'   # gray
   fi
-  printf '%s%s\033[0m  |  %s\n' "$color" "$mode" "$rest"
+  printf '%s%s\033[0m  |  %s' "$color" "$mode" "$rest"
 else
-  printf '%s\n' "$rest"
+  printf '%s' "$rest"
 fi
