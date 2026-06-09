@@ -26,6 +26,7 @@ tmux list-windows -a -F '#{window_stack_index}	#{session_last_attached}	#{sessio
       }
       {
         sess = $1; idx = $2; wname = $3
+        if (sess == "mobile" || sess == "quickterminal") next   # reachable via prefix+F (tv channels)
         key  = sess ":" idx
         if (key in pend) {
           t = pend[key]
