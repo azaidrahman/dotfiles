@@ -163,11 +163,16 @@ func validateCLI(o cliOpts) (layer Layer, section, extra string, err error) {
 
 // runCLI executes one-liner mode: validate, edit YAML, build, report, deploy.
 func runCLI(o cliOpts) error {
-	layer, section, extra, err := validateCLI(o)
+	// Resolve the source dir and load the shared lookup tables first: validateCLI
+	// calls validateKey, which needs the tables (longNames) populated.
+	srcDir, err := resolveSourceDir()
 	if err != nil {
 		return err
 	}
-	srcDir, err := resolveSourceDir()
+	if err := loadTables(srcDir); err != nil {
+		return err
+	}
+	layer, section, extra, err := validateCLI(o)
 	if err != nil {
 		return err
 	}

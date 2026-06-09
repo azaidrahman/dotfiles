@@ -1,0 +1,36 @@
+{
+  "_comment": "Single source of truth for lookup tables shared by the Python build (lib/tables.py) and the Go add-keymap CLI (tables.go). Order of fkey_pool and all_mods is significant: it defines F-key slot allocation. Do not hand-edit one consumer's copy — there is only this file.",
+  "goku_names": {
+    "-": "hyphen",
+    "=": "equal_sign",
+    "[": "open_bracket",
+    "]": "close_bracket",
+    ";": "semicolon",
+    "'": "quote",
+    ",": "comma",
+    ".": "period",
+    "/": "slash",
+    "\\": "backslash",
+    "`": "grave_accent_and_tilde",
+    "space": "spacebar"
+  },
+  "fkey_pool": ["f13", "f14", "f16", "f17", "f18", "f19", "f20"],
+  "all_mods": [
+    ["", ""],
+    ["ctrl+", "!T"],
+    ["cmd+", "!C"],
+    ["opt+", "!O"],
+    ["ctrl+cmd+", "!CT"],
+    ["ctrl+opt+", "!TO"],
+    ["cmd+opt+", "!CO"],
+    ["ctrl+cmd+opt+", "!CTO"],
+    ["shift+", "!S"],
+    ["ctrl+shift+", "!TS"],
+    ["cmd+shift+", "!CS"],
+    ["opt+shift+", "!OS"],
+    ["ctrl+cmd+shift+", "!CTS"],
+    ["ctrl+opt+shift+", "!TOS"],
+    ["cmd+opt+shift+", "!COS"],
+    ["ctrl+cmd+opt+shift+", "!CTOS"]
+  ]
+}
