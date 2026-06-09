@@ -95,6 +95,12 @@ hyper:
   e:
     -: "!CTOSe" # alfred open windows
 
+  i:
+    -: "!CTOSi" # alfred jira
+
+  "0":
+    -: "!QWER0" # ice bar
+
 misc:
   spacebar:
     cmd: "!TCspacebar" # emoji

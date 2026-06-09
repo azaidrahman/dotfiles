@@ -330,7 +330,7 @@ def _extract_labels(path):
             if not stripped or stripped.startswith('#'):
                 continue
             indent = len(raw) - len(raw.lstrip())
-            m_header = re.match(r'^(\w[\w-]*|[^\s:#]):\s*$', stripped)
+            m_header = re.match(r'^"?(\w[\w-]*|[^\s":#])"?:\s*$', stripped)
             if m_header:
                 if section_indent is None or indent <= section_indent:
                     # Section header (e.g., "hyper:")
