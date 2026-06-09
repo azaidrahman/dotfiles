@@ -11,7 +11,10 @@ QWERTY = list("qwertyuiop[]\\asdfghjkl;'zxcvbnm,./")
 def qwerty_pos(key):
     low = key.lower()
     pos = QWERTY.index(low) if low in QWERTY else 999
-    return (pos, 0 if key.islower() or not key.isalpha() else 1)
+    # Final `low` tiebreaker keeps ordering deterministic: digits and symbols
+    # not in QWERTY all share pos 999, and without it their order would leak
+    # from per-process set/hash iteration (see generate.py workspace merge).
+    return (pos, 0 if key.islower() or not key.isalpha() else 1, low)
 
 
 def parse_yaml(path):
