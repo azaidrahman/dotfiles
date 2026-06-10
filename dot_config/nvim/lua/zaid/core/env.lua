@@ -13,6 +13,8 @@ function M.when_standalone(fn)
 end
 
 -- Return the given lazy.nvim key specs when standalone, {} inside tmux.
+-- Always returns a caller-owned table (fresh {} per call in tmux), so callers
+-- may mutate the result, e.g. via vim.list_extend.
 function M.standalone_keys(keys)
 	return M.in_tmux and {} or keys
 end
