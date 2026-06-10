@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# If this script runs without a foreground tty (e.g. a stale shell invoking
+# `chezmoi update`), a tty read would SIGTTIN-stop the whole chezmoi process,
+# leaving the persistent state lock held. With TTIN/TTOU ignored the read
+# fails instead, and the empty answer falls through to the safe skip branch.
+trap '' TTIN TTOU
+
 BREWFILE="${HOME}/.config/homebrew/Brewfile"
 IGNOREFILE="${HOME}/.config/homebrew/brewignore"
 
@@ -32,7 +38,7 @@ if [[ -n "$install_list" ]]; then
     echo "$install_list"
     echo ""
     printf "Install these packages? [y/N] "
-    read -r answer </dev/tty
+    read -r answer </dev/tty || answer=""
     if [[ "$answer" =~ ^[Yy]$ ]]; then
         echo "Running brew bundle install (no-upgrade: skips upgrades to avoid sudo-needy casks hanging apply)..."
         brew bundle install --no-upgrade --file="$BREWFILE"
@@ -52,7 +58,7 @@ if [[ -n "$cleanup_list" ]]; then
     echo "$cleanup_list"
     echo ""
     printf "Uninstall these packages? [y/N] "
-    read -r answer </dev/tty
+    read -r answer </dev/tty || answer=""
     if [[ "$answer" =~ ^[Yy]$ ]]; then
         brew bundle cleanup --file="$BREWFILE" --force
     else
