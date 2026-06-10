@@ -14,6 +14,7 @@ vim.opt.smartindent = true
 vim.opt.wrap = false
 
 vim.opt.laststatus = 3
+vim.opt.showmode = false -- lualine already shows the mode
 
 vim.opt.swapfile = false
 vim.opt.backup = false
