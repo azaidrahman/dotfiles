@@ -24,7 +24,6 @@
         "meta+o": "chat:fastMode",
         "meta+t": "chat:thinkingToggle",
         "ctrl+x m": "chat:modelPicker",
-        "ctrl+x e": "chat:modelPicker",
         "ctrl+x t": "chat:thinkingToggle",
         "ctrl+x f": "chat:fastMode",
         "enter": "chat:submit",
