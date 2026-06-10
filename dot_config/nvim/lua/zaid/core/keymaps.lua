@@ -118,6 +118,6 @@ vim.keymap.set("n", "<leader>pq", "<cmd>copen<CR>", descopts("Open quickfix list
 
 vim.keymap.set("n","<leader>gn","<cmd>Neogit<cr>",descopts("Open neogit"))
 
-vim.keymap.set("n", "<leader>nh", "<cmd>Noice history<cr>", descopts("[N]oice message [H]istory"))
+vim.keymap.set("n", "<leader>hm", "<cmd>Noice history<cr>", descopts("[H]istory of [M]essages (noice)"))
 
 
