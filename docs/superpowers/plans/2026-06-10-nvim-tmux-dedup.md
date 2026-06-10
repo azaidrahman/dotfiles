@@ -17,7 +17,7 @@
 **Files:**
 - Create: `dot_config/nvim/lua/zaid/core/env.lua`
 
-- [ ] **Step 1: Write the module**
+- [x] **Step 1: Write the module**
 
 ```lua
 -- Runtime environment detection. Single source of truth for tmux-aware gating:
@@ -42,7 +42,7 @@ end
 return M
 ```
 
-- [ ] **Step 2: Apply and verify the flag in both modes**
+- [x] **Step 2: Apply and verify the flag in both modes**
 
 Run:
 ```bash
@@ -52,7 +52,7 @@ TMUX=/tmp/fake,1,0 nvim --headless "+lua print('in_tmux=' .. tostring(require('z
 ```
 Expected: first prints `in_tmux=false`, second prints `in_tmux=true`.
 
-- [ ] **Step 3: Verify the helpers in both modes**
+- [x] **Step 3: Verify the helpers in both modes**
 
 Run:
 ```bash
@@ -61,7 +61,7 @@ TMUX=/tmp/fake,1,0 nvim --headless "+lua local e=require('zaid.core.env'); local
 ```
 Expected: first prints `ran=true keys=2`, second prints `ran=false keys=0`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd ~/.local/share/chezmoi
@@ -76,7 +76,7 @@ git commit -m "feat(nvim): add core.env with tmux-aware gating helpers"
 **Files:**
 - Modify: `dot_config/nvim/lua/zaid/core/keymaps.lua:80-85`
 
-- [ ] **Step 1: Replace the tab keymap block**
+- [x] **Step 1: Replace the tab keymap block**
 
 In `dot_config/nvim/lua/zaid/core/keymaps.lua`, replace:
 
@@ -104,7 +104,7 @@ end)
 
 (Keep the 4-space indent used elsewhere in this file.)
 
-- [ ] **Step 2: Apply and verify both modes**
+- [x] **Step 2: Apply and verify both modes**
 
 Run:
 ```bash
@@ -114,7 +114,7 @@ TMUX=/tmp/fake,1,0 nvim --headless "+lua print('tmux_to=[' .. vim.fn.maparg(vim.
 ```
 Expected: first prints `standalone_to=[<Cmd>tabnew<CR>]` (non-empty), second prints `tmux_to=[]` (empty).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd ~/.local/share/chezmoi
@@ -129,7 +129,7 @@ git commit -m "refactor(nvim): gate tab keymaps to standalone (tmux windows own 
 **Files:**
 - Modify: `dot_config/nvim/lua/zaid/core/commands.lua:39-96`
 
-- [ ] **Step 1: Wrap the floating-terminal block**
+- [x] **Step 1: Wrap the floating-terminal block**
 
 In `dot_config/nvim/lua/zaid/core/commands.lua`, replace everything from the `-- Floating terminal` comment (line 39) to the end of the file:
 
@@ -259,7 +259,7 @@ require("zaid.core.env").when_standalone(function()
 end)
 ```
 
-- [ ] **Step 2: Apply and verify both modes**
+- [x] **Step 2: Apply and verify both modes**
 
 Run:
 ```bash
@@ -269,7 +269,7 @@ TMUX=/tmp/fake,1,0 nvim --headless "+lua print('tmux_pop=' .. tostring(vim.api.n
 ```
 Expected: first prints `standalone_pop=true tt=[...]` (non-empty map), second prints `tmux_pop=false tt=[]`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd ~/.local/share/chezmoi
@@ -284,7 +284,7 @@ git commit -m "refactor(nvim): gate floating terminal to standalone (tmux owns t
 **Files:**
 - Modify: `dot_config/nvim/lua/zaid/plugins/snacks.lua:209-223`
 
-- [ ] **Step 1: Replace the keys list head**
+- [x] **Step 1: Replace the keys list head**
 
 In `dot_config/nvim/lua/zaid/plugins/snacks.lua`, the snacks spec's `keys` table currently begins:
 
@@ -363,7 +363,7 @@ and close the `vim.list_extend` call by changing `},\n\t},` to `}),\n\t},`:
 
 (Net change: `keys = {` → `keys = vim.list_extend(require("zaid.core.env").standalone_keys({ ...two lazygit entries... }), {` and the matching final `}` → `})`. All other entries are untouched. This file uses tabs for indentation — keep them.)
 
-- [ ] **Step 2: Apply and verify both modes**
+- [x] **Step 2: Apply and verify both modes**
 
 lazy.nvim registers `keys` as mappings at startup (they lazy-load the plugin on press), so `maparg` sees them after init:
 
@@ -374,7 +374,7 @@ TMUX=/tmp/fake,1,0 nvim --headless "+lua print('tmux_lg=[' .. vim.fn.maparg(vim.
 ```
 Expected: first prints non-empty `standalone_lg=[...]` and non-empty `pf=[...]`; second prints empty `tmux_lg=[]` but **still non-empty** `pf=[...]` (proves only lazygit keys were gated, pickers intact).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd ~/.local/share/chezmoi
@@ -389,7 +389,7 @@ git commit -m "refactor(nvim): gate snacks lazygit keys to standalone"
 **Files:**
 - Modify: `dot_tmux/conf.d/keys.conf` (after the Television bindings, line 71)
 
-- [ ] **Step 1: Add the binding**
+- [x] **Step 1: Add the binding**
 
 In `dot_tmux/conf.d/keys.conf`, after:
 
@@ -405,7 +405,7 @@ insert:
 bind-key "G" display-popup -E -w 90% -h 90% -d '#{pane_current_path}' -T ' Lazygit ' 'lazygit'
 ```
 
-- [ ] **Step 2: Apply and validate the config parses**
+- [x] **Step 2: Apply and validate the config parses**
 
 Run:
 ```bash
@@ -414,7 +414,7 @@ tmux start-server \; source-file ~/.tmux/conf.d/keys.conf 2>&1 && tmux list-keys
 ```
 Expected: no parse errors; `list-keys` shows a line binding `G` to `display-popup ... lazygit`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd ~/.local/share/chezmoi
@@ -431,7 +431,7 @@ lualine's `mode` component already shows the mode; vim's native `showmode` print
 **Files:**
 - Modify: `dot_config/nvim/lua/zaid/core/options.lua:16`
 
-- [ ] **Step 1: Disable native showmode**
+- [x] **Step 1: Disable native showmode**
 
 In `dot_config/nvim/lua/zaid/core/options.lua`, replace:
 
@@ -446,7 +446,7 @@ vim.opt.laststatus = 3
 vim.opt.showmode = false -- lualine already shows the mode
 ```
 
-- [ ] **Step 2: Apply and verify**
+- [x] **Step 2: Apply and verify**
 
 Run:
 ```bash
@@ -455,7 +455,7 @@ nvim --headless "+lua print('showmode=' .. tostring(vim.o.showmode))" +q 2>&1
 ```
 Expected: prints `showmode=false`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd ~/.local/share/chezmoi
@@ -472,14 +472,14 @@ incline.nvim floats a per-window title at the top right, which covers content in
 **Files:**
 - Move: `dot_config/nvim/lua/zaid/plugins/incline.lua` → `dot_config/nvim/lua/zaid/plugins_archive/incline.lua`
 
-- [ ] **Step 1: Move the spec to the archive**
+- [x] **Step 1: Move the spec to the archive**
 
 ```bash
 cd ~/.local/share/chezmoi
 git mv dot_config/nvim/lua/zaid/plugins/incline.lua dot_config/nvim/lua/zaid/plugins_archive/incline.lua
 ```
 
-- [ ] **Step 2: Apply and verify incline no longer loads**
+- [x] **Step 2: Apply and verify incline no longer loads**
 
 Run:
 ```bash
@@ -488,7 +488,7 @@ nvim --headless "+lua local p = require('lazy.core.config').plugins; print('incl
 ```
 Expected: prints `incline_spec=false`. Also confirm visually later that the filename still appears in the lualine status bar.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd ~/.local/share/chezmoi
@@ -501,7 +501,7 @@ git commit -m "refactor(nvim): archive incline, lualine statusbar already shows 
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Full startup health check in both modes**
+- [x] **Step 1: Full startup health check in both modes**
 
 Run:
 ```bash
@@ -510,11 +510,11 @@ TMUX=/tmp/fake,1,0 nvim --headless "+lua vim.print('tmux boot ok')" +q 2>&1
 ```
 Expected: each prints its message with no Lua errors above it.
 
-- [ ] **Step 2: Manual smoke test (real tmux)**
+- [x] **Step 2: Manual smoke test (real tmux)**
 
 Inside a real tmux session: open `nvim`, confirm `<Space>tt`, `<Space>lg`, `<Space>to` do nothing; press `prefix+r` to reload tmux config, then `prefix+G` and confirm lazygit pops up in the current path. Outside tmux (bare Ghostty): open `nvim`, confirm all three work.
 
-- [ ] **Step 3: Spec status + final state**
+- [x] **Step 3: Spec status + final state**
 
 Run:
 ```bash
