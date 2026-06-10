@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # chezmoi modify_ script for ~/.claude/settings.json
-# Renders the managed settings below, but PRESERVES the live `effortLevel`
-# (it changes per session via /effort and we don't want it tracked as drift).
+# Renders the managed settings below, but PRESERVES live per-device keys:
+#   effortLevel - changes per session via /effort
+#   model       - chosen per device, not tracked as drift
 set -euo pipefail
 
 current=$(cat)
 effort=$(printf '%s' "$current" | jq -r '.effortLevel // "medium"' 2>/dev/null || printf 'medium')
+model=$(printf '%s' "$current" | jq -r '.model // empty' 2>/dev/null || true)
 
-cat <<'JSON' | jq --arg effort "$effort" '.effortLevel = $effort'
+cat <<'JSON' | jq --arg effort "$effort" --arg model "$model" \
+    '.effortLevel = $effort | if $model != "" then .model = $model else . end'
 {
   "permissions": {
     "allow": [
