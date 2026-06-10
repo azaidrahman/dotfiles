@@ -41,13 +41,27 @@ If BOTH are clean, nothing to sync. Tell the user and stop.
 
 ### 2. Reconcile Diverged Targets
 
-If `chezmoi diff` shows target files the user intentionally changed this session:
+For each target file `chezmoi diff` shows the user changed this session, **first check
+how its source is managed** — the reconcile command depends on it:
 
 ```bash
-chezmoi add <target-path>
+basename "$(chezmoi source-path <target-path>)"
 ```
 
-Only add files that were part of this session's work. Ask the user if unsure.
+| Source basename | Source kind | How to reconcile |
+|---|---|---|
+| plain (e.g. `dot_zshrc`, `config.json`) | static file | `chezmoi add <target-path>` |
+| `modify_*` | script that renders the file | **DO NOT `chezmoi add`** — it replaces the script with a static file and loses its logic. Edit the script's rendered output (the heredoc/template body) to include the change. |
+| `*.tmpl` (`create_`/`run_` too) | Go-template / script | **DO NOT `chezmoi add`** — hand-edit the template/script so it produces the new output. |
+
+After editing a `modify_`/template source, **verify apply is now a no-op**:
+
+```bash
+chezmoi diff --no-pager <target-path>   # expect EMPTY = source renders the live file
+chezmoi status                          # expect the entry gone
+```
+
+Only reconcile files that were part of this session's work. Ask the user if unsure.
 
 ### 3. Validate
 
@@ -99,10 +113,15 @@ Confirm working tree is clean and push succeeded.
 - `private_` prefixed files you didn't intentionally modify
 - Changes to files outside this session's scope
 - Git remote is unreachable
+- A diverged target whose source is `modify_*`/`*.tmpl` — `chezmoi add` would destroy
+  the script/template; edit the source by hand instead (see Step 2)
 
 ## Do NOT
 
 - Run `chezmoi apply` (this skill syncs source to remote, not source to target)
+- **`chezmoi add` a file whose source is a `modify_` script or `.tmpl` template** — it
+  overwrites the script with a static file and silently drops its logic. Check the source
+  basename first (Step 2) and hand-edit script/template sources.
 - Use `git add -A` or `git add .` - stage specific files only
 - Push without showing the user what will be pushed
 - Commit unrelated changes from other sessions - only sync what was worked on NOW
