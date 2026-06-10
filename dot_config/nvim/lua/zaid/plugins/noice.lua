@@ -85,8 +85,17 @@ return {
 						opts = { skip = true },
 					},
 				},
+				-- Route all messages/errors to the light bottom-right mini view
+				-- (frees the cmdline row — cmdheight=0 in core/options.lua)
 				messages = {
-					enabled = false,
+					enabled = true,
+					view = "mini",
+					view_error = "mini",
+					view_warn = "mini",
+					view_search = false,
+				},
+				notify = {
+					view = "mini",
 				},
 				health = {
 					checker = true,

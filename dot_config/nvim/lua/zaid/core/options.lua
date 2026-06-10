@@ -15,6 +15,7 @@ vim.opt.wrap = false
 
 vim.opt.laststatus = 3
 vim.opt.showmode = false -- lualine already shows the mode
+vim.opt.cmdheight = 0 -- noice owns cmdline + messages; reclaim the row
 
 vim.opt.swapfile = false
 vim.opt.backup = false
