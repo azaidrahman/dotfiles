@@ -65,6 +65,18 @@ bind G display-popup -d "#{pane_current_path}" -w 90% -h 90% -E "lazygit"
 - Split resizing/navigation — already settled: `smart-splits` archived.
 - `plugins_archive/`, stray `dot_DS_Store` files — out of scope per user.
 
+## UI polish (added during plan review)
+
+Two unconditional fixes (not tmux-gated), motivated by small tmux panes:
+
+- **Duplicate mode indicator:** `vim.opt.showmode = false` in
+  `core/options.lua` — lualine's mode component already shows INSERT; native
+  showmode printed it a second time on the command line.
+- **Floating window title:** archive `plugins/incline.lua` to
+  `plugins_archive/` (not loaded by lazy.nvim). Its top-right floating
+  filename covers content in small panes; lualine's `lualine_c` filename
+  component (`path = 3`) already shows the name in the status bar.
+
 ## Testing
 
 1. Inside tmux: `<space>tt`, `<leader>lg`, `<leader>gl`, `<leader>to/tx/tn/tp/tf`
