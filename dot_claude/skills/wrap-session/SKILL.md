@@ -38,6 +38,13 @@ any path you committed to. Resolve each to its owning context:
 
 Always include the current working directory's repo. Dedupe into a location list.
 
+While inventorying, also flag **session scratch** — throwaway files you created only to
+get the work done, not as deliverables: one-off scripts, `/tmp` files, debug dumps,
+`*.bak`/`*.orig`, captured command output, sample payloads, exploratory notebooks. These
+are tracked separately from the deliverable set and are **removed** in Phase 3, not
+committed. When unsure whether a file is scratch or a deliverable, treat it as a
+deliverable and ask.
+
 ### 2. Cleanliness scan — per location
 
 For each location, detect dirt three ways (the third is the one plain `git status` misses):
@@ -72,7 +79,11 @@ Match each dirty location to a handler and invoke it:
 |---|---|
 | chezmoi-managed change (diverged-target or untracked-in-managed) | invoke **`chezmoi-sync`** — it owns the `chezmoi add`, secret scan, commit, and push. Do NOT `chezmoi add` or commit the source repo yourself. |
 | git project repo, tracked-dirty | invoke **`commit`** (authors a message in house style; branch-name-ticket aware), then `git -C <repo> push` if it has an upstream |
+| session scratch (temp/throwaway file from Phase 1) | **remove it** — `rm` the file (and `/tmp` artifacts), or `git -C <repo> clean`/`checkout` if it's untracked/uncommitted in a repo. Confirm the scratch list with the user first; never delete a file you committed earlier this session or one the user named as a deliverable. |
 | *(future contexts)* | *(add a row — a folder-specific finish routine, etc.)* |
+
+Remove scratch **before** committing the deliverable set, so throwaway files never slip
+into a commit.
 
 The handler table is the extension point. New end-of-session behaviors are new rows,
 not new skills.
@@ -97,9 +108,10 @@ deleting. If Jira says Done but git disagrees, **stop and flag it** — never `-
 
 ### 5. Verify
 
-Re-run the Phase 2 scan on every touched location and confirm clean. Report what was
-committed / pushed / merged / deleted, and anything intentionally left (mid-work
-branches, things you flagged).
+Re-run the Phase 2 scan on every touched location and confirm clean. Confirm the
+session-scratch files are gone (none left on disk, none committed). Report what was
+committed / pushed / merged / deleted (including scratch removed), and anything
+intentionally left (mid-work branches, things you flagged).
 
 ## Red Flags — STOP and confirm
 
@@ -108,6 +120,8 @@ branches, things you flagged).
 - Changes outside this session's scope showing up in a repo → confirm before staging.
 - Any **remote** branch deletion or **PR merge** → outward-facing; confirm per item.
 - Git remote unreachable → report and stop, don't loop.
+- A file you're about to delete as scratch was committed earlier this session, or the
+  user called it a deliverable → stop, do not delete; it's not scratch.
 
 ## Common mistakes
 
@@ -120,3 +134,5 @@ branches, things you flagged).
 - **Trusting Jira "Done" to mean merged** — verify the commits are in the base branch first.
 - **Touching mid-work branches** — only the branches `branch-audit` flags as done are in scope.
 - **Asking the user to re-describe what changed** — you have the transcript; inventory from it.
+- **Committing session scratch** — one-off scripts, `/tmp` dumps, and debug output are
+  removed in Phase 3, not committed. Inventory them in Phase 1 so they don't ride along.
