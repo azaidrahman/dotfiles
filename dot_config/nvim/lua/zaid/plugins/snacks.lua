@@ -205,8 +205,8 @@ return {
 				},
 			},
 		},
-		-- NOTE: Keymaps
-		keys = {
+		-- NOTE: Keymaps (lazygit standalone only — prefix+G popup owns it inside tmux)
+		keys = vim.list_extend(require("zaid.core.env").standalone_keys({
 			{
 				"<leader>lg",
 				function()
@@ -221,6 +221,7 @@ return {
 				end,
 				desc = "Lazygit Logs",
 			},
+		}), {
 			{
 				"<leader>rN",
 				function()
@@ -320,7 +321,7 @@ return {
 				end,
 				desc = "Help Pages",
 			},
-		},
+		}),
 	},
 	-- NOTE: todo comments w/ snacks
 	{
