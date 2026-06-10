@@ -424,7 +424,80 @@ git commit -m "feat(tmux): bind prefix+G to lazygit popup in current path"
 
 ---
 
-### Task 6: End-to-end verification
+### Task 6: Stop "INSERT" showing twice
+
+lualine's `mode` component already shows the mode; vim's native `showmode` prints a second `-- INSERT --` on the command line below it.
+
+**Files:**
+- Modify: `dot_config/nvim/lua/zaid/core/options.lua:16`
+
+- [ ] **Step 1: Disable native showmode**
+
+In `dot_config/nvim/lua/zaid/core/options.lua`, replace:
+
+```lua
+vim.opt.laststatus = 3
+```
+
+with:
+
+```lua
+vim.opt.laststatus = 3
+vim.opt.showmode = false -- lualine already shows the mode
+```
+
+- [ ] **Step 2: Apply and verify**
+
+Run:
+```bash
+chezmoi apply ~/.config/nvim
+nvim --headless "+lua print('showmode=' .. tostring(vim.o.showmode))" +q 2>&1
+```
+Expected: prints `showmode=false`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd ~/.local/share/chezmoi
+git add dot_config/nvim/lua/zaid/core/options.lua
+git commit -m "fix(nvim): disable native showmode (lualine shows mode)"
+```
+
+---
+
+### Task 7: Archive incline (filename already in lualine)
+
+incline.nvim floats a per-window title at the top right, which covers content in small tmux panes. lualine's `lualine_c` filename component (`path = 3`, absolute path) already shows the name in the status bar, so incline is removed by archiving — per repo convention, archived plugin specs move to `plugins_archive/` (not loaded by lazy.nvim, which only imports `zaid.plugins`) and nothing is deleted.
+
+**Files:**
+- Move: `dot_config/nvim/lua/zaid/plugins/incline.lua` → `dot_config/nvim/lua/zaid/plugins_archive/incline.lua`
+
+- [ ] **Step 1: Move the spec to the archive**
+
+```bash
+cd ~/.local/share/chezmoi
+git mv dot_config/nvim/lua/zaid/plugins/incline.lua dot_config/nvim/lua/zaid/plugins_archive/incline.lua
+```
+
+- [ ] **Step 2: Apply and verify incline no longer loads**
+
+Run:
+```bash
+chezmoi apply ~/.config/nvim
+nvim --headless "+lua local p = require('lazy.core.config').plugins; print('incline_spec=' .. tostring(p['incline.nvim'] ~= nil))" +q 2>&1
+```
+Expected: prints `incline_spec=false`. Also confirm visually later that the filename still appears in the lualine status bar.
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd ~/.local/share/chezmoi
+git commit -m "refactor(nvim): archive incline, lualine statusbar already shows filename"
+```
+
+---
+
+### Task 8: End-to-end verification
 
 **Files:** none (verification only)
 
@@ -447,6 +520,6 @@ Run:
 ```bash
 cd ~/.local/share/chezmoi
 git status --short
-git log --oneline -6
+git log --oneline -8
 ```
-Expected: clean tree; the five commits from Tasks 1–5 present.
+Expected: clean tree; the seven commits from Tasks 1–7 present.
