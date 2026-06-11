@@ -51,11 +51,12 @@ color_for_model() {
 color_for_effort() {
   local lc; lc=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   case "$lc" in
-    low|minimal)   printf '\033[38;5;82m'  ;;  # green
-    medium|normal) printf '\033[38;5;226m' ;;  # yellow
-    high)          printf '\033[38;5;208m' ;;  # orange
-    max|highest)   printf '\033[38;5;196m' ;;  # red
-    *)             printf '\033[38;5;244m' ;;
+    low|minimal)       printf '\033[38;5;82m'  ;;  # green
+    medium|normal)     printf '\033[38;5;82m'  ;;  # green
+    high)              printf '\033[38;5;226m' ;;  # yellow
+    xhigh)             printf '\033[38;5;208m' ;;  # orange
+    ultra|max|highest) printf '\033[38;5;196m' ;;  # red
+    *)                 printf '\033[38;5;244m' ;;
   esac
 }
 

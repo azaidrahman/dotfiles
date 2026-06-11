@@ -12,6 +12,9 @@ model=$(printf '%s' "$current" | jq -r '.model // empty' 2>/dev/null || true)
 cat <<'JSON' | jq --arg effort "$effort" --arg model "$model" \
     '.effortLevel = $effort | if $model != "" then .model = $model else . end'
 {
+  "env": {
+    "CLAUDE_CODE_ENABLE_AUTO_MODE": "1"
+  },
   "permissions": {
     "allow": [
       "Read",
@@ -124,6 +127,7 @@ cat <<'JSON' | jq --arg effort "$effort" --arg model "$model" \
   },
   "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
   "theme": "dark-daltonized",
   "editorMode": "vim",
   "preferredNotifChannel": "ghostty",
