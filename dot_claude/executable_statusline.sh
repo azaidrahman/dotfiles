@@ -15,10 +15,11 @@ fi
 show_cost="false"
 [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ] && show_cost="true"
 
-# jq pass: emit raw tab-separated fields so bash can colorize each independently
+# jq pass: emit fields joined by \x01 (non-whitespace) so IFS read preserves empty fields.
+# Tab (\t) collapses consecutive delimiters in bash IFS read; \x01 does not.
+mode=$(printf '%s' "$input" | jq -r '.vim.mode // ""')
 out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" --arg show_cost "$show_cost" '
   [
-    (.vim.mode // ""),
     (.model.display_name // ""),
     (.effort.level // ""),
     (if $show_cost == "true" and (.cost.total_cost_usd != null) then (.cost.total_cost_usd | tostring) else "" end),
@@ -28,9 +29,9 @@ out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" --arg show_cost
     (if .rate_limits.five_hour then (.rate_limits.five_hour.used_percentage | round | tostring) else "" end),
     (if .rate_limits.five_hour then (.rate_limits.five_hour.resets_at | strflocaltime("%H:%M")) else "" end),
     (if .rate_limits.seven_day then (.rate_limits.seven_day.used_percentage | round | tostring) else "" end)
-  ] | join("\t")')
+  ] | join("")')
 
-IFS=$'\t' read -r mode model effort cost_raw ctx_pct wt br five_h_pct five_h_resets seven_d_pct <<< "$out"
+IFS=$'\x01' read -r model effort cost_raw ctx_pct wt br five_h_pct five_h_resets seven_d_pct <<< "$out"
 
 # ── Color helpers (256-color for tmux stability) ───────────────────────────────
 
