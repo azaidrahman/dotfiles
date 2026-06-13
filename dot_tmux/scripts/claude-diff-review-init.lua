@@ -1,7 +1,20 @@
 -- Standalone Neovim config for the Claude diff-review popup.
 -- Launched via: nvim -u ~/.tmux/scripts/claude-diff-review-init.lua
+-- (tmux prefix+e → ~/.tmux/scripts/claude-diff-review.sh → this popup).
 -- Reuses the diffview/plenary already installed by lazy.nvim, but loads NONE
 -- of the user's normal config, so it cannot interfere with it.
+--
+-- KEYS (leader = Space) — press <leader>? in the popup for this list:
+--   <leader>a       collect hunk under cursor (normal) / selection (visual)
+--                   — working-tree (right) side only
+--   <leader>l       toggle collected list  (dd remove · <CR> jump · q close)
+--   <leader>z       jump to another git repo (zoxide picker)
+--   <leader><CR>    confirm: paste refs to the origin pane (errors if not Claude)
+--   q  /  :q        bail — quit, send nothing
+--   <leader>?       show this cheatsheet
+-- Diffview nav: <Tab>/<S-Tab> next/prev file · j/k panel · <CR>/o/l open
+--   <C-w>l into diff · ]c/[c hunk · <C-f>/<C-b> scroll · <leader>e panel
+--   <leader>b toggle panel · g? diffview help
 
 local data = vim.fn.stdpath("data")
 vim.opt.rtp:prepend(data .. "/lazy/plenary.nvim")
@@ -18,7 +31,14 @@ if repo and repo ~= "" then
   vim.cmd("cd " .. vim.fn.fnameescape(repo))
 end
 
-require("diffview").setup({})
+-- Disable diffview's bare <space> (stage-entry) binding in the panel and diff
+-- views so it doesn't shadow our leader (Space). We don't stage in this flow.
+require("diffview").setup({
+  keymaps = {
+    file_panel = { { "n", "<space>", false } },
+    view = { { "n", "<space>", false } },
+  },
+})
 
 -- ── collection state ──────────────────────────────────────────────────────
 local M = { collected = {} }
@@ -202,6 +222,46 @@ local function switch_repo(dir)
   require("diffview").open()
 end
 
+-- Show a cheatsheet of this popup's custom keys in a floating window.
+function M.show_help()
+  if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
+    vim.api.nvim_win_close(M.help_win, true)
+    M.help_win = nil
+    return
+  end
+  local lines = {
+    " diff-review popup ",
+    "",
+    " <leader>a     collect hunk (normal) / selection (visual)",
+    "               — working-tree (right) side only",
+    " <leader>l     toggle collected list (dd remove · CR jump · q close)",
+    " <leader>z     jump to another git repo (zoxide)",
+    " <leader><CR>  confirm: paste refs to origin pane",
+    " q / :q        bail — quit, send nothing",
+    " <leader>?     toggle this help",
+    "",
+    " nav: Tab/S-Tab file · ]c/[c hunk · <C-w>l into diff",
+    "      <leader>e panel · <leader>b toggle panel · g? diffview help",
+  }
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.bo[buf].modifiable = false
+  local width = 64
+  M.help_win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    anchor = "NW",
+    row = math.max(0, math.floor((vim.o.lines - #lines) / 2) - 1),
+    col = math.max(0, math.floor((vim.o.columns - width) / 2)),
+    width = width,
+    height = #lines,
+    style = "minimal",
+    border = "rounded",
+    title = " keys ",
+  })
+  vim.keymap.set("n", "q", function() M.show_help() end, { buffer = buf })
+  vim.keymap.set("n", "<leader>?", function() M.show_help() end, { buffer = buf })
+end
+
 -- Jump to another repo via a zoxide frecency picker (snacks if available, else
 -- a plain vim.ui.select). snacks is loaded lazily here so popup startup stays fast.
 function M.jump_repo()
@@ -266,6 +326,7 @@ vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cu
 vim.keymap.set("x", "<leader>a", M.collect_visual, { desc = "collect visual selection" })
 vim.keymap.set("n", "<leader>l", M.toggle_list, { desc = "toggle collected list" })
 vim.keymap.set("n", "<leader>z", M.jump_repo, { desc = "jump to another repo (zoxide)" })
+vim.keymap.set("n", "<leader>?", M.show_help, { desc = "show diff-review key cheatsheet" })
 vim.keymap.set("n", "<leader><CR>", M.confirm, { desc = "confirm & paste refs to Claude" })
 vim.keymap.set("n", "q", function() vim.cmd("qa!") end, { desc = "bail (send nothing)" })
 
