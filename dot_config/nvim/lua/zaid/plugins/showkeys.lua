@@ -2,6 +2,14 @@ return {
     {
         "nvzone/showkeys",
         cmd = "ShowkeysToggle",
+        event = "VeryLazy",
+        keys = {
+            { "<leader>sk", "<cmd>ShowkeysToggle<cr>", desc = "Toggle showkeys" },
+        },
+        config = function(_, opts)
+            require("showkeys").setup(opts)
+            require("showkeys").toggle()
+        end,
         opts = {
             position = "bottom-right",
             maxkeys = 3,
