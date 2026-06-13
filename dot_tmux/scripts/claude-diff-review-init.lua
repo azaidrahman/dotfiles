@@ -67,6 +67,95 @@ local function add_ref(s, e)
   vim.notify("+ collected (" .. #M.collected .. "): " .. ref)
 end
 
+local function list_lines()
+  if #M.collected == 0 then
+    return { "(nothing collected)" }
+  end
+  return vim.deepcopy(M.collected)
+end
+
+function M.refresh_list()
+  if M.list_buf and vim.api.nvim_buf_is_valid(M.list_buf) then
+    vim.bo[M.list_buf].modifiable = true
+    vim.api.nvim_buf_set_lines(M.list_buf, 0, -1, false, list_lines())
+    vim.bo[M.list_buf].modifiable = false
+  end
+end
+
+-- Jump to a collected ref's file+line within the open diffview.
+function M.jump_to(ref)
+  local path, s = ref:match("^(.-):(%d+)%-")
+  if not path then
+    return
+  end
+  s = tonumber(s)
+  if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
+    vim.api.nvim_win_close(M.list_win, true)
+    M.list_win = nil
+  end
+  local ok, lib = pcall(require, "diffview.lib")
+  if not ok then
+    return
+  end
+  local view = lib.get_current_view()
+  if not (view and view.panel) then
+    return
+  end
+  for _, f in ipairs(view.panel:ordered_file_list()) do
+    if f.path == path then
+      view:set_file(f, false, true)
+      vim.schedule(function()
+        pcall(vim.fn.cursor, s, 1)
+      end)
+      return
+    end
+  end
+end
+
+function M.toggle_list()
+  if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
+    vim.api.nvim_win_close(M.list_win, true)
+    M.list_win = nil
+    return
+  end
+  local buf = vim.api.nvim_create_buf(false, true)
+  M.list_buf = buf
+  vim.bo[buf].bufhidden = "wipe"
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, list_lines())
+  vim.bo[buf].modifiable = false
+  local width = 60
+  M.list_win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    anchor = "NE",
+    row = 1,
+    col = vim.o.columns - 1,
+    width = width,
+    height = math.max(1, #M.collected),
+    style = "minimal",
+    border = "rounded",
+    title = " collected ",
+  })
+  vim.keymap.set("n", "dd", function()
+    local idx = vim.fn.line(".")
+    if M.collected[idx] then
+      table.remove(M.collected, idx)
+      M.refresh_list()
+      if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
+        vim.api.nvim_win_set_height(M.list_win, math.max(1, #M.collected))
+      end
+    end
+  end, { buffer = buf, desc = "remove collected ref" })
+  vim.keymap.set("n", "q", function()
+    M.toggle_list()
+  end, { buffer = buf, desc = "close list" })
+  vim.keymap.set("n", "<CR>", function()
+    local idx = vim.fn.line(".")
+    if M.collected[idx] then
+      M.jump_to(M.collected[idx])
+    end
+  end, { buffer = buf, desc = "jump to ref" })
+end
+
 function M.collect_hunk()
   if not is_worktree_side() then
     vim.notify("select in the current-file side", vim.log.levels.WARN)
@@ -96,6 +185,7 @@ end
 
 vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cursor" })
 vim.keymap.set("x", "<leader>a", M.collect_visual, { desc = "collect visual selection" })
+vim.keymap.set("n", "<leader>l", M.toggle_list, { desc = "toggle collected list" })
 
 -- Open the working-tree diff once the UI is ready. Guarded so that a headless
 -- `nvim -u <this> +qa` (used for syntax-checking) does not try to open it.
