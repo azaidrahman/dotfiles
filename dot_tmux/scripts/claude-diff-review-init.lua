@@ -25,11 +25,22 @@ vim.g.maplocalleader = " "
 vim.o.number = true
 vim.o.signcolumn = "yes"
 vim.o.termguicolors = true
+vim.o.background = "dark"
 
 local repo = vim.env.REPO
 if repo and repo ~= "" then
   vim.cmd("cd " .. vim.fn.fnameescape(repo))
 end
+
+-- Look & feel (theme, icons, statusline) is shared with the main config via a
+-- reusable module so it lives in ONE place and other scripts can reuse it.
+-- Make the config's lua/ requireable (without dragging the whole config onto
+-- rtp), then apply. pcall-guarded: degrades to the plain UI if anything's off.
+package.path = vim.fn.stdpath("config") .. "/lua/?.lua;"
+  .. vim.fn.stdpath("config") .. "/lua/?/init.lua;" .. package.path
+pcall(function()
+  require("zaid.popup_ui").apply()
+end)
 
 -- Disable diffview's bare <space> (stage-entry) binding in the panel and diff
 -- views so it doesn't shadow our leader (Space). We don't stage in this flow.
