@@ -9,9 +9,9 @@ set -g pane-active-border-style fg=colour82
 # the boxed pane-id badge, and the last-window arrow; tightens padding to a
 # single space. Window names stay clean — Claude state is shown as the cell
 # color via the @claude_state window option (set by notify-tmux.sh): working
-# cyan, permission red, idle yellow, done green, else normal text.
-set -g window-status-format "#[bg=default,nobold,nodim]#{?#{==:#{@claude_state},working},#[fg=#7dcfff],#{?#{==:#{@claude_state},permission},#[fg=#f7768e],#{?#{==:#{@claude_state},idle},#[fg=#e0af68],#{?#{==:#{@claude_state},done},#[fg=#9ece6a],#[fg=#a9b1d6]}}}} #I #W #[default]"
-set -g window-status-current-format "#[bg=#414868,bold]#{?#{==:#{@claude_state},working},#[fg=#7dcfff],#{?#{==:#{@claude_state},permission},#[fg=#f7768e],#{?#{==:#{@claude_state},idle},#[fg=#e0af68],#{?#{==:#{@claude_state},done},#[fg=#9ece6a],#[fg=#73daca]}}}} #I #W #[default]"
+# cyan, permission red, question purple, idle yellow, done green, else normal text.
+set -g window-status-format "#[bg=default,nobold,nodim]#{?#{==:#{@claude_state},working},#[fg=#7dcfff],#{?#{==:#{@claude_state},permission},#[fg=#f7768e],#{?#{==:#{@claude_state},question},#[fg=#bb9af7],#{?#{==:#{@claude_state},idle},#[fg=#e0af68],#{?#{==:#{@claude_state},done},#[fg=#9ece6a],#[fg=#a9b1d6]}}}}} #I #W #[default]"
+set -g window-status-current-format "#[bg=#414868,bold]#{?#{==:#{@claude_state},working},#[fg=#7dcfff],#{?#{==:#{@claude_state},permission},#[fg=#f7768e],#{?#{==:#{@claude_state},question},#[fg=#bb9af7],#{?#{==:#{@claude_state},idle},#[fg=#e0af68],#{?#{==:#{@claude_state},done},#[fg=#9ece6a],#[fg=#73daca]}}}}} #I #W #[default]"
 
 # Show pane title below each pane (overrides tokyo-night's `off`)
 set -g pane-border-status bottom

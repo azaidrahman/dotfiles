@@ -115,13 +115,55 @@ autoname_capture() {
     dlog "capture: SET base=[$name] (ticket=[$ticket] max=$max)"
 }
 
-# Record Claude's state in the @claude_state window option (working/permission/
-# idle/done) and keep the window NAME clean. The status bar and the tmux-windows
-# tv channel colorize by @claude_state, so no glyph is baked into the name. The
-# original name is captured once into @claude_base. No-op when not inside tmux.
+# Derive the WINDOW-level @claude_state from every pane's per-pane @claude_state.
+# Multiple Claude panes can share one window, so state lives per-pane (set with
+# -p below) and the window color is the aggregate. Most-urgent state wins
+# (permission > working > question > idle > done) so a finished pane never masks a sibling
+# that's still busy or needs you. Panes no longer running Claude are pruned
+# (self-heal for crashes/kills that skip SessionEnd); when none remain the window
+# option is unset and the tab reverts to its standard colors. The status bar and
+# the tmux-windows tv channel read this window option unchanged.
+recompute_window_state() {
+    [ -n "$WIN_ID" ] || return 0
+    local best="" rank=0 pid cmd st r
+    while IFS=' ' read -r pid cmd st; do
+        [ -n "$st" ] || continue
+        case "$cmd" in
+            claude|node) : ;;
+            *) tmux set-option -pu -t "$pid" @claude_state 2>/dev/null; continue ;;
+        esac
+        case "$st" in
+            permission) r=5 ;;
+            working)    r=4 ;;
+            question)   r=3 ;;
+            idle)       r=2 ;;
+            done)       r=1 ;;
+            *)          r=0 ;;
+        esac
+        [ "$r" -gt "$rank" ] && { rank=$r; best=$st; }
+    done < <(tmux list-panes -t "$WIN_ID" -F '#{pane_id} #{pane_current_command} #{@claude_state}' 2>/dev/null)
+    if [ -n "$best" ]; then
+        tmux set-option -w -t "$WIN_ID" @claude_state "$best" 2>/dev/null
+        dlog "recompute: window state -> $best"
+    else
+        tmux set-option -wu -t "$WIN_ID" @claude_state 2>/dev/null
+        dlog "recompute: no Claude panes -> unset, revert to standard colors"
+    fi
+}
+
+# Record this PANE's Claude state (working/permission/idle/done), keep the window
+# NAME clean, and re-derive the window color. The original name is captured once
+# into @claude_base. No-op when not inside tmux.
 window_status() {
     [ -n "$WIN_ID" ] || return 0
     local state="$1"
+    # Idempotent: PreToolUse fires working on every tool call, so bail if this
+    # pane is already in the requested state — nothing to re-render or recompute.
+    if [ -n "$PANE" ]; then
+        local cur
+        cur=$(tmux show-options -pqv -t "$PANE" @claude_state 2>/dev/null)
+        [ "$cur" = "$state" ] && return 0
+    fi
     local base
     base=$(tmux show-options -wqv -t "$WIN_ID" @claude_base 2>/dev/null)
     if [ -z "$base" ]; then
@@ -130,8 +172,21 @@ window_status() {
         base=$(printf '%s' "$WNAME" | sed -E 's/^[^[:alnum:]]+[[:space:]]*//; s/[[:space:]]+$//')
         tmux set-option -w -t "$WIN_ID" @claude_base "$base" 2>/dev/null
     fi
-    tmux set-option -w -t "$WIN_ID" @claude_state "$state" 2>/dev/null
+    if [ -n "$PANE" ]; then
+        tmux set-option -p -t "$PANE" @claude_state "$state" 2>/dev/null
+        recompute_window_state
+    else
+        # No pane id (rare: hook ran outside a real pane) — set window directly.
+        tmux set-option -w -t "$WIN_ID" @claude_state "$state" 2>/dev/null
+    fi
     [ -n "$base" ] && tmux rename-window -t "$WIN_ID" "$base" 2>/dev/null || true
+}
+
+# Claude exited in this pane: drop its per-pane state and re-derive the window
+# color, which reverts to standard if this was the last Claude pane.
+clear_pane_state() {
+    [ -n "$PANE" ] && tmux set-option -pu -t "$PANE" @claude_state 2>/dev/null
+    recompute_window_state
 }
 
 notify() {
@@ -158,8 +213,28 @@ alert_tmux() {
 }
 
 read_message() {
-    jq -r '.message // empty' 2>/dev/null || echo ""
+    printf '%s' "$INPUT" | jq -r '.message // empty' 2>/dev/null || echo ""
 }
+
+# True when Claude ended the turn by asking the user something. The Stop hook's
+# stdin carries transcript_path; we read the last assistant text block and test
+# whether it ends in '?' (after stripping trailing whitespace and markdown
+# punctuation). Used to colour the tab "question" (your move) vs "done" (truly
+# finished), since a turn that ends with a question isn't really done.
+ends_with_question() {
+    local tp last
+    tp=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
+    [ -n "$tp" ] && [ -f "$tp" ] || return 1
+    last=$(tail -n 50 "$tp" 2>/dev/null \
+        | jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' 2>/dev/null \
+        | tail -n 1)
+    last=$(printf '%s' "$last" | sed -E 's/[[:space:]*_`")'"'"']+$//')
+    case "$last" in *'?') return 0 ;; *) return 1 ;; esac
+}
+
+# Read the hook payload once — stdin can only be consumed a single time, and both
+# read_message and ends_with_question need fields from it.
+INPUT=$(cat 2>/dev/null || true)
 
 dlog "event fired (session=$SESSION wname=[$WNAME])"
 
@@ -182,8 +257,16 @@ case "$EVENT" in
     stop)
         notify 'Claude finished'
         autoname_capture
-        window_status done
+        if ends_with_question; then
+            dlog "stop: turn ended with a question -> question state"
+            window_status question
+        else
+            window_status done
+        fi
         alert_tmux
+        ;;
+    exit)
+        clear_pane_state
         ;;
     *)
         echo "notify-tmux.sh: unknown event '$EVENT'" >&2
