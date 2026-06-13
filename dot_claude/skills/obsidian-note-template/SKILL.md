@@ -108,6 +108,15 @@ The user's preferred note style is:
 - enough structure to start writing independently
 - practical mental models and commands when useful
 
+## Emphasis: bold and italics
+
+Keep emphasis minimal and sparse. The goal is readability, so most prose should carry no styling at all. Unstyled is the correct default, not a gap to fill. If a paragraph has more than one or two styled spans, you are over-using it; rewrite the sentence instead of reaching for emphasis.
+
+- **Bold** marks a key term the first time it is introduced and being defined, for example **a router** in the sentence that explains what a router is. Use it once per term, not on every later mention.
+- *Italics* mark an inline literal: a config field name, a file value, a flag, or a proper-name expansion of an acronym. For example *nameserver*, *net.ipv4.ip_forward*, or *Dynamic Host Configuration Protocol*.
+- Do not bold or italicise words purely for emphasis ("this works *only* locally", "you must **not**"). If a point needs that much weight, the sentence structure should carry it, or it belongs in its own line or list item.
+- Never style whole sentences or headings. Code, commands, and identifiers that are runnable or exact go in backticks, not italics.
+
 ## Diagram guidance
 
 Favor diagrams when they make a concept click faster than prose, for example flows, decision trees, hops, layered systems, or relationships between parts. Do not add them for their own sake; skip them when a sentence or short list is already clear.
@@ -115,7 +124,17 @@ Favor diagrams when they make a concept click faster than prose, for example flo
 - **Default to D2** fenced code blocks (` ```d2 `). The vault has the `d2-obsidian` plugin and the `d2` CLI installed, so D2 renders inline. D2 gives cleaner containers, styling, and color, and matches the look the user prefers.
 - **Always compile-check D2 before writing it into a note.** Write the source to a temp file and run `d2 <file>.d2 /tmp/out.svg`. Only paste blocks that compile cleanly.
 - Orient diagrams top-down (`direction: down`) rather than left-right so they fit the note column and do not force horizontal scrolling. Split long chains onto separate lines for the same reason.
-- Use color consistently: blue for the local/source side, red for the remote/destination side, grey for routers/infrastructure, yellow diamonds for decisions, green for success/direct outcomes. Apply with `style.fill` / `style.stroke`.
+- **Color must carry meaning, or the node stays neutral.** Every color encodes one fixed role. A node that does not play one of those roles gets no `style.fill` at all (default/neutral). Never pick a color to decorate or to make a diagram "look nicer" — uncolored is the correct default, not a gap to fill.
+- **Use this exact palette, the same hex in every diagram in the vault** (apply with `style.fill` / `style.stroke`). Do not invent new shades per note; reuse these so colors mean the same thing across notes:
+  | Role | Meaning | fill | stroke |
+  |------|---------|------|--------|
+  | Blue | local / source / origin side ("you are here") | `#dbeafe` | `#2563eb` |
+  | Red | remote / destination / the far end | `#fee2e2` | `#dc2626` |
+  | Grey | infrastructure passed through, not the focus (routers, bridges, intermediate steps) | `#e5e7eb` | `#6b7280` |
+  | Yellow (diamond) | a decision / branch point | `#fef9c3` | `#ca8a04` |
+  | Green | success / resolved terminal outcome | `#dcfce7` | `#16a34a` |
+- One role = one color. Do not reuse blue for both "source" and "default-route outcome" in the same note, and do not give one role two different hues across notes.
+- No decorative styling: skip `font-color`, `stroke-dash`, `border-radius`, gradients, and shadows unless they themselves encode meaning the reader needs. If nothing on the list fits the concept, leave the whole diagram uncolored rather than reaching for a color outside the palette.
 - Keep node labels short. Use `\n` for line breaks and avoid parentheses inside labels.
 - Mermaid (` ```mermaid `) is the fallback only if D2 cannot render in the target environment.
 - Use ASCII diagrams only when the shape is trivial or neither tool can express it.
