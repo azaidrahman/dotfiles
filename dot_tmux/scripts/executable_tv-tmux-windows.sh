@@ -23,6 +23,7 @@ tmux list-windows -a -F '#{window_stack_index}	#{session_last_attached}	#{sessio
         RED = "\033[1;31m"
         GRN = "\033[1;32m"
         CYN = "\033[1;36m"
+        MAG = "\033[1;35m"
         DIM = "\033[2;37m"
         RST = "\033[0m"
       }
@@ -35,6 +36,7 @@ tmux list-windows -a -F '#{window_stack_index}	#{session_last_attached}	#{sessio
         col = ""
         if      (state == "working")    col = CYN
         else if (state == "permission") col = RED
+        else if (state == "question")   col = MAG
         else if (state == "idle")       col = YEL
         else if (state == "done")       col = GRN
         sub(/^[^[:alnum:]]+[[:space:]]*/, "", wname)
