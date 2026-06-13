@@ -140,6 +140,22 @@ Use a blockquote led by an italic question to define a key term, especially when
 - Reserve the italic-question line for one term per blockquote.
 - When the fact comes from a specific source worth revisiting, also add that source under `# Further reading`.
 
+## Callouts for warnings, notes, and reminders
+
+Use an Obsidian callout for content that should visually break out of the flow: a gotcha, a warning, a reminder, a tip, or a side note the reader must not miss. A callout is a blockquote whose first line is `> [!TYPE] Optional title`, with the body on following `>` lines.
+
+```md
+> [!WARNING] If a ping between namespaces fails
+> Set the netmask when assigning the IP, otherwise the kernel assumes a /32 and the peer looks unreachable.
+> Also check that firewall rules are not dropping the traffic.
+```
+
+- Pick the type by intent: `[!WARNING]` or `[!CAUTION]` for things that bite you, `[!TIP]` for a shortcut or best practice, `[!NOTE]` or `[!INFO]` for a neutral aside, `[!IMPORTANT]` for something that must not be skipped.
+- Give the callout a short title that states the takeaway, not a generic label. "If a ping between namespaces fails" beats "Warning".
+- Keep the body tight; a callout is a flag, not a section. Use a short list inside it when there are two or three checks.
+- Reserve callouts for genuine breakouts. Do not wrap ordinary prose in one, and do not use a callout where the italic-question blockquote above is the right tool (defining an externally-sourced term).
+- This is distinct from the definition blockquote: that one defines a term, a callout flags a warning, reminder, or tip.
+
 ## Diagram guidance
 
 Favor diagrams when they make a concept click faster than prose, for example flows, decision trees, hops, layered systems, or relationships between parts. Do not add them for their own sake; skip them when a sentence or short list is already clear.
