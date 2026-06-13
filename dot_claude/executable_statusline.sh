@@ -37,28 +37,39 @@ IFS=$'\x01' read -r model effort cost_raw ctx_pct wt br five_h_pct five_h_resets
 
 reset=$'\033[0m'
 
-color_for_model() {
-  local lc; lc=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
-  case "$lc" in
-    *haiku*)  printf '\033[38;5;82m'  ;;  # green   — cheapest
-    *sonnet*) printf '\033[38;5;226m' ;;  # yellow
-    *opus*)   printf '\033[38;5;208m' ;;  # orange
-    *fable*)  printf '\033[38;5;196m' ;;  # red     — most expensive
-    *)        printf '\033[38;5;244m' ;;
-  esac
+# Shared green→red ramp (256-color, coolest→hottest = cheapest/lowest → priciest/highest).
+PALETTE=(82 226 208 196)   # green  yellow  orange  red
+GRAY=244                   # unknown / not-worth-highlighting
+
+# rank_color <value> <rank…>: place <value> on PALETTE by its position in the
+# ordered rank list. Each rank arg is a glob (|-separated synonyms ok). The index
+# is bucketed onto the palette via floor(idx * |PALETTE| / count), so the same
+# ramp stretches over however many ranks exist — append a new model/effort in
+# cost order and every color auto-rebalances; no SGR code is ever chosen by hand.
+# Unmatched values fall through to GRAY.
+rank_color() {
+  local lc; lc=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]'); shift
+  local ranks=("$@") n=$# i pats pat
+  for i in "${!ranks[@]}"; do
+    IFS='|' read -ra pats <<< "${ranks[$i]}"   # split synonyms; |-in-case-pattern doesn't alternate from a var
+    for pat in "${pats[@]}"; do
+      if [[ $lc == $pat ]]; then               # unquoted RHS globs but, inside [[ ]], won't pathname-expand
+        printf '\033[38;5;%sm' "${PALETTE[$(( i * ${#PALETTE[@]} / n ))]}"
+        return
+      fi
+    done
+  done
+  printf '\033[38;5;%sm' "$GRAY"
 }
 
-color_for_effort() {
-  local lc; lc=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
-  case "$lc" in
-    low|minimal)       printf '\033[38;5;82m'  ;;  # green
-    medium|normal)     printf '\033[38;5;82m'  ;;  # green
-    high)              printf '\033[38;5;226m' ;;  # yellow
-    xhigh)             printf '\033[38;5;208m' ;;  # orange
-    ultra|max|highest) printf '\033[38;5;196m' ;;  # red
-    *)                 printf '\033[38;5;244m' ;;
-  esac
-}
+# Ordered cheap/low → pricey/high. Models match on family substring, so new
+# *versions* (e.g. a future "sonnet 5") already slot in; only a brand-new family
+# needs a one-token insert here.
+MODEL_RANK=('*haiku*' '*sonnet*' '*opus*' '*fable*')
+EFFORT_RANK=('low|minimal' 'medium|normal' 'high' 'xhigh' 'ultra|max|highest')
+
+color_for_model()  { rank_color "$1" "${MODEL_RANK[@]}"; }
+color_for_effort() { rank_color "$1" "${EFFORT_RANK[@]}"; }
 
 # color_for_rate <pct>: gray below 50%, green→red from 50% to 100%
 color_for_rate() {
