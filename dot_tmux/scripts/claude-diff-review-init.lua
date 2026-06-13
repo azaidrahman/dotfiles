@@ -13,8 +13,8 @@
 --   q  /  :q        bail — quit, send nothing
 --   <leader>?       show this cheatsheet
 -- Diffview nav: <Tab>/<S-Tab> next/prev file · j/k panel · <CR>/o/l open
---   <C-w>l into diff · ]c/[c hunk · <C-f>/<C-b> scroll · <leader>e panel
---   <leader>b toggle panel · g? diffview help
+--   <C-h/j/k/l> move between windows · ]c/[c hunk · <C-f>/<C-b> scroll
+--   <leader>e panel · <leader>b toggle panel · g? diffview help
 
 local data = vim.fn.stdpath("data")
 vim.opt.rtp:prepend(data .. "/lazy/plenary.nvim")
@@ -244,7 +244,7 @@ function M.show_help()
     " q / :q        bail — quit, send nothing",
     " <leader>?     toggle this help",
     "",
-    " nav: Tab/S-Tab file · ]c/[c hunk · <C-w>l into diff",
+    " nav: Tab/S-Tab file · ]c/[c hunk · <C-h/j/k/l> windows",
     "      <leader>e panel · <leader>b toggle panel · g? diffview help",
   }
   local buf = vim.api.nvim_create_buf(false, true)
@@ -333,6 +333,13 @@ vim.keymap.set("n", "<leader>z", M.jump_repo, { desc = "jump to another repo (zo
 vim.keymap.set("n", "<leader>?", M.show_help, { desc = "show diff-review key cheatsheet" })
 vim.keymap.set("n", "<leader><CR>", M.confirm, { desc = "confirm & paste refs to Claude" })
 vim.keymap.set("n", "q", function() vim.cmd("qa!") end, { desc = "bail (send nothing)" })
+
+-- Ctrl+h/j/k/l move between windows (file panel <-> diff sides), matching the
+-- vim-tmux-navigator muscle memory. Plain wincmd — no tmux integration needed
+-- inside the popup.
+for _, k in ipairs({ "h", "j", "k", "l" }) do
+  vim.keymap.set("n", "<C-" .. k .. ">", "<C-w>" .. k, { desc = "focus window " .. k })
+end
 
 vim.api.nvim_create_autocmd("BufWinEnter", {
   callback = function(ev)
