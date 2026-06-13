@@ -116,7 +116,9 @@ sort_alphabetically = true
 # match_fg = "#ff0000"
 
 [ui.theme_overrides]
-selection_bg = "#3b6bb5"
+# Neutral slate selection: a saturated hue here dulls the status-colored rows in
+# the tmux-windows channel (cyan/red/yellow/green text). Grey competes with none.
+selection_bg = "#44475a"
 selection_fg = "#ffffff"
 match_fg = "#fbbf24"
 
