@@ -161,11 +161,23 @@ function M.confirm()
     vim.notify("nothing collected", vim.log.levels.WARN)
     return
   end
-  local pane = vim.env.CLAUDE_PANE
-  local refs = table.concat(M.collected, " ") -- single line: no submit risk
-  if pane and pane ~= "" then
-    vim.fn.system({ "tmux", "send-keys", "-t", pane, "-l", refs })
+  local pane = vim.env.ORIGIN_PANE
+  if not pane or pane == "" then
+    vim.notify("no origin pane — cannot paste", vim.log.levels.ERROR)
+    return
   end
+  -- The popup opens in any git repo; the paste target only needs to be Claude
+  -- at confirm time. If the origin pane isn't running Claude, report and stay
+  -- open (nothing is lost — the user can bail with q or retry).
+  local tty = vim.trim(vim.fn.system(
+    { "tmux", "display-message", "-p", "-t", pane, "#{pane_tty}" }))
+  vim.fn.system({ vim.env.HOME .. "/.tmux/scripts/is-claude-pane.sh", tty })
+  if vim.v.shell_error ~= 0 then
+    vim.notify("origin pane is not running Claude — nothing sent", vim.log.levels.ERROR)
+    return
+  end
+  local refs = table.concat(M.collected, " ") -- single line: no submit risk
+  vim.fn.system({ "tmux", "send-keys", "-t", pane, "-l", refs })
   vim.cmd("qa!")
 end
 
