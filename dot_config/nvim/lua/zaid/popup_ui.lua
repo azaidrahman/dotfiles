@@ -17,12 +17,16 @@ local function prepend_plugin(name)
   vim.opt.rtp:prepend(vim.fn.stdpath("data") .. "/lazy/" .. name)
 end
 
--- Theme + filetype icons. Mirrors plugins/colorscheme.lua (tokyonight).
+-- Theme + filetype icons. Based on plugins/colorscheme.lua (tokyonight), but
+-- tuned for a diff popup: SOLID background (the main config's transparency makes
+-- diff highlights look patchy over the terminal bg), and a calmer Diff* palette
+-- so a heavily-changed file isn't a wall of loud boxes.
 function M.colorscheme()
   prepend_plugin("nvim-web-devicons")
   prepend_plugin("folkeTokyonight")
 
-  local transparent = true
+  local bg = "#011628"
+  local bg_dark = "#011423"
   local bg_highlight = "#143652"
   local bg_search = "#0A64AC"
   local bg_visual = "#275378"
@@ -33,25 +37,32 @@ function M.colorscheme()
   local comment = "#858470"
   require("tokyonight").setup({
     style = "night",
-    transparent = transparent,
+    transparent = false, -- solid bg: diff highlights read cleanly, not patchy
     styles = {
       comments = { italic = false },
       keywords = { italic = false },
-      sidebars = transparent and "transparent" or "dark",
-      floats = transparent and "transparent" or "dark",
+      sidebars = "dark",
+      floats = "dark",
     },
     on_highlights = function(hl, c)
       hl.NormalFloat = { bg = "#1f2030" }
       hl.FloatBorder = { bg = "#1f2030", fg = "#54546d" }
       hl.FloatTitle = { bg = "#1f2030" }
+      -- Calmer diff palette: low-saturation tints over the dark-blue base.
+      hl.DiffAdd = { bg = "#10261c" } -- whole added line
+      hl.DiffChange = { bg = "#0e2233" } -- whole changed line
+      hl.DiffDelete = { bg = "#241318", fg = "#3a4a5a" } -- removed / filler dashes muted
+      hl.DiffText = { bg = "#1c4a63" } -- changed words within a line (subtle)
     end,
     on_colors = function(colors)
-      colors.bg = transparent and colors.none or colors.bg
-      colors.bg_float = transparent and colors.none or colors.bg_dark
+      colors.bg = bg
+      colors.bg_dark = bg_dark
+      colors.bg_float = bg_dark
       colors.bg_highlight = bg_highlight
+      colors.bg_popup = bg_dark
       colors.bg_search = bg_search
-      colors.bg_sidebar = transparent and colors.none or colors.bg_dark
-      colors.bg_statusline = transparent and colors.none or colors.bg_dark
+      colors.bg_sidebar = bg_dark
+      colors.bg_statusline = bg_dark
       colors.bg_visual = bg_visual
       colors.border = border
       colors.fg = fg
