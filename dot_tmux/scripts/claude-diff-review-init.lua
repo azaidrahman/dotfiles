@@ -32,84 +32,14 @@ if repo and repo ~= "" then
   vim.cmd("cd " .. vim.fn.fnameescape(repo))
 end
 
--- ── cosmetics: port the main config's look & feel (theme, icons, statusline) ──
--- Mirrors plugins/colorscheme.lua (tokyonight) and plugins/lualine.lua. Cheap
--- to load; all pcall-guarded so a missing plugin degrades to the plain UI.
+-- Look & feel (theme, icons, statusline) is shared with the main config via a
+-- reusable module so it lives in ONE place and other scripts can reuse it.
+-- Make the config's lua/ requireable (without dragging the whole config onto
+-- rtp), then apply. pcall-guarded: degrades to the plain UI if anything's off.
+package.path = vim.fn.stdpath("config") .. "/lua/?.lua;"
+  .. vim.fn.stdpath("config") .. "/lua/?/init.lua;" .. package.path
 pcall(function()
-  vim.opt.rtp:prepend(data .. "/lazy/nvim-web-devicons")
-  vim.opt.rtp:prepend(data .. "/lazy/folkeTokyonight")
-  vim.opt.rtp:prepend(data .. "/lazy/lualine.nvim")
-
-  local transparent = true
-  local bg_highlight = "#143652"
-  local bg_search = "#0A64AC"
-  local bg_visual = "#275378"
-  local fg = "#CBE0F0"
-  local fg_dark = "#B4D0E9"
-  local fg_gutter = "#627E97"
-  local border = "#547998"
-  local comment = "#858470"
-  require("tokyonight").setup({
-    style = "night",
-    transparent = transparent,
-    styles = {
-      comments = { italic = false },
-      keywords = { italic = false },
-      sidebars = transparent and "transparent" or "dark",
-      floats = transparent and "transparent" or "dark",
-    },
-    on_highlights = function(hl, c)
-      hl.NormalFloat = { bg = "#1f2030" }
-      hl.FloatBorder = { bg = "#1f2030", fg = "#54546d" }
-      hl.FloatTitle = { bg = "#1f2030" }
-    end,
-    on_colors = function(colors)
-      colors.bg = transparent and colors.none or colors.bg
-      colors.bg_float = transparent and colors.none or colors.bg_dark
-      colors.bg_highlight = bg_highlight
-      colors.bg_search = bg_search
-      colors.bg_sidebar = transparent and colors.none or colors.bg_dark
-      colors.bg_statusline = transparent and colors.none or colors.bg_dark
-      colors.bg_visual = bg_visual
-      colors.border = border
-      colors.fg = fg
-      colors.fg_dark = fg_dark
-      colors.fg_float = fg
-      colors.fg_gutter = fg_gutter
-      colors.fg_sidebar = fg_dark
-      colors.comment = comment
-    end,
-  })
-  vim.cmd.colorscheme("tokyonight")
-
-  -- lualine: the main config's custom theme + sections, minus the lazy.status
-  -- component (that needs the full lazy runtime, which this popup doesn't load).
-  local lcolors = {
-    color0 = "#092236", color1 = "#ff5874", color2 = "#c3ccdc", color3 = "#1c1e26",
-    color6 = "#a1aab8", color7 = "#828697", color8 = "#ae81ff", color9 = "#5ca0ff",
-  }
-  local theme = {
-    replace = { a = { fg = lcolors.color0, bg = lcolors.color1, gui = "bold" }, b = { fg = lcolors.color2, bg = lcolors.color3 } },
-    inactive = { a = { fg = lcolors.color6, bg = lcolors.color3, gui = "bold" }, b = { fg = lcolors.color6, bg = lcolors.color3 }, c = { fg = lcolors.color6, bg = lcolors.color3 } },
-    normal = { a = { fg = lcolors.color0, bg = lcolors.color7, gui = "bold" }, b = { fg = lcolors.color2, bg = lcolors.color3 }, c = { fg = lcolors.color2, bg = lcolors.color3 } },
-    visual = { a = { fg = lcolors.color0, bg = lcolors.color8, gui = "bold" }, b = { fg = lcolors.color2, bg = lcolors.color3 } },
-    insert = { a = { fg = lcolors.color0, bg = lcolors.color9, gui = "bold" }, b = { fg = lcolors.color9, bg = lcolors.color3 } },
-  }
-  require("lualine").setup({
-    options = {
-      icons_enabled = true,
-      theme = theme,
-      globalstatus = true, -- single global bar (matches the main config's laststatus=3)
-      component_separators = { left = "|", right = "|" },
-      section_separators = { left = "|", right = "" },
-    },
-    sections = {
-      lualine_a = { { "mode", fmt = function(s) return " " .. s end } },
-      lualine_b = { { "branch", icon = { "", color = { fg = "#A6D4DE" } } } },
-      lualine_c = { { "filename", file_status = true, path = 3 } },
-      lualine_x = { { "filetype" } },
-    },
-  })
+  require("zaid.popup_ui").apply()
 end)
 
 -- Disable diffview's bare <space> (stage-entry) binding in the panel and diff
