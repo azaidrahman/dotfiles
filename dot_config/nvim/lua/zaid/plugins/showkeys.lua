@@ -14,6 +14,7 @@ return {
             position = "bottom-right",
             maxkeys = 3,
             show_count = true,
+            excluded_modes = { "i" },
             winopts = {
                 focusable = false,
                 relative = "editor",
