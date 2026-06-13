@@ -19,9 +19,28 @@ Use this skill whenever the user asks you to create, draft, edit, organize, or c
 - Keep generated notes concise unless the user asks for a fuller draft.
 - Write a clear baseline so the user can add their own thoughts.
 
-## New note template
+## Note types
 
-Every new Obsidian note must follow this shape:
+Decide which kind of note this is first, because the skeleton differs:
+
+- **Concept note** explains an idea (theory, mental model, how something works). Gets the full skeleton including `My own words`.
+- **Reference snippet** is a short command or fact lookup. Gets a trimmed skeleton, no `My own words`.
+
+## Section skeleton
+
+This is a recommended skeleton, not a rigid form. Start from it and use the canonical headings below in this order. You may add one topic-specific heading when a concept genuinely needs it, but prefer reusing a canonical name over inventing a new one. Omit optional sections that have nothing to say rather than padding them.
+
+Canonical headings, in order:
+
+1. `# Intro` (always) short baseline explanation.
+2. `# Mental model` (optional, concept notes) the intuition or analogy.
+3. `# How it works` (optional) the mechanism, step by step.
+4. `# Example` (optional) a concrete worked case.
+5. `# Commands` (optional) runnable commands, in a fenced block.
+6. `# My own words` (concept notes only) left thin and mostly empty for the user to fill in. Never write this section densely.
+7. `# Reference` (always) wikilinks to related notes.
+
+Frontmatter is fixed and always leads the file:
 
 ```md
 ---
@@ -30,6 +49,25 @@ tags:
 created date: YYYY-MM-DD
 created time: HH.MM AM
 ---
+```
+
+Concept note shape:
+
+```md
+# Intro
+
+Short baseline explanation.
+
+# My own words
+
+# Reference
+
+- [[Related note]]
+```
+
+Reference snippet shape:
+
+```md
 # Intro
 
 Short baseline explanation.
@@ -42,11 +80,12 @@ Short baseline explanation.
 ## Workflow
 
 1. Locate the vault path from `.env` or the user's request.
-2. Read existing related notes before creating new notes.
-3. Reuse existing notes when appropriate instead of creating duplicates.
-4. If a note already exists, edit it instead of creating a competing note.
+2. **Search the vault for the concept first.** Read any related notes before writing anything.
+3. **Creation gate, edit by default.** Default to editing or extending an existing note. Only create a brand-new file when the concept has no home AND would not fit as a section under an existing note. State which you chose and why before acting.
+4. If the concept fits inside an existing note, add it there as a section rather than as a competing file.
 5. After creating or editing a note, always add backlinks to it from the related existing notes you found in step 2. This is a default step, not optional. Place each backlink contextually where it is relevant in the neighbor note, and also add it to that note's References section. Keep each backlink to a short, natural sentence so neighbor notes are not over-written.
-6. Verify generated or edited notes contain no em dash characters.
+6. When two related notes exist, give each a one-line pointer near the top naming the sibling and what it is for (for example, a theory note points to its worked example and back). This keeps their relationship self-documenting.
+7. Verify generated or edited notes contain no em dash characters.
 
 ## Tag guidance
 
