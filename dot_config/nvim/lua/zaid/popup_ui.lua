@@ -76,6 +76,24 @@ function M.colorscheme()
     end,
   })
   vim.cmd.colorscheme("tokyonight")
+
+  -- Markdown headings: tokyonight gives them a dark-fg-on-colored-bar style that
+  -- becomes unreadable once the diff/line background overrides the bar (dark text
+  -- on the teal bg). Something re-applies the bar per-buffer as diffview loads each
+  -- markdown file, so re-assert bright fg + no bar on ColorScheme AND (scheduled,
+  -- to run last) on the markdown FileType.
+  local heads = { "#7aa2f7", "#7dcfff", "#73daca", "#bb9af7", "#e0af68", "#9ece6a" }
+  local function fix_headings()
+    for i, color in ipairs(heads) do
+      vim.api.nvim_set_hl(0, "@markup.heading." .. i .. ".markdown", { fg = color, bold = true })
+    end
+  end
+  fix_headings()
+  vim.api.nvim_create_autocmd("ColorScheme", { callback = fix_headings })
+  vim.api.nvim_create_autocmd("FileType", {
+    pattern = "markdown",
+    callback = function() vim.schedule(fix_headings) end,
+  })
 end
 
 -- Statusline. Mirrors plugins/lualine.lua (custom theme + sections), as a single
