@@ -68,3 +68,13 @@ The user's preferred note style is:
 - not over-written
 - enough structure to start writing independently
 - practical mental models and commands when useful
+
+## Diagram guidance
+
+Favor diagrams when they make a concept click faster than prose, for example flows, decision trees, hops, layered systems, or relationships between parts. Do not add them for their own sake; skip them when a sentence or short list is already clear.
+
+- Default to Mermaid fenced code blocks (` ```mermaid `), which Obsidian renders natively with no plugin.
+- Orient diagrams top-down (`flowchart TD`) rather than left-right so they fit the note column and do not force horizontal scrolling. Split long chains onto separate lines for the same reason.
+- Keep node labels short and avoid parentheses or special characters inside them, since Mermaid can fail to parse them.
+- Use ASCII diagrams only when the shape is trivial or Mermaid cannot express it.
+- For freeform, hand-drawn sketches, note that Excalidraw is the better tool, but do not create those automatically.
