@@ -18,6 +18,7 @@ Use this skill whenever the user asks you to create, draft, edit, organize, or c
 - Do not create a new top-level tag unless the user explicitly approves it first.
 - Keep generated notes concise unless the user asks for a fuller draft.
 - Write a clear baseline so the user can add their own thoughts.
+- Only state a specific fact, mechanism, command, flag, version, or external link if you can validate it against a real, current source this session. See `Writing your own input`.
 
 ## Note types
 
@@ -95,6 +96,28 @@ Short baseline explanation.
 5. After creating or editing a note, always add backlinks to it from the related existing notes you found in step 2. This is a default step, not optional. Place each backlink contextually where it is relevant in the neighbor note, and also add it to that note's References section. Keep each backlink to a short, natural sentence so neighbor notes are not over-written.
 6. When two related notes exist, give each a one-line pointer near the top naming the sibling and what it is for (for example, a theory note points to its worked example and back). This keeps their relationship self-documenting.
 7. Verify generated or edited notes contain no em dash characters.
+
+## Writing your own input
+
+When you write the substance of a note yourself, keep the lightweight style above. But lightweight is not a license to fill the baseline with plausible-sounding facts from memory. The user keeps these notes long-term and trusts them, so an unverified specific is worse than a thinner note.
+
+Rule: only assert a specific claim as fact if you validated it against a real, up-to-date source this session. Specifics that need validation include mechanisms and behaviors, command syntax and flags, version numbers, API or config field names, RFC/section numbers, and every external link.
+
+How to validate:
+
+- Commands, flags, and tool behavior: run the tool (`--help`, a real invocation) and write what it actually output, not what you expect.
+- Library, framework, or API facts: fetch current docs (use context7 or the official docs) and write from what you read.
+- General technical facts you cannot check live: search the web to confirm before stating them.
+- External links under `# Further reading`: fetch the URL and confirm it exists and covers what you say it covers. Never write a link or a section anchor from memory.
+- Vault facts (which notes exist, what a neighbor says, whether a backlink target is real): search and read the vault first, as the workflow already requires.
+
+If you cannot validate something, do one of these instead of asserting it:
+
+- Leave that part as a thin baseline for the user to fill, the same way `# My own words` is left thin.
+- Mark it explicitly as unverified, for example a short `[!NOTE]` callout saying "unverified, confirm before relying on this".
+- Ask the user, or say plainly in your reply that you left it out because you could not confirm it.
+
+Do not paper over a guess with hedging prose ("typically", "generally", "I believe") and present it as a baseline fact. Either validate it, mark it unverified, or leave it out.
 
 ## Tag guidance
 
