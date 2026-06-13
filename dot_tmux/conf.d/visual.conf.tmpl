@@ -23,6 +23,7 @@ set -g window-active-style 'bg=#002b36'
 
 # Override widgets to use custom scripts (survives plugin updates)
 run-shell 'tmux set -g status-right "$(tmux show-options -gv status-right | sed "s|plugins/tokyo-night-tmux/src/path-widget.sh|scripts/path-widget.sh|")"'
+run-shell 'tmux set -g status-right "$(tmux show-options -gv status-right | sed "s|plugins/tokyo-night-tmux/src/datetime-widget.sh|scripts/datetime-widget.sh|")"'
 run-shell 'tmux set -g status-left "$(tmux show-options -gv status-left | sed "s|plugins/tokyo-night-tmux/src/hostname-widget.sh|scripts/hostname-widget.sh|")"'
 
 # Override session bar color per device: cyan for aqua, dark purple for onyx
