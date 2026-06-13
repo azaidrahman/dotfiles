@@ -38,7 +38,8 @@ Canonical headings, in order:
 4. `# Example` (optional) a concrete worked case.
 5. `# Commands` (optional) runnable commands, in a fenced block.
 6. `# My own words` (concept notes only) left thin and mostly empty for the user to fill in. Never write this section densely.
-7. `# Reference` (always) wikilinks to related notes.
+7. `# Further reading` (recommended) links to external sources for extra reading: docs, articles, videos, specs. This is separate from `# Reference`, which is internal vault wikilinks. The user wants external sources captured, so include this whenever the note draws on or relates to anything external, with a one-line note on what each link covers.
+8. `# Reference` (always) wikilinks to related notes.
 
 Frontmatter is fixed and always leads the file:
 
@@ -60,6 +61,10 @@ Short baseline explanation.
 
 # My own words
 
+# Further reading
+
+- [Source title](https://example.com) what it covers.
+
 # Reference
 
 - [[Related note]]
@@ -71,6 +76,10 @@ Reference snippet shape:
 # Intro
 
 Short baseline explanation.
+
+# Further reading
+
+- [Source title](https://example.com) what it covers.
 
 # Reference
 
@@ -116,6 +125,20 @@ Keep emphasis minimal and sparse. The goal is readability, so most prose should 
 - *Italics* mark an inline literal: a config field name, a file value, a flag, or a proper-name expansion of an acronym. For example *nameserver*, *net.ipv4.ip_forward*, or *Dynamic Host Configuration Protocol*.
 - Do not bold or italicise words purely for emphasis ("this works *only* locally", "you must **not**"). If a point needs that much weight, the sentence structure should carry it, or it belongs in its own line or list item.
 - Never style whole sentences or headings. Code, commands, and identifiers that are runnable or exact go in backticks, not italics.
+
+## Defining terms and marking external info
+
+Use a blockquote led by an italic question to define a key term, especially when the explanation comes from an external source (a video, article, docs, a person) rather than your own synthesis. The question frames what is being defined; the lines under it answer it in plain words. This keeps externally-sourced facts visually distinct from the user's own thinking in `My own words`.
+
+```md
+> *What is a bridge?*
+> Acts as a switch between containers. It is a routing table between MAC addresses and their veth. It self-learns from traffic: it checks where a MAC address came from and on which veth.
+```
+
+- Use it for a definition or a quoted/paraphrased fact that originated outside the note, not for every sentence.
+- Keep the answer short and in plain language; it is a baseline, not an essay.
+- Reserve the italic-question line for one term per blockquote.
+- When the fact comes from a specific source worth revisiting, also add that source under `# Further reading`.
 
 ## Diagram guidance
 
