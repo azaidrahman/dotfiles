@@ -112,8 +112,11 @@ The user's preferred note style is:
 
 Favor diagrams when they make a concept click faster than prose, for example flows, decision trees, hops, layered systems, or relationships between parts. Do not add them for their own sake; skip them when a sentence or short list is already clear.
 
-- Default to Mermaid fenced code blocks (` ```mermaid `), which Obsidian renders natively with no plugin.
-- Orient diagrams top-down (`flowchart TD`) rather than left-right so they fit the note column and do not force horizontal scrolling. Split long chains onto separate lines for the same reason.
-- Keep node labels short and avoid parentheses or special characters inside them, since Mermaid can fail to parse them.
-- Use ASCII diagrams only when the shape is trivial or Mermaid cannot express it.
+- **Default to D2** fenced code blocks (` ```d2 `). The vault has the `d2-obsidian` plugin and the `d2` CLI installed, so D2 renders inline. D2 gives cleaner containers, styling, and color, and matches the look the user prefers.
+- **Always compile-check D2 before writing it into a note.** Write the source to a temp file and run `d2 <file>.d2 /tmp/out.svg`. Only paste blocks that compile cleanly.
+- Orient diagrams top-down (`direction: down`) rather than left-right so they fit the note column and do not force horizontal scrolling. Split long chains onto separate lines for the same reason.
+- Use color consistently: blue for the local/source side, red for the remote/destination side, grey for routers/infrastructure, yellow diamonds for decisions, green for success/direct outcomes. Apply with `style.fill` / `style.stroke`.
+- Keep node labels short. Use `\n` for line breaks and avoid parentheses inside labels.
+- Mermaid (` ```mermaid `) is the fallback only if D2 cannot render in the target environment.
+- Use ASCII diagrams only when the shape is trivial or neither tool can express it.
 - For freeform, hand-drawn sketches, note that Excalidraw is the better tool, but do not create those automatically.
