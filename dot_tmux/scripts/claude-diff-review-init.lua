@@ -216,8 +216,12 @@ local function switch_repo(dir)
   vim.cmd("cd " .. vim.fn.fnameescape(dir))
   if #M.collected > 0 then
     M.collected = {}
-    M.refresh_list()
     vim.notify("switched repo — cleared collected refs")
+  end
+  -- Redraw the collected-list float (if open) so it shrinks to the cleared state.
+  M.refresh_list()
+  if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
+    vim.api.nvim_win_set_height(M.list_win, 1)
   end
   require("diffview").open()
 end
