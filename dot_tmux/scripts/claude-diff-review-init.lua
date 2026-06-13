@@ -181,6 +181,60 @@ function M.confirm()
   vim.cmd("qa!")
 end
 
+-- Re-point the popup at another git repo, cd-ing there and reopening diffview.
+-- Collected refs are repo-relative, so switching clears them for a fresh context.
+local function switch_repo(dir)
+  if not dir or dir == "" or vim.fn.isdirectory(dir) == 0 then
+    return
+  end
+  vim.fn.system({ "git", "-C", dir, "rev-parse", "--is-inside-work-tree" })
+  if vim.v.shell_error ~= 0 then
+    vim.notify("not a git repo: " .. dir, vim.log.levels.WARN)
+    return
+  end
+  pcall(function() require("diffview").close() end)
+  vim.cmd("cd " .. vim.fn.fnameescape(dir))
+  if #M.collected > 0 then
+    M.collected = {}
+    M.refresh_list()
+    vim.notify("switched repo — cleared collected refs")
+  end
+  require("diffview").open()
+end
+
+-- Jump to another repo via a zoxide frecency picker (snacks if available, else
+-- a plain vim.ui.select). snacks is loaded lazily here so popup startup stays fast.
+function M.jump_repo()
+  local ok = pcall(function()
+    if not M._snacks_ready then
+      vim.opt.rtp:prepend(vim.fn.stdpath("data") .. "/lazy/snacks.nvim")
+      require("snacks").setup({})
+      M._snacks_ready = true
+    end
+    require("snacks").picker.zoxide({
+      confirm = function(picker, item)
+        picker:close()
+        if item then
+          switch_repo(item.file)
+        end
+      end,
+    })
+  end)
+  if ok then
+    return
+  end
+  local dirs = vim.fn.systemlist({ "zoxide", "query", "--list" })
+  if vim.v.shell_error ~= 0 or #dirs == 0 then
+    vim.notify("zoxide returned nothing", vim.log.levels.WARN)
+    return
+  end
+  vim.ui.select(dirs, { prompt = "Jump to repo:" }, function(choice)
+    if choice then
+      switch_repo(choice)
+    end
+  end)
+end
+
 function M.collect_hunk()
   if not is_worktree_side() then
     vim.notify("select in the current-file side", vim.log.levels.WARN)
@@ -211,6 +265,7 @@ end
 vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cursor" })
 vim.keymap.set("x", "<leader>a", M.collect_visual, { desc = "collect visual selection" })
 vim.keymap.set("n", "<leader>l", M.toggle_list, { desc = "toggle collected list" })
+vim.keymap.set("n", "<leader>z", M.jump_repo, { desc = "jump to another repo (zoxide)" })
 vim.keymap.set("n", "<leader><CR>", M.confirm, { desc = "confirm & paste refs to Claude" })
 vim.keymap.set("n", "q", function() vim.cmd("qa!") end, { desc = "bail (send nothing)" })
 
