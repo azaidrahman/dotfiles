@@ -115,19 +115,23 @@ autoname_capture() {
     dlog "capture: SET base=[$name] (ticket=[$ticket] max=$max)"
 }
 
-# Prefix a status glyph to the current window name, reflecting Claude's state.
-# The original name is captured once into @claude_base so the glyph can cycle
-# across events without losing the base name. No-op when not inside tmux.
+# Record Claude's state in the @claude_state window option (working/permission/
+# idle/done) and keep the window NAME clean. The status bar and the tmux-windows
+# tv channel colorize by @claude_state, so no glyph is baked into the name. The
+# original name is captured once into @claude_base. No-op when not inside tmux.
 window_status() {
     [ -n "$WIN_ID" ] || return 0
-    local glyph="$1"
+    local state="$1"
     local base
     base=$(tmux show-options -wqv -t "$WIN_ID" @claude_base 2>/dev/null)
     if [ -z "$base" ]; then
-        base="$WNAME"
+        # First touch: adopt the current name as the base, stripping any legacy
+        # status glyph left by the old name-prefix scheme.
+        base=$(printf '%s' "$WNAME" | sed -E 's/^[^[:alnum:]]+[[:space:]]*//; s/[[:space:]]+$//')
         tmux set-option -w -t "$WIN_ID" @claude_base "$base" 2>/dev/null
     fi
-    tmux rename-window -t "$WIN_ID" "$glyph $base" 2>/dev/null || true
+    tmux set-option -w -t "$WIN_ID" @claude_state "$state" 2>/dev/null
+    [ -n "$base" ] && tmux rename-window -t "$WIN_ID" "$base" 2>/dev/null || true
 }
 
 notify() {
@@ -162,23 +166,23 @@ dlog "event fired (session=$SESSION wname=[$WNAME])"
 case "$EVENT" in
     working)
         autoname_protect
-        window_status '●'
+        window_status working
         ;;
     permission_prompt)
         MSG=$(read_message)
         notify "${MSG:-Permission requested}"
-        window_status '⚠'
+        window_status permission
         ;;
     idle_prompt)
         MSG=$(read_message)
         notify "${MSG:-Claude is idle}"
-        window_status '⏸'
+        window_status idle
         alert_tmux
         ;;
     stop)
         notify 'Claude finished'
         autoname_capture
-        window_status '✓'
+        window_status done
         alert_tmux
         ;;
     *)

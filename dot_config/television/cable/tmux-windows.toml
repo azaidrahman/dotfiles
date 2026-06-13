@@ -7,14 +7,15 @@ requirements = ["tmux"]
 no_sort = true
 ansi = true
 command = "~/.tmux/scripts/tv-tmux-windows.sh"
-watch = 1.0
+watch = 0.5
 output = "{strip_ansi|split:\t:1}"
 
 [keybindings]
 enter = "actions:select"
 
 [preview]
-command = "tmux capture-pane -t '{strip_ansi|split:\t:1}' -p 2>/dev/null || echo 'No preview available'"
+# Legend (each state word in its row color) on top, then the live pane capture.
+command = "printf '\\033[1;36mworking\\033[0m  \\033[1;31mneeds you\\033[0m  \\033[1;33midle\\033[0m  \\033[1;32mdone\\033[0m\\n\\n'; tmux capture-pane -t '{strip_ansi|split:\t:1}' -p 2>/dev/null || echo 'No preview available'"
 
 [actions.select]
 description = "Switch to the selected window"
