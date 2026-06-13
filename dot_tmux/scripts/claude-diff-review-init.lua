@@ -156,6 +156,19 @@ function M.toggle_list()
   end, { buffer = buf, desc = "jump to ref" })
 end
 
+function M.confirm()
+  if #M.collected == 0 then
+    vim.notify("nothing collected", vim.log.levels.WARN)
+    return
+  end
+  local pane = vim.env.CLAUDE_PANE
+  local refs = table.concat(M.collected, " ") -- single line: no submit risk
+  if pane and pane ~= "" then
+    vim.fn.system({ "tmux", "send-keys", "-t", pane, "-l", refs })
+  end
+  vim.cmd("qa!")
+end
+
 function M.collect_hunk()
   if not is_worktree_side() then
     vim.notify("select in the current-file side", vim.log.levels.WARN)
@@ -186,6 +199,18 @@ end
 vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cursor" })
 vim.keymap.set("x", "<leader>a", M.collect_visual, { desc = "collect visual selection" })
 vim.keymap.set("n", "<leader>l", M.toggle_list, { desc = "toggle collected list" })
+vim.keymap.set("n", "<leader><CR>", M.confirm, { desc = "confirm & paste refs to Claude" })
+vim.keymap.set("n", "q", function() vim.cmd("qa!") end, { desc = "bail (send nothing)" })
+
+vim.api.nvim_create_autocmd("BufWinEnter", {
+  callback = function(ev)
+    local ft = vim.bo[ev.buf].filetype or ""
+    if ft:match("^Diffview") then
+      vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
+        { buffer = ev.buf, desc = "bail (send nothing)" })
+    end
+  end,
+})
 
 -- Open the working-tree diff once the UI is ready. Guarded so that a headless
 -- `nvim -u <this> +qa` (used for syntax-checking) does not try to open it.
