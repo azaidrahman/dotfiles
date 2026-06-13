@@ -25,7 +25,7 @@ return {
                 style = "minimal",
                 border = "single",
                 height = 1,
-                row = vim.o.lines - 5,
+                row = vim.o.lines - 10,
                 col = 0,
             },
         },
