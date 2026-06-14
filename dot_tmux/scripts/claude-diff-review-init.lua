@@ -26,6 +26,12 @@ vim.o.number = true
 vim.o.signcolumn = "yes"
 vim.o.termguicolors = true
 vim.o.background = "dark"
+-- The popup loads real working-tree files for the diff; if one is already open
+-- elsewhere (your main nvim) or has a stale swap, bufload would raise E325
+-- ATTENTION and halt the popup. It's an ephemeral read-only view, so don't make
+-- swaps and never prompt about existing ones.
+vim.o.swapfile = false
+vim.opt.shortmess:append("A")
 
 local repo = vim.env.REPO
 if repo and repo ~= "" then
