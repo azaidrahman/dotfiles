@@ -366,6 +366,33 @@ function M.jump_repo()
       M._snacks_ready = true
     end
     require("snacks").picker.zoxide({
+      -- Preview the highlighted repo's working-tree changes (diffstat vs HEAD +
+      -- untracked) so you can spot which repo has the changes you want. Lazy and
+      -- throttled by the picker, so it stays fast across many zoxide entries.
+      preview = function(ctx)
+        local dir = ctx.item.file
+        ctx.preview:set_title(vim.fn.fnamemodify(dir, ":~"))
+        vim.fn.system({ "git", "-C", dir, "rev-parse", "--is-inside-work-tree" })
+        if vim.v.shell_error ~= 0 then
+          ctx.preview:set_lines({ "(not a git repo)" })
+          return
+        end
+        local lines = vim.fn.systemlist({ "git", "-C", dir, "diff", "--stat", "HEAD" })
+        if #lines == 0 then
+          lines = { "(no tracked changes)" }
+        end
+        local untracked = vim.fn.systemlist(
+          { "git", "-C", dir, "ls-files", "--others", "--exclude-standard" })
+        if #untracked > 0 then
+          table.insert(lines, "")
+          table.insert(lines, "Untracked (" .. #untracked .. "):")
+          for _, f in ipairs(untracked) do
+            table.insert(lines, "  " .. f)
+          end
+        end
+        ctx.preview:set_lines(lines)
+        ctx.preview:highlight({ ft = "diff" })
+      end,
       confirm = function(picker, item)
         picker:close()
         if item then
