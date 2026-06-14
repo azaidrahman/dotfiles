@@ -605,6 +605,13 @@ local function on_codediff_ready()
       end
     end
   end
+  -- Don't steal focus if the user is currently in one of our floats (writing a
+  -- comment, or in the collected list). codediff emits CodeDiffOpen/FileSelect as
+  -- its async render settles, which would otherwise yank focus out of the comment
+  -- buffer mid-typing — repeatedly.
+  if vim.api.nvim_win_get_config(0).relative ~= "" then
+    return
+  end
   local target = worktree_win or rightmost_win
   if target and vim.api.nvim_win_is_valid(target) then
     vim.api.nvim_set_current_win(target)
