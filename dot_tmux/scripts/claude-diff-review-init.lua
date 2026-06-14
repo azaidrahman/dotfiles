@@ -129,6 +129,9 @@ function M.jump_to(ref)
   if not ok then
     return
   end
+  -- The collected-list float is editor-relative, so it belongs to whatever tab
+  -- was active when it opened — the codediff tab in this single-tab popup. If
+  -- that invariant ever breaks, get_explorer returns nil below and we no-op.
   local tabpage = vim.api.nvim_get_current_tabpage()
   local explorer = lifecycle.get_explorer(tabpage)
   if not explorer or not explorer.status_result then
@@ -152,7 +155,7 @@ function M.jump_to(ref)
     return
   end
   -- Move the explorer cursor onto that node (mirrors codediff's get_node loop).
-  if explorer.winid and vim.api.nvim_win_is_valid(explorer.winid)
+  if explorer.tree and explorer.winid and vim.api.nvim_win_is_valid(explorer.winid)
       and explorer.bufnr and vim.api.nvim_buf_is_valid(explorer.bufnr) then
     for l = 1, vim.api.nvim_buf_line_count(explorer.bufnr) do
       local node = explorer.tree:get_node(l)
@@ -170,20 +173,28 @@ function M.jump_to(ref)
     git_root = explorer.git_root,
     group = group,
   })
-  -- on_file_select opens asynchronously and only jumps to the first change, so
-  -- place the cursor on the saved line in the modified pane after it settles.
-  vim.schedule(function()
-    vim.defer_fn(function()
-      local _, modified_win = lifecycle.get_windows(tabpage)
-      if modified_win and vim.api.nvim_win_is_valid(modified_win) then
-        local _, modified_buf = lifecycle.get_buffers(tabpage)
-        local last = (modified_buf and vim.api.nvim_buf_is_valid(modified_buf)
-          and vim.api.nvim_buf_line_count(modified_buf)) or s
-        vim.api.nvim_win_set_cursor(modified_win, { math.min(s, last), 0 })
-        vim.api.nvim_set_current_win(modified_win)
-      end
-    end, 50)
-  end)
+  -- on_file_select opens the diff asynchronously (async git + scheduled render)
+  -- and codediff itself jumps the cursor to the first change during that render.
+  -- So we can't use a fixed delay: we poll until the modified pane actually holds
+  -- THIS file's diff, then set our saved line LAST so it wins over the first-change
+  -- jump. Bounded retries keep it best-effort — if the file never loads, no-op.
+  local attempts = 0
+  local function place_cursor()
+    attempts = attempts + 1
+    local _, modified_win = lifecycle.get_windows(tabpage)
+    local _, modified_buf = lifecycle.get_buffers(tabpage)
+    local ready = modified_win and vim.api.nvim_win_is_valid(modified_win)
+      and modified_buf and vim.api.nvim_buf_is_valid(modified_buf)
+      and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(modified_buf), ":.") == path
+    if ready then
+      local last = vim.api.nvim_buf_line_count(modified_buf)
+      vim.api.nvim_win_set_cursor(modified_win, { math.min(s, last), 0 })
+      vim.api.nvim_set_current_win(modified_win)
+    elseif attempts < 20 then
+      vim.defer_fn(place_cursor, 25)
+    end
+  end
+  vim.defer_fn(place_cursor, 25)
 end
 
 function M.toggle_list()
@@ -267,10 +278,10 @@ local function switch_repo(dir)
     return
   end
   -- Tear down any open codediff view, then reset to a single empty buffer/tab so
-  -- the next :CodeDiff takes the open path (not its toggle-close path). Sequence
-  -- per codediff source: cleanup_all() clears session state/highlights/keymaps
-  -- but does NOT close windows/tabs (and is a safe no-op when nothing is open);
-  -- tabonly/enew/only do the actual window reset.
+  -- the next :CodeDiff takes the open path (not its toggle-close path).
+  -- cleanup_all() clears codediff's session state (safe no-op when nothing is
+  -- open); tabonly/enew/only then guarantee a clean single-window tab regardless
+  -- of how much of its layout cleanup_all tore down.
   pcall(function() require("codediff.ui.lifecycle").cleanup_all() end)
   vim.cmd("silent! tabonly")
   vim.cmd("silent! enew")
