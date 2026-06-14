@@ -479,13 +479,30 @@ vim.api.nvim_create_autocmd("User", {
   callback = function() vim.schedule(on_codediff_ready) end,
 })
 
--- Open the working-tree diff once the UI is ready. Guarded so that a headless
--- `nvim -u <this> +qa` (used for syntax-checking) does not try to open it.
+-- Does the current dir have anything to review? (inside a git work tree AND a
+-- non-empty `git status`). cwd was set to REPO at startup.
+local function cwd_has_changes()
+  vim.fn.system({ "git", "rev-parse", "--is-inside-work-tree" })
+  if vim.v.shell_error ~= 0 then
+    return false
+  end
+  return #vim.fn.systemlist({ "git", "status", "--porcelain" }) > 0
+end
+
+-- Open once the UI is ready. With changes, show the working-tree diff; with none
+-- (clean repo, or not a repo) drop straight into the zoxide repo picker so
+-- prefix+e is never a confusing empty popup. Guarded so a headless syntax-check
+-- (`nvim -u <this> +qa`) opens nothing.
 vim.api.nvim_create_autocmd("VimEnter", {
   once = true,
   callback = function()
-    if #vim.api.nvim_list_uis() > 0 then
+    if #vim.api.nvim_list_uis() == 0 then
+      return
+    end
+    if cwd_has_changes() then
       vim.cmd("CodeDiff")
+    else
+      M.jump_repo()
     end
   end,
 })
