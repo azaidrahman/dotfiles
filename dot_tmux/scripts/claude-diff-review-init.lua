@@ -1,7 +1,7 @@
 -- Standalone Neovim config for the Claude diff-review popup.
 -- Launched via: nvim -u ~/.tmux/scripts/claude-diff-review-init.lua
 -- (tmux prefix+e → ~/.tmux/scripts/claude-diff-review.sh → this popup).
--- Reuses the diffview/plenary already installed by lazy.nvim, but loads NONE
+-- Reuses codediff.nvim (installed by lazy.nvim), but loads NONE
 -- of the user's normal config, so it cannot interfere with it.
 --
 -- KEYS (leader = Space) — press <leader>? in the popup for this list:
@@ -12,9 +12,9 @@
 --   <leader><CR>    confirm: paste refs to the origin pane (errors if not Claude)
 --   q  /  :q        bail — quit, send nothing
 --   <leader>?       show this cheatsheet
--- Diffview nav: <Tab>/<S-Tab> next/prev file · j/k panel · <CR>/o/l open
+-- codediff nav: ]f/[f next/prev file · <CR> open file from explorer
 --   <C-h/j/k/l> move between windows · ]c/[c hunk · <C-f>/<C-b> scroll
---   <leader>e panel · <leader>b toggle panel · g? diffview help
+--   t toggle side-by-side/inline · i list/tree · gc fold unchanged
 
 local data = vim.fn.stdpath("data")
 vim.opt.rtp:prepend(data .. "/lazy/codediff.nvim")
@@ -305,8 +305,8 @@ function M.show_help()
     " q / :q        bail — quit, send nothing",
     " <leader>?     toggle this help",
     "",
-    " nav: Tab/S-Tab file · ]c/[c hunk · <C-h/j/k/l> windows",
-    "      <leader>e panel · <leader>b toggle panel · g? diffview help",
+    " nav: ]f/[f file · ]c/[c hunk · <C-h/j/k/l> windows",
+    "      <CR> open file · t layout · i list/tree · gc fold unchanged",
   }
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
