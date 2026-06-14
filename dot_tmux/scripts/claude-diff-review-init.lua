@@ -106,12 +106,6 @@ local function hunk_range_at(line)
   return nil
 end
 
-local function add_ref(s, e)
-  local ref = rel_path() .. ":" .. s .. "-" .. e
-  table.insert(M.collected, { ref = ref, comment = "" })
-  vim.notify("+ collected (" .. #M.collected .. "): " .. ref)
-end
-
 local function list_lines()
   if #M.collected == 0 then
     return { "(nothing collected)" }
@@ -446,6 +440,59 @@ function M.jump_repo()
   end)
 end
 
+-- Floating scratch buffer to write (or edit) a comment for `ref`. Saves the
+-- {ref, comment} record on <leader>qw (mirrors the user's :w); cancels on <C-c>
+-- or q (buffer-local, so they don't trigger the global bail). With
+-- `existing_index`, edits that entry in place instead of appending.
+function M.open_comment_buffer(ref, existing_index)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+  if existing_index and M.collected[existing_index] then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false,
+      vim.split(M.collected[existing_index].comment, "\n", { plain = true }))
+  end
+  local width = math.min(80, vim.o.columns - 8)
+  local height = math.min(12, math.max(4, vim.o.lines - 8))
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    anchor = "NW",
+    row = math.max(0, math.floor((vim.o.lines - height) / 2) - 1),
+    col = math.max(0, math.floor((vim.o.columns - width) / 2)),
+    width = width,
+    height = height,
+    style = "minimal",
+    border = "rounded",
+    title = " ─ " .. ref .. " ─ ",
+  })
+  local function close()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
+  end
+  local function save()
+    local comment = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+    comment = comment:gsub("^%s+", ""):gsub("%s+$", "")
+    if existing_index and M.collected[existing_index] then
+      M.collected[existing_index].comment = comment
+      M.refresh_list()
+      if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
+        vim.api.nvim_win_set_height(M.list_win, math.max(1, #M.collected))
+      end
+    else
+      table.insert(M.collected, { ref = ref, comment = comment })
+      vim.notify("+ collected (" .. #M.collected .. "): " .. ref)
+    end
+    close()
+  end
+  vim.keymap.set("n", "<leader>qw", save, { buffer = buf, desc = "save comment" })
+  vim.keymap.set({ "n", "i" }, "<C-c>", function()
+    vim.cmd("stopinsert")
+    close()
+  end, { buffer = buf, desc = "cancel comment" })
+  vim.keymap.set("n", "q", close, { buffer = buf, desc = "cancel comment" })
+  vim.cmd("startinsert")
+end
+
 function M.collect_hunk()
   if not is_worktree_side() then
     vim.notify("select in the current-file side", vim.log.levels.WARN)
@@ -456,7 +503,7 @@ function M.collect_hunk()
     vim.notify("no changed hunk under cursor", vim.log.levels.WARN)
     return
   end
-  add_ref(s, e)
+  M.open_comment_buffer(rel_path() .. ":" .. s .. "-" .. e)
 end
 
 function M.collect_visual()
@@ -468,9 +515,12 @@ function M.collect_visual()
   if s > e then
     s, e = e, s
   end
-  add_ref(s, e)
+  local ref = rel_path() .. ":" .. s .. "-" .. e
   vim.api.nvim_feedkeys(
     vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+  vim.schedule(function()
+    M.open_comment_buffer(ref)
+  end)
 end
 
 vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cursor" })
