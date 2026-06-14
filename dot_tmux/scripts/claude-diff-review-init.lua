@@ -290,10 +290,15 @@ function M.confirm()
     vim.notify("origin pane is not running Claude — nothing sent", vim.log.levels.ERROR)
     return
   end
-  -- Compile the collected records into one review-comment message.
+  -- Compile the collected records into one review-comment message. Refs are
+  -- stored repo-relative (cwd is the repo root); expand to an ABSOLUTE path in the
+  -- output so they resolve in the Claude pane regardless of its cwd or which repo
+  -- was reviewed.
   local lines = { "Please address these review comments:", "" }
   for _, entry in ipairs(M.collected) do
-    table.insert(lines, "## " .. entry.ref)
+    local p, range = entry.ref:match("^(.*):(%d+%-%d+)$")
+    local header = p and (vim.fn.fnamemodify(p, ":p") .. ":" .. range) or entry.ref
+    table.insert(lines, "## " .. header)
     if entry.comment ~= "" then
       for _, cl in ipairs(vim.split(entry.comment, "\n", { plain = true })) do
         table.insert(lines, cl)
