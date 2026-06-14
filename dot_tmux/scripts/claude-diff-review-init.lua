@@ -298,7 +298,7 @@ function M.confirm()
   for _, entry in ipairs(M.collected) do
     local p, range = entry.ref:match("^(.*):(%d+%-%d+)$")
     local header = p and (vim.fn.fnamemodify(p, ":p") .. ":" .. range) or entry.ref
-    table.insert(lines, "## " .. header)
+    table.insert(lines, "@" .. header)
     if entry.comment ~= "" then
       for _, cl in ipairs(vim.split(entry.comment, "\n", { plain = true })) do
         table.insert(lines, cl)
