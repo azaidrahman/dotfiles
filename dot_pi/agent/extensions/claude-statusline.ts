@@ -1,10 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import * as path from "node:path";
 
 const PALETTE = [82, 226, 208, 196]; // green, yellow, orange, red
 const GRAY = 244;
+const RESET = "\x1b[0m";
 
 function rankColor(value: string, ranks: string[]): string {
 	const lc = value.toLowerCase();
@@ -21,7 +22,7 @@ function rankColor(value: string, ranks: string[]): string {
 	return `\x1b[38;5;${GRAY}m`;
 }
 
-const MODEL_RANK = ['haiku', 'sonnet', 'opus', 'fable', 'gpt'];
+const MODEL_RANK = ['haiku', 'sonnet', 'opus', 'fable', 'gemini', 'gpt-5'];
 const EFFORT_RANK = ['low|minimal', 'medium|normal', 'high', 'xhigh', 'ultra|max|highest'];
 
 function colorForCost(usd: number): string {
@@ -32,20 +33,11 @@ function colorForCost(usd: number): string {
 	return '\x1b[38;5;196m';
 }
 
-function colorForRate(pct: number): string {
-	if (pct < 50) return '\x1b[38;5;244m';
-	if (pct < 70) return '\x1b[38;5;82m';
-	if (pct < 85) return '\x1b[38;5;226m';
-	if (pct < 95) return '\x1b[38;5;208m';
-	return '\x1b[38;5;196m';
-}
-
 export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
-		// Ensure this only sets up UI stuff if there's a UI
-		if (!ctx.hasUI) return;
+		if (ctx.mode !== "tui") return;
 
-		ctx.ui.setFooter((tui, theme, footerData) => {
+		ctx.ui.setFooter((tui, _theme, footerData) => {
 			const unsubBranch = footerData.onBranchChange(() => tui.requestRender());
 			const unsubExt = footerData.onExtensionStatusChange(() => tui.requestRender());
 
@@ -56,7 +48,6 @@ export default function (pi: ExtensionAPI) {
 				},
 				invalidate() {},
 				render(width: number): string[] {
-					// Gather stats
 					let input = 0;
 					let output = 0;
 					let cost = 0;
@@ -69,52 +60,50 @@ export default function (pi: ExtensionAPI) {
 						}
 					}
 
-					const model = ctx.model?.id || "no-model";
+					const modelName = ctx.model?.name || ctx.model?.id || "no-model";
+					let model = modelName;
+					if (model.includes("claude-")) model = model.replace("claude-", "");
+					if (model.includes("gemini-")) model = model.replace("gemini-", "gem-");
+
 					const effort = pi.getThinkingLevel();
-					
 					const ctxWindow = ctx.model?.contextWindow || 200000;
 					const ctxPct = Math.min(100, Math.round(((input + output) / ctxWindow) * 100));
-
 					const wt = path.basename(ctx.cwd);
 					const br = footerData.getGitBranch() || "";
 
 					const segments: string[] = [];
-					const reset = "\x1b[38;5;244m"; // our base dim gray
 					
+					// mode color
+					segments.push(`\x1b[38;5;75mINSERT\x1b[0m`);
+
 					// model
-					segments.push(`${rankColor(model, MODEL_RANK)}${model}${reset}`);
+					segments.push(`${rankColor(modelName, MODEL_RANK)}${model}${RESET}`);
 					
 					// effort
 					if (effort !== "off") {
-						segments.push(`${rankColor(effort, EFFORT_RANK)}eff:${effort}${reset}`);
+						segments.push(`${rankColor(effort, EFFORT_RANK)}eff:${effort}${RESET}`);
 					}
 					
 					// cost
-					segments.push(`${colorForCost(cost)}$${cost.toFixed(2)}${reset}`);
+					segments.push(`${colorForCost(cost)}$${cost.toFixed(2)}${RESET}`);
 					
 					// ctx
-					segments.push(`ctx:${ctxPct}%`);
+					segments.push(`\x1b[38;5;244mctx:${ctxPct}%\x1b[0m`);
 					
 					// wt
-					if (wt) segments.push(`wt:${wt}`);
+					if (wt) segments.push(`\x1b[38;5;244mwt:${wt}\x1b[0m`);
 					
 					// br
-					if (br) segments.push(`br:${br}`);
+					if (br) segments.push(`\x1b[38;5;244mbr:${br}\x1b[0m`);
 
-					// Extension statuses (for things like plan mode)
-					const extStatuses = Array.from(footerData.getExtensionStatuses().values());
-					for (const s of extStatuses) {
-						if (s) segments.push(s);
+					// Extension statuses
+					for (const s of Array.from(footerData.getExtensionStatuses().values())) {
+						if (s) segments.push(`\x1b[38;5;244m${s}\x1b[0m`);
 					}
 
-					const sep = "  |  ";
-					const lineContent = segments.join(sep);
-					
-					// Wrap in our base dim color and add the reset at the very end
-					// so that any internal color changes fall back to our gray for the separators
-					const finalLine = `\x1b[38;5;244m${lineContent}\x1b[0m`;
-					
-					return [truncateToWidth(finalLine, width)];
+					const sep = `\x1b[38;5;244m  |  \x1b[0m`;
+					const line = segments.join(sep);
+					return [truncateToWidth(line, width)];
 				},
 			};
 		});
