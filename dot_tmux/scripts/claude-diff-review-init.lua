@@ -532,13 +532,28 @@ function M.collect_visual()
   end)
 end
 
+-- Quit the popup, sending nothing — but confirm first if comments are collected
+-- so an accidental `q` can't silently discard them. Nothing collected quits
+-- immediately. (:q!/:qa! remain an un-intercepted force-quit.)
+function M.bail()
+  if #M.collected == 0 then
+    vim.cmd("qa!")
+    return
+  end
+  local choice = vim.fn.confirm(
+    "Discard " .. #M.collected .. " collected comment(s)?", "&Yes\n&No", 2)
+  if choice == 1 then
+    vim.cmd("qa!")
+  end
+end
+
 vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cursor" })
 vim.keymap.set("x", "<leader>a", M.collect_visual, { desc = "collect visual selection" })
 vim.keymap.set("n", "<leader>l", M.toggle_list, { desc = "toggle collected list" })
 vim.keymap.set("n", "<leader>z", M.jump_repo, { desc = "jump to another repo (zoxide)" })
 vim.keymap.set("n", "<leader>?", M.show_help, { desc = "show diff-review key cheatsheet" })
 vim.keymap.set("n", "<leader><CR>", M.confirm, { desc = "confirm & paste refs to Claude" })
-vim.keymap.set("n", "q", function() vim.cmd("qa!") end, { desc = "bail (send nothing)" })
+vim.keymap.set("n", "q", M.bail, { desc = "bail (confirm if collected)" })
 
 -- Tab / Shift-Tab cycle files too, as aliases for ]f/[f (old diffview muscle
 -- memory). codediff's public navigation API acts on the current diff session, so
@@ -570,8 +585,8 @@ local function on_codediff_ready()
     -- not have q overwritten with the popup-killing bail.
     if vim.api.nvim_win_get_config(win).relative == "" then
       local buf = vim.api.nvim_win_get_buf(win)
-      vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
-        { buffer = buf, desc = "bail (send nothing)" })
+      vim.keymap.set("n", "q", M.bail,
+        { buffer = buf, desc = "bail (confirm if collected)" })
       local name = vim.api.nvim_buf_get_name(buf)
       -- Prefer the loaded working-tree file (accurate once content is in).
       if name ~= "" and not name:match("^codediff://") and vim.fn.filereadable(name) == 1 then
