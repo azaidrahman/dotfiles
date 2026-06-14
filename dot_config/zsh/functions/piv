@@ -1,0 +1,16 @@
+# piv - Pi coding agent on the Vertex backend (Gemini).
+#       Claude Code can't drive Gemini natively, so Gemini work lives here.
+#       Pi reads Agent Skills from ~/.agents/skills/ (shared skill farm;
+#       re-sync with ~/.agents/sync-skills.sh).
+#
+#   piv [pi-args...]   Run Pi against Vertex AI (default: gemini-3.1-pro-preview).
+#                      Switch models in-session, or override:
+#                        piv --model gemini-3-flash-preview
+#                      (`pi --list-models google-vertex` shows the full list;
+#                       note there is no "gemini-3.5-flash" on Vertex.)
+#
+# Auth: Application Default Credentials (gcloud auth application-default login).
+
+GOOGLE_CLOUD_PROJECT=gtech-sb-zaidsani-dev \
+GOOGLE_CLOUD_LOCATION=global \
+pi --provider google-vertex --model gemini-3.1-pro-preview "$@"

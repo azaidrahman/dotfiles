@@ -1,0 +1,5 @@
+# cvres - resume the most recent Claude Code session on the Vertex backend.
+#
+#   cvres [claude-args...]   Equivalent to: cv --resume
+
+cv --resume "$@"
