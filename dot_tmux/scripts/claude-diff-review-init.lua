@@ -7,6 +7,7 @@
 -- KEYS (leader = Space) — press <leader>? in the popup for this list:
 --   <leader>a       comment a hunk (normal) / selection (visual), right side
 --                   — opens a comment buffer: <leader>qw save · <C-c>/q cancel
+--   <leader>o       open this file in a new pane, right side (keeps popup open)
 --   <leader>l       toggle collected list (dd remove · <CR> jump · e edit · q close)
 --   <leader>z       jump to another git repo (zoxide picker)
 --   <leader><CR>    confirm: compile comments + paste to origin pane (if Claude)
@@ -47,6 +48,20 @@ end
 pcall(function()
   vim.cmd.colorscheme("gruvbox")
 end)
+
+-- gruvbox's stock DiffAdd/DiffChange are bright, low-contrast washes (the green
+-- on added lines drowns the syntax-highlighted text). codediff derives its
+-- line- and char-level diff highlights from these groups, so re-tint them to
+-- dim, desaturated backgrounds that read as "changed" without fighting the
+-- foreground. DiffText (changed chars) stays the most saturated so edits pop.
+for group, bg in pairs({
+  DiffAdd = "#283b28",     -- dim green
+  DiffChange = "#2b3340",  -- dim blue-grey
+  DiffDelete = "#3b2828",  -- dim red
+  DiffText = "#3a5a3a",    -- brighter green for changed chars
+}) do
+  vim.api.nvim_set_hl(0, group, { bg = bg, fg = "NONE" })
+end
 
 -- codediff config: side-by-side, explorer on the left. codediff does not bind
 -- bare <space>, so our leader works. It DOES bind <leader>hs/hu/hr to
@@ -363,6 +378,7 @@ function M.show_help()
     "",
     " <leader>a     comment a hunk (normal) / selection (visual), right side",
     "               buffer: <leader>qw save · <C-c>/q cancel",
+    " <leader>o     open this file in a new pane (right side; keeps popup)",
     " <leader>l     collected list (dd remove · CR jump · e edit · q close)",
     " <leader>z     jump to another git repo (zoxide)",
     " <leader><CR>  confirm: compile comments + paste to origin pane",
@@ -552,8 +568,46 @@ function M.bail()
   end
 end
 
+-- Open the file under review in a real pane next to the origin pane, at the line
+-- the cursor is on, WITHOUT closing the popup — note a spot, keep reviewing, and
+-- the file is waiting when you dismiss the popup. Restricted to the working-tree
+-- (right) side: the HEAD side is a codediff:// virtual buffer with no on-disk
+-- file. Splits the ORIGIN_PANE (the pane prefix+e fired from) so the new pane
+-- lands in the right session/window even though we're inside a modal popup.
+function M.open_in_pane()
+  if not is_worktree_side() then
+    vim.notify("open-in-pane only works on the working-tree (right) side",
+      vim.log.levels.WARN)
+    return
+  end
+  local pane = vim.env.ORIGIN_PANE
+  if not pane or pane == "" then
+    vim.notify("no ORIGIN_PANE to split", vim.log.levels.WARN)
+    return
+  end
+  local file = vim.api.nvim_buf_get_name(0)
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  local repo = vim.env.REPO or vim.fn.getcwd()
+  local new = vim.fn.systemlist({
+    "tmux", "split-window", "-h", "-d", "-t", pane,
+    "-c", repo, "-P", "-F", "#{pane_id}",
+  })[1]
+  if vim.v.shell_error ~= 0 or not new or new == "" then
+    vim.notify("tmux split-window failed", vim.log.levels.WARN)
+    return
+  end
+  -- +<line> sends the cursor to the reviewed line; fnameescape guards spaces.
+  vim.fn.system({
+    "tmux", "send-keys", "-t", new,
+    "nvim +" .. line .. " " .. vim.fn.fnameescape(file), "Enter",
+  })
+  vim.notify("opened " .. vim.fn.fnamemodify(file, ":t") .. ":" .. line ..
+    " in a new pane", vim.log.levels.INFO)
+end
+
 vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cursor" })
 vim.keymap.set("x", "<leader>a", M.collect_visual, { desc = "collect visual selection" })
+vim.keymap.set("n", "<leader>o", M.open_in_pane, { desc = "open this file in a new pane (keeps popup)" })
 vim.keymap.set("n", "<leader>l", M.toggle_list, { desc = "toggle collected list" })
 vim.keymap.set("n", "<leader>z", M.jump_repo, { desc = "jump to another repo (zoxide)" })
 vim.keymap.set("n", "<leader>?", M.show_help, { desc = "show diff-review key cheatsheet" })
