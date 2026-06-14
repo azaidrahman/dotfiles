@@ -1,6 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
+import { exec } from "node:child_process";
 import * as path from "node:path";
+import * as os from "node:os";
 
 // pi-tui ships under different scopes depending on the installed pi build
 // (newer @earendil-works/*, older Homebrew @mariozechner/*). Resolve through
@@ -47,7 +49,21 @@ function colorForCost(usd: number): string {
 	return '\x1b[38;5;196m';
 }
 
+function notifyTmux(event: string) {
+	// Don't block
+	exec(`bash ~/.claude/hooks/notify-tmux.sh ${event}`);
+}
+
 export default function (pi: ExtensionAPI) {
+	// Hook into agent lifecycle to update tmux window colors
+	pi.on("turn_start", () => {
+		notifyTmux("working");
+	});
+	
+	pi.on("turn_end", () => {
+		notifyTmux("stop");
+	});
+
 	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
 
