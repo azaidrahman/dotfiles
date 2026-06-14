@@ -169,3 +169,28 @@ commit/push.
   clears refs; `<leader><CR>` pastes the refs into the Claude pane; `q` bails
   sending nothing.
 - Negative: `<leader>a` on the read-only git side warns and collects nothing.
+
+## Post-implementation refinements (from interactive testing)
+
+These were decided while testing the working popup and diverge slightly from the
+"drop all theming / minimal init" decision above. They are reflected in the
+shipped `claude-diff-review-init.lua`:
+
+- **Theme:** the "default colorscheme" plan left diffs muddy and unreadable.
+  The popup now sets `background=dark` and applies the `gruvbox` colorscheme
+  (warm dark, high-contrast diff groups; `DiffText` is a bright amber). This
+  reintroduces a single `colorscheme` line plus a `gruvbox.nvim` rtp prepend, not
+  the full `popup_ui` module.
+- **File navigation:** `<Tab>`/`<S-Tab>` are aliased to codediff's
+  `next_file`/`prev_file` (alongside `]f`/`[f`) to match the old diffview muscle
+  memory.
+- **Auto-focus:** codediff opens with the explorer focused, but collection only
+  works on the working-tree (right) pane. The popup now focuses that pane on
+  `CodeDiffOpen`/`CodeDiffFileSelect` (by window position, immediately, to avoid a
+  delayed jump) so `<leader>a` works without window-hopping.
+- **Swapfile:** the popup loads real working-tree files, so an existing swap (file
+  open in the user's main nvim) raised `E325` and halted it. The popup sets
+  `swapfile=false` and `shortmess+=A` to never create or prompt about swaps.
+- **is_worktree_side guard:** updated from the diffview `diffview://` URI to
+  codediff's `codediff://` scheme; the `filereadable` check remains the real
+  guard.
