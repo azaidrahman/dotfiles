@@ -17,8 +17,7 @@
 --   <leader>e panel · <leader>b toggle panel · g? diffview help
 
 local data = vim.fn.stdpath("data")
-vim.opt.rtp:prepend(data .. "/lazy/plenary.nvim")
-vim.opt.rtp:prepend(data .. "/lazy/diffview.nvim")
+vim.opt.rtp:prepend(data .. "/lazy/codediff.nvim")
 
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
@@ -32,22 +31,19 @@ if repo and repo ~= "" then
   vim.cmd("cd " .. vim.fn.fnameescape(repo))
 end
 
--- Look & feel (theme, icons, statusline) is shared with the main config via a
--- reusable module so it lives in ONE place and other scripts can reuse it.
--- Make the config's lua/ requireable (without dragging the whole config onto
--- rtp), then apply. pcall-guarded: degrades to the plain UI if anything's off.
-package.path = vim.fn.stdpath("config") .. "/lua/?.lua;"
-  .. vim.fn.stdpath("config") .. "/lua/?/init.lua;" .. package.path
-pcall(function()
-  require("zaid.popup_ui").apply()
-end)
-
--- Disable diffview's bare <space> (stage-entry) binding in the panel and diff
--- views so it doesn't shadow our leader (Space). We don't stage in this flow.
-require("diffview").setup({
+-- codediff config: side-by-side, explorer on the left. codediff does not bind
+-- bare <space>, so our leader works. It DOES bind <leader>hs/hu/hr to
+-- stage/unstage/discard hunk in diff buffers; this review-and-paste flow never
+-- stages, so disable that trio (false = the keymap is not set).
+require("codediff").setup({
+  diff = { layout = "side-by-side" },
+  explorer = { position = "left" },
   keymaps = {
-    file_panel = { { "n", "<space>", false } },
-    view = { { "n", "<space>", false } },
+    view = {
+      stage_hunk = false,
+      unstage_hunk = false,
+      discard_hunk = false,
+    },
   },
 })
 
@@ -368,7 +364,7 @@ vim.api.nvim_create_autocmd("VimEnter", {
   once = true,
   callback = function()
     if #vim.api.nvim_list_uis() > 0 then
-      require("diffview").open()
+      vim.cmd("CodeDiff")
     end
   end,
 })
