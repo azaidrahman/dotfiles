@@ -5,12 +5,12 @@
 -- of the user's normal config, so it cannot interfere with it.
 --
 -- KEYS (leader = Space) — press <leader>? in the popup for this list:
---   <leader>a       collect hunk under cursor (normal) / selection (visual)
---                   — working-tree (right) side only
---   <leader>l       toggle collected list  (dd remove · <CR> jump · q close)
+--   <leader>a       comment a hunk (normal) / selection (visual), right side
+--                   — opens a comment buffer: <leader>qw save · <C-c>/q cancel
+--   <leader>l       toggle collected list (dd remove · <CR> jump · e edit · q close)
 --   <leader>z       jump to another git repo (zoxide picker)
---   <leader><CR>    confirm: paste refs to the origin pane (errors if not Claude)
---   q  /  :q        bail — quit, send nothing
+--   <leader><CR>    confirm: compile comments + paste to origin pane (if Claude)
+--   q  /  :q        bail — quit (confirms if comments collected)
 --   <leader>?       show this cheatsheet
 -- codediff nav: ]f/[f or <Tab>/<S-Tab> next/prev file · <CR> open from explorer
 --   <C-h/j/k/l> move between windows · ]c/[c hunk · <C-f>/<C-b> scroll
@@ -356,12 +356,12 @@ function M.show_help()
   local lines = {
     " diff-review popup ",
     "",
-    " <leader>a     collect hunk (normal) / selection (visual)",
-    "               — working-tree (right) side only",
-    " <leader>l     toggle collected list (dd remove · CR jump · q close)",
+    " <leader>a     comment a hunk (normal) / selection (visual), right side",
+    "               buffer: <leader>qw save · <C-c>/q cancel",
+    " <leader>l     collected list (dd remove · CR jump · e edit · q close)",
     " <leader>z     jump to another git repo (zoxide)",
-    " <leader><CR>  confirm: paste refs to origin pane",
-    " q / :q        bail — quit, send nothing",
+    " <leader><CR>  confirm: compile comments + paste to origin pane",
+    " q / :q        bail — quit (confirms if comments collected)",
     " <leader>?     toggle this help",
     "",
     " nav: ]f/[f or Tab/S-Tab file · ]c/[c hunk · <C-h/j/k/l> windows",
