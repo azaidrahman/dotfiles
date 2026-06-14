@@ -55,6 +55,16 @@ function notifyTmux(event: string) {
 }
 
 export default function (pi: ExtensionAPI) {
+
+	// debugging command
+	pi.registerCommand("test_footer_cmd", {
+		handler: async () => {
+			pi.sendMessage({
+				content: "footer extension is loaded",
+				display: true,
+			});
+		}
+	});
 	// Hook into agent lifecycle to update tmux window colors
 	pi.on("turn_start", () => {
 		notifyTmux("working");
@@ -139,3 +149,4 @@ export default function (pi: ExtensionAPI) {
 		});
 	});
 }
+
