@@ -7,6 +7,18 @@ return {
             { "<leader>sk", "<cmd>ShowkeysToggle<cr>", desc = "Toggle showkeys" },
         },
         config = function(_, opts)
+            -- showkeys' internal redraw fires from a scheduled callback that can
+            -- run after its float is closed, calling nvim_win_set_config with a
+            -- nil/stale window handle and throwing "Invalid 'win'". Guard the
+            -- public redraw so it no-ops once the window is gone.
+            local utils, state = require("showkeys.utils"), require("showkeys.state")
+            local orig_redraw = utils.redraw
+            utils.redraw = function(...)
+                if not state.win or not vim.api.nvim_win_is_valid(state.win) then
+                    return
+                end
+                return orig_redraw(...)
+            end
             require("showkeys").setup(opts)
             require("showkeys").toggle()
         end,
