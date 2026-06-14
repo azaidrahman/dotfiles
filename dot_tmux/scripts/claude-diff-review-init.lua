@@ -348,14 +348,20 @@ for _, k in ipairs({ "h", "j", "k", "l" }) do
   vim.keymap.set("n", "<C-" .. k .. ">", "<C-w>" .. k, { desc = "focus window " .. k })
 end
 
-vim.api.nvim_create_autocmd("BufWinEnter", {
-  callback = function(ev)
-    local ft = vim.bo[ev.buf].filetype or ""
-    if ft:match("^Diffview") then
-      vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
-        { buffer = ev.buf, desc = "bail (send nothing)" })
-    end
-  end,
+-- codediff binds buffer-local `q` to close its own view, which would shadow our
+-- global `q -> qa!`. Re-assert the bail binding across the popup's windows after
+-- codediff opens or selects a file (scheduled so it runs AFTER codediff sets its
+-- own keymaps). Our floats (collected list, help) set their own buffer-local q.
+local function rebind_bail()
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
+      { buffer = buf, desc = "bail (send nothing)" })
+  end
+end
+vim.api.nvim_create_autocmd("User", {
+  pattern = { "CodeDiffOpen", "CodeDiffFileSelect" },
+  callback = function() vim.schedule(rebind_bail) end,
 })
 
 -- Open the working-tree diff once the UI is ready. Guarded so that a headless
