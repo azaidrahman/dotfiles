@@ -161,10 +161,20 @@ disable `<space>`, lines 45-52) with:
 
 ```lua
 -- codediff config: side-by-side, explorer on the left. codediff does not bind
--- <space>, so nothing needs disabling for our leader.
+-- bare <space>, so our leader works. It DOES bind <leader>hs/hu/hr to
+-- stage/unstage/discard hunk in diff buffers; this review-and-paste flow never
+-- stages, so disable that trio (false = the keymap is not set; verified against
+-- codediff's `if keymaps.<name> then vim.keymap.set(...)` guards).
 require("codediff").setup({
   diff = { layout = "side-by-side" },
   explorer = { position = "left" },
+  keymaps = {
+    view = {
+      stage_hunk = false,
+      unstage_hunk = false,
+      discard_hunk = false,
+    },
+  },
 })
 ```
 
@@ -306,11 +316,17 @@ local function switch_repo(dir)
     vim.notify("not a git repo: " .. dir, vim.log.levels.WARN)
     return
   end
-  -- Tear down codediff's panes (it opens its own tab/windows) back to a single
-  -- empty buffer, then reopen against the new repo.
+  -- Tear down any open codediff view, then reset to a single empty buffer/tab so
+  -- the next :CodeDiff takes the open path (not its toggle-close path). Sequence
+  -- per codediff source: cleanup_all() clears session state/highlights/keymaps
+  -- but does NOT close windows/tabs (and is a safe no-op when nothing is open);
+  -- tabonly/enew/only do the actual window reset. Re-running :CodeDiff from the
+  -- codediff tab would instead toggle-close (and `qall` if it's the last tab),
+  -- which is why we reset to a clean non-diff state first.
+  pcall(function() require("codediff.ui.lifecycle").cleanup_all() end)
   vim.cmd("silent! tabonly")
-  vim.cmd("silent! only")
   vim.cmd("silent! enew")
+  vim.cmd("silent! only")
   vim.cmd("cd " .. vim.fn.fnameescape(dir))
   if #M.collected > 0 then
     M.collected = {}
@@ -324,9 +340,6 @@ local function switch_repo(dir)
   vim.cmd("CodeDiff")
 end
 ```
-
-(If Task 1 found codediff opens in the **current** tab rather than a new one,
-`tabonly` is a harmless no-op; the `only` + `enew` still reset the view.)
 
 - [ ] **Step 2: Apply and syntax-check**
 
@@ -355,10 +368,14 @@ git commit -m "fix(nvim): repo-switch teardown uses codediff, not diffview"
 
 ## Task 5: Reimplement jump_to for codediff (best-effort)
 
-The collected-list `<CR>` jump currently uses `diffview.lib`. Reimplement it to
-find codediff's explorer window (a `nofile` buffer listing the changed paths,
-per Task 1), move the cursor to the ref's file row, select it with `<CR>`, then
-schedule the cursor to the saved line.
+The collected-list `<CR>` jump currently uses `diffview.lib`. Reimplement it
+against codediff's internal explorer API (the same recipe codediff uses for its
+own `focus_file`): get the explorer for the current tab, resolve the ref's path
+to a file node (searching conflicts → unstaged → staged, matching the plugin's
+`find_file_in_status` order), move the explorer cursor to that node, call
+`explorer.on_file_select(file_data)` to open the diff, then — because the open is
+async and only jumps to the first change — place the cursor on the saved line in
+the modified pane after a short defer.
 
 **Files:**
 - Modify: `~/.local/share/chezmoi/dot_tmux/scripts/claude-diff-review-init.lua`
@@ -370,10 +387,10 @@ Replace the entire `M.jump_to` function with:
 
 ```lua
 -- Jump to a collected ref's file+line within the open codediff view (best-effort).
--- Strategy: locate codediff's explorer (a nofile buffer whose lines list the
--- changed paths), put the cursor on the ref's file row, select with <CR>, then
--- place the cursor on the saved line. Degrades to a no-op if the explorer cannot
--- be found, rather than erroring.
+-- Uses codediff's internal explorer API (mirrors its own focus_file recipe):
+-- resolve the path to a status node, select it via on_file_select, then place the
+-- cursor on the saved line in the modified pane once the async open settles.
+-- Degrades to a no-op if the explorer or file cannot be found, rather than erroring.
 function M.jump_to(ref)
   local path, s = ref:match("^(.-):(%d+)%-")
   if not path then
@@ -384,27 +401,65 @@ function M.jump_to(ref)
     vim.api.nvim_win_close(M.list_win, true)
     M.list_win = nil
   end
-  -- Match on the most specific text available: try the repo-relative path first,
-  -- then fall back to the basename (in case the explorer renders a tree).
-  local base = vim.fn.fnamemodify(path, ":t")
-  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    if vim.bo[buf].buftype == "nofile" then
-      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-      for i, l in ipairs(lines) do
-        if l:find(path, 1, true) or l:find(base, 1, true) then
-          vim.api.nvim_set_current_win(win)
-          vim.api.nvim_win_set_cursor(win, { i, 0 })
-          vim.api.nvim_feedkeys(
-            vim.api.nvim_replace_termcodes("<CR>", true, false, true), "x", false)
-          vim.schedule(function()
-            pcall(vim.fn.cursor, s, 1)
-          end)
-          return
-        end
+  local ok, lifecycle = pcall(require, "codediff.ui.lifecycle")
+  if not ok then
+    return
+  end
+  local tabpage = vim.api.nvim_get_current_tabpage()
+  local explorer = lifecycle.get_explorer(tabpage)
+  if not explorer or not explorer.status_result then
+    return
+  end
+  -- Resolve path -> file node + group, in the plugin's own search order.
+  local sr = explorer.status_result
+  local file, group
+  for _, g in ipairs({ "conflicts", "unstaged", "staged" }) do
+    for _, f in ipairs(sr[g] or {}) do
+      if f.path == path then
+        file, group = f, g
+        break
+      end
+    end
+    if file then
+      break
+    end
+  end
+  if not file then
+    return
+  end
+  -- Move the explorer cursor onto that node (mirrors codediff's get_node loop).
+  if explorer.winid and vim.api.nvim_win_is_valid(explorer.winid)
+      and explorer.bufnr and vim.api.nvim_buf_is_valid(explorer.bufnr) then
+    for l = 1, vim.api.nvim_buf_line_count(explorer.bufnr) do
+      local node = explorer.tree:get_node(l)
+      if node and node.data and node.data.path == file.path and node.data.group == group then
+        vim.api.nvim_win_set_cursor(explorer.winid, { l, 0 })
+        break
       end
     end
   end
+  -- Open the diff with the exact file_data shape the plugin uses.
+  explorer.on_file_select({
+    path = file.path,
+    old_path = file.old_path,
+    status = file.status,
+    git_root = explorer.git_root,
+    group = group,
+  })
+  -- on_file_select opens asynchronously and only jumps to the first change, so
+  -- place the cursor on the saved line in the modified pane after it settles.
+  vim.schedule(function()
+    vim.defer_fn(function()
+      local _, modified_win = lifecycle.get_windows(tabpage)
+      if modified_win and vim.api.nvim_win_is_valid(modified_win) then
+        local _, modified_buf = lifecycle.get_buffers(tabpage)
+        local last = (modified_buf and vim.api.nvim_buf_is_valid(modified_buf)
+          and vim.api.nvim_buf_line_count(modified_buf)) or s
+        vim.api.nvim_win_set_cursor(modified_win, { math.min(s, last), 0 })
+        vim.api.nvim_set_current_win(modified_win)
+      end
+    end, 50)
+  end)
 end
 ```
 
