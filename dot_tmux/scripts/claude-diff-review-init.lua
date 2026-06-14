@@ -5,12 +5,12 @@
 -- of the user's normal config, so it cannot interfere with it.
 --
 -- KEYS (leader = Space) — press <leader>? in the popup for this list:
---   <leader>a       collect hunk under cursor (normal) / selection (visual)
---                   — working-tree (right) side only
---   <leader>l       toggle collected list  (dd remove · <CR> jump · q close)
+--   <leader>a       comment a hunk (normal) / selection (visual), right side
+--                   — opens a comment buffer: <leader>qw save · <C-c>/q cancel
+--   <leader>l       toggle collected list (dd remove · <CR> jump · e edit · q close)
 --   <leader>z       jump to another git repo (zoxide picker)
---   <leader><CR>    confirm: paste refs to the origin pane (errors if not Claude)
---   q  /  :q        bail — quit, send nothing
+--   <leader><CR>    confirm: compile comments + paste to origin pane (if Claude)
+--   q  /  :q        bail — quit (confirms if comments collected)
 --   <leader>?       show this cheatsheet
 -- codediff nav: ]f/[f or <Tab>/<S-Tab> next/prev file · <CR> open from explorer
 --   <C-h/j/k/l> move between windows · ]c/[c hunk · <C-f>/<C-b> scroll
@@ -106,17 +106,23 @@ local function hunk_range_at(line)
   return nil
 end
 
-local function add_ref(s, e)
-  local ref = rel_path() .. ":" .. s .. "-" .. e
-  table.insert(M.collected, ref)
-  vim.notify("+ collected (" .. #M.collected .. "): " .. ref)
-end
-
 local function list_lines()
   if #M.collected == 0 then
     return { "(nothing collected)" }
   end
-  return vim.deepcopy(M.collected)
+  local out = {}
+  for _, entry in ipairs(M.collected) do
+    local first = "(no comment)"
+    if entry.comment ~= "" then
+      first = vim.split(entry.comment, "\n", { plain = true })[1]
+    end
+    local line = entry.ref .. "  │ " .. first
+    if #line > 58 then
+      line = line:sub(1, 57) .. "…"
+    end
+    table.insert(out, line)
+  end
+  return out
 end
 
 function M.refresh_list()
@@ -253,9 +259,15 @@ function M.toggle_list()
   vim.keymap.set("n", "<CR>", function()
     local idx = vim.fn.line(".")
     if M.collected[idx] then
-      M.jump_to(M.collected[idx])
+      M.jump_to(M.collected[idx].ref)
     end
   end, { buffer = buf, desc = "jump to ref" })
+  vim.keymap.set("n", "e", function()
+    local idx = vim.fn.line(".")
+    if M.collected[idx] then
+      M.open_comment_buffer(M.collected[idx].ref, idx)
+    end
+  end, { buffer = buf, desc = "edit comment" })
 end
 
 function M.confirm()
@@ -278,8 +290,31 @@ function M.confirm()
     vim.notify("origin pane is not running Claude — nothing sent", vim.log.levels.ERROR)
     return
   end
-  local refs = table.concat(M.collected, " ") -- single line: no submit risk
-  vim.fn.system({ "tmux", "send-keys", "-t", pane, "-l", refs })
+  -- Compile the collected records into one review-comment message. Refs are
+  -- stored repo-relative (cwd is the repo root); expand to an ABSOLUTE path in the
+  -- output so they resolve in the Claude pane regardless of its cwd or which repo
+  -- was reviewed.
+  local lines = { "Please address these review comments:", "" }
+  for _, entry in ipairs(M.collected) do
+    local p, range = entry.ref:match("^(.*):(%d+%-%d+)$")
+    local header = p and (vim.fn.fnamemodify(p, ":p") .. ":" .. range) or entry.ref
+    table.insert(lines, "@" .. header)
+    if entry.comment ~= "" then
+      for _, cl in ipairs(vim.split(entry.comment, "\n", { plain = true })) do
+        table.insert(lines, cl)
+      end
+    end
+    table.insert(lines, "")
+  end
+  -- Deliver multi-line safely: a single `send-keys -l` would submit at each
+  -- newline. Load the text into a tmux paste buffer and paste it with bracketed
+  -- paste (-p) so the Claude TUI inserts it into the prompt WITHOUT submitting;
+  -- -d drops the buffer after.
+  local tmpfile = vim.fn.tempname()
+  vim.fn.writefile(lines, tmpfile)
+  vim.fn.system({ "tmux", "load-buffer", tmpfile })
+  vim.fn.system({ "tmux", "paste-buffer", "-p", "-d", "-t", pane })
+  vim.fn.delete(tmpfile)
   vim.cmd("qa!")
 end
 
@@ -326,12 +361,12 @@ function M.show_help()
   local lines = {
     " diff-review popup ",
     "",
-    " <leader>a     collect hunk (normal) / selection (visual)",
-    "               — working-tree (right) side only",
-    " <leader>l     toggle collected list (dd remove · CR jump · q close)",
+    " <leader>a     comment a hunk (normal) / selection (visual), right side",
+    "               buffer: <leader>qw save · <C-c>/q cancel",
+    " <leader>l     collected list (dd remove · CR jump · e edit · q close)",
     " <leader>z     jump to another git repo (zoxide)",
-    " <leader><CR>  confirm: paste refs to origin pane",
-    " q / :q        bail — quit, send nothing",
+    " <leader><CR>  confirm: compile comments + paste to origin pane",
+    " q / :q        bail — quit (confirms if comments collected)",
     " <leader>?     toggle this help",
     "",
     " nav: ]f/[f or Tab/S-Tab file · ]c/[c hunk · <C-h/j/k/l> windows",
@@ -416,6 +451,62 @@ function M.jump_repo()
   end)
 end
 
+-- Floating scratch buffer to write (or edit) a comment for `ref`. Saves the
+-- {ref, comment} record on <leader>qw (mirrors the user's :w); cancels on <C-c>
+-- or q (buffer-local, so they don't trigger the global bail). With
+-- `existing_index`, edits that entry in place instead of appending.
+function M.open_comment_buffer(ref, existing_index)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+  if existing_index and M.collected[existing_index] then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false,
+      vim.split(M.collected[existing_index].comment, "\n", { plain = true }))
+  end
+  local width = math.min(80, vim.o.columns - 8)
+  local height = math.min(12, math.max(4, vim.o.lines - 8))
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    anchor = "NW",
+    row = math.max(0, math.floor((vim.o.lines - height) / 2) - 1),
+    col = math.max(0, math.floor((vim.o.columns - width) / 2)),
+    width = width,
+    height = height,
+    style = "minimal",
+    border = "rounded",
+    title = " ─ " .. ref .. " ─ ",
+  })
+  local function close()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
+  end
+  local function save()
+    local comment = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+    comment = comment:gsub("^%s+", ""):gsub("%s+$", "")
+    if existing_index and M.collected[existing_index] then
+      M.collected[existing_index].comment = comment
+      M.refresh_list()
+      if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
+        vim.api.nvim_win_set_height(M.list_win, math.max(1, #M.collected))
+      end
+    else
+      table.insert(M.collected, { ref = ref, comment = comment })
+      vim.notify("+ collected (" .. #M.collected .. "): " .. ref)
+    end
+    close()
+  end
+  vim.keymap.set("n", "<leader>qw", save, { buffer = buf, desc = "save comment" })
+  vim.keymap.set({ "n", "i" }, "<C-c>", function()
+    vim.cmd("stopinsert")
+    close()
+  end, { buffer = buf, desc = "cancel comment" })
+  vim.keymap.set("n", "q", close, { buffer = buf, desc = "cancel comment" })
+  -- Also save on a reflexive `:w` (the user's save habit), which sidesteps the
+  -- <leader>qw multi-key timeout accidentally discarding a comment.
+  vim.api.nvim_create_autocmd("BufWriteCmd", { buffer = buf, callback = save })
+  vim.cmd("startinsert")
+end
+
 function M.collect_hunk()
   if not is_worktree_side() then
     vim.notify("select in the current-file side", vim.log.levels.WARN)
@@ -426,7 +517,7 @@ function M.collect_hunk()
     vim.notify("no changed hunk under cursor", vim.log.levels.WARN)
     return
   end
-  add_ref(s, e)
+  M.open_comment_buffer(rel_path() .. ":" .. s .. "-" .. e)
 end
 
 function M.collect_visual()
@@ -438,9 +529,27 @@ function M.collect_visual()
   if s > e then
     s, e = e, s
   end
-  add_ref(s, e)
+  local ref = rel_path() .. ":" .. s .. "-" .. e
   vim.api.nvim_feedkeys(
     vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+  vim.schedule(function()
+    M.open_comment_buffer(ref)
+  end)
+end
+
+-- Quit the popup, sending nothing — but confirm first if comments are collected
+-- so an accidental `q` can't silently discard them. Nothing collected quits
+-- immediately. (:q!/:qa! remain an un-intercepted force-quit.)
+function M.bail()
+  if #M.collected == 0 then
+    vim.cmd("qa!")
+    return
+  end
+  local choice = vim.fn.confirm(
+    "Discard " .. #M.collected .. " collected comment(s)?", "&Yes\n&No", 2)
+  if choice == 1 then
+    vim.cmd("qa!")
+  end
 end
 
 vim.keymap.set("n", "<leader>a", M.collect_hunk, { desc = "collect hunk under cursor" })
@@ -449,7 +558,7 @@ vim.keymap.set("n", "<leader>l", M.toggle_list, { desc = "toggle collected list"
 vim.keymap.set("n", "<leader>z", M.jump_repo, { desc = "jump to another repo (zoxide)" })
 vim.keymap.set("n", "<leader>?", M.show_help, { desc = "show diff-review key cheatsheet" })
 vim.keymap.set("n", "<leader><CR>", M.confirm, { desc = "confirm & paste refs to Claude" })
-vim.keymap.set("n", "q", function() vim.cmd("qa!") end, { desc = "bail (send nothing)" })
+vim.keymap.set("n", "q", M.bail, { desc = "bail (confirm if collected)" })
 
 -- Tab / Shift-Tab cycle files too, as aliases for ]f/[f (old diffview muscle
 -- memory). codediff's public navigation API acts on the current diff session, so
@@ -476,25 +585,37 @@ end
 local function on_codediff_ready()
   local worktree_win, rightmost_win, rightmost_col = nil, nil, -1
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
-      { buffer = buf, desc = "bail (send nothing)" })
-    local name = vim.api.nvim_buf_get_name(buf)
-    -- Prefer the loaded working-tree file (accurate once content is in).
-    if name ~= "" and not name:match("^codediff://") and vim.fn.filereadable(name) == 1 then
-      worktree_win = win
-    end
-    -- Fallback: the rightmost non-explorer window. CodeDiffOpen fires before the
-    -- async file content loads, when the modified pane is still a placeholder and
-    -- isn't readable yet; focusing it by POSITION now (layout is
-    -- explorer|HEAD|working-tree) means the content loads into the already-focused
-    -- window, so there's no late, jarring focus jump.
-    if vim.bo[buf].filetype ~= "codediff-explorer" then
-      local col = vim.api.nvim_win_get_position(win)[2]
-      if col > rightmost_col then
-        rightmost_col, rightmost_win = col, win
+    -- Only touch real (non-floating) codediff windows. Our floats (comment
+    -- buffer, collected list) manage their own buffer-local q and focus, and must
+    -- not have q overwritten with the popup-killing bail.
+    if vim.api.nvim_win_get_config(win).relative == "" then
+      local buf = vim.api.nvim_win_get_buf(win)
+      vim.keymap.set("n", "q", M.bail,
+        { buffer = buf, desc = "bail (confirm if collected)" })
+      local name = vim.api.nvim_buf_get_name(buf)
+      -- Prefer the loaded working-tree file (accurate once content is in).
+      if name ~= "" and not name:match("^codediff://") and vim.fn.filereadable(name) == 1 then
+        worktree_win = win
+      end
+      -- Fallback: the rightmost non-explorer window. CodeDiffOpen fires before the
+      -- async file content loads, when the modified pane is still a placeholder and
+      -- isn't readable yet; focusing it by POSITION now (layout is
+      -- explorer|HEAD|working-tree) means the content loads into the already-focused
+      -- window, so there's no late, jarring focus jump.
+      if vim.bo[buf].filetype ~= "codediff-explorer" then
+        local col = vim.api.nvim_win_get_position(win)[2]
+        if col > rightmost_col then
+          rightmost_col, rightmost_win = col, win
+        end
       end
     end
+  end
+  -- Don't steal focus if the user is currently in one of our floats (writing a
+  -- comment, or in the collected list). codediff emits CodeDiffOpen/FileSelect as
+  -- its async render settles, which would otherwise yank focus out of the comment
+  -- buffer mid-typing — repeatedly.
+  if vim.api.nvim_win_get_config(0).relative ~= "" then
+    return
   end
   local target = worktree_win or rightmost_win
   if target and vim.api.nvim_win_is_valid(target) then
