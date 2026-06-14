@@ -490,6 +490,9 @@ function M.open_comment_buffer(ref, existing_index)
     close()
   end, { buffer = buf, desc = "cancel comment" })
   vim.keymap.set("n", "q", close, { buffer = buf, desc = "cancel comment" })
+  -- Also save on a reflexive `:w` (the user's save habit), which sidesteps the
+  -- <leader>qw multi-key timeout accidentally discarding a comment.
+  vim.api.nvim_create_autocmd("BufWriteCmd", { buffer = buf, callback = save })
   vim.cmd("startinsert")
 end
 
@@ -556,23 +559,28 @@ end
 local function on_codediff_ready()
   local worktree_win, rightmost_win, rightmost_col = nil, nil, -1
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
-      { buffer = buf, desc = "bail (send nothing)" })
-    local name = vim.api.nvim_buf_get_name(buf)
-    -- Prefer the loaded working-tree file (accurate once content is in).
-    if name ~= "" and not name:match("^codediff://") and vim.fn.filereadable(name) == 1 then
-      worktree_win = win
-    end
-    -- Fallback: the rightmost non-explorer window. CodeDiffOpen fires before the
-    -- async file content loads, when the modified pane is still a placeholder and
-    -- isn't readable yet; focusing it by POSITION now (layout is
-    -- explorer|HEAD|working-tree) means the content loads into the already-focused
-    -- window, so there's no late, jarring focus jump.
-    if vim.bo[buf].filetype ~= "codediff-explorer" then
-      local col = vim.api.nvim_win_get_position(win)[2]
-      if col > rightmost_col then
-        rightmost_col, rightmost_win = col, win
+    -- Only touch real (non-floating) codediff windows. Our floats (comment
+    -- buffer, collected list) manage their own buffer-local q and focus, and must
+    -- not have q overwritten with the popup-killing bail.
+    if vim.api.nvim_win_get_config(win).relative == "" then
+      local buf = vim.api.nvim_win_get_buf(win)
+      vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
+        { buffer = buf, desc = "bail (send nothing)" })
+      local name = vim.api.nvim_buf_get_name(buf)
+      -- Prefer the loaded working-tree file (accurate once content is in).
+      if name ~= "" and not name:match("^codediff://") and vim.fn.filereadable(name) == 1 then
+        worktree_win = win
+      end
+      -- Fallback: the rightmost non-explorer window. CodeDiffOpen fires before the
+      -- async file content loads, when the modified pane is still a placeholder and
+      -- isn't readable yet; focusing it by POSITION now (layout is
+      -- explorer|HEAD|working-tree) means the content loads into the already-focused
+      -- window, so there's no late, jarring focus jump.
+      if vim.bo[buf].filetype ~= "codediff-explorer" then
+        local col = vim.api.nvim_win_get_position(win)[2]
+        if col > rightmost_col then
+          rightmost_col, rightmost_win = col, win
+        end
       end
     end
   end
