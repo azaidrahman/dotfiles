@@ -109,7 +109,11 @@ function M.refresh_list()
   end
 end
 
--- Jump to a collected ref's file+line within the open diffview.
+-- Jump to a collected ref's file+line within the open codediff view (best-effort).
+-- Uses codediff's internal explorer API (mirrors its own focus_file recipe):
+-- resolve the path to a status node, select it via on_file_select, then place the
+-- cursor on the saved line in the modified pane once the async open settles.
+-- Degrades to a no-op if the explorer or file cannot be found, rather than erroring.
 function M.jump_to(ref)
   local path, s = ref:match("^(.-):(%d+)%-")
   if not path then
@@ -120,23 +124,65 @@ function M.jump_to(ref)
     vim.api.nvim_win_close(M.list_win, true)
     M.list_win = nil
   end
-  local ok, lib = pcall(require, "diffview.lib")
+  local ok, lifecycle = pcall(require, "codediff.ui.lifecycle")
   if not ok then
     return
   end
-  local view = lib.get_current_view()
-  if not (view and view.panel) then
+  local tabpage = vim.api.nvim_get_current_tabpage()
+  local explorer = lifecycle.get_explorer(tabpage)
+  if not explorer or not explorer.status_result then
     return
   end
-  for _, f in ipairs(view.panel:ordered_file_list()) do
-    if f.path == path then
-      view:set_file(f, false, true)
-      vim.schedule(function()
-        pcall(vim.fn.cursor, s, 1)
-      end)
-      return
+  -- Resolve path -> file node + group, in the plugin's own search order.
+  local sr = explorer.status_result
+  local file, group
+  for _, g in ipairs({ "conflicts", "unstaged", "staged" }) do
+    for _, f in ipairs(sr[g] or {}) do
+      if f.path == path then
+        file, group = f, g
+        break
+      end
+    end
+    if file then
+      break
     end
   end
+  if not file then
+    return
+  end
+  -- Move the explorer cursor onto that node (mirrors codediff's get_node loop).
+  if explorer.winid and vim.api.nvim_win_is_valid(explorer.winid)
+      and explorer.bufnr and vim.api.nvim_buf_is_valid(explorer.bufnr) then
+    for l = 1, vim.api.nvim_buf_line_count(explorer.bufnr) do
+      local node = explorer.tree:get_node(l)
+      if node and node.data and node.data.path == file.path and node.data.group == group then
+        vim.api.nvim_win_set_cursor(explorer.winid, { l, 0 })
+        break
+      end
+    end
+  end
+  -- Open the diff with the exact file_data shape the plugin uses.
+  explorer.on_file_select({
+    path = file.path,
+    old_path = file.old_path,
+    status = file.status,
+    git_root = explorer.git_root,
+    group = group,
+  })
+  -- on_file_select opens asynchronously and only jumps to the first change, so
+  -- place the cursor on the saved line in the modified pane after it settles.
+  vim.schedule(function()
+    vim.defer_fn(function()
+      local _, modified_win = lifecycle.get_windows(tabpage)
+      if modified_win and vim.api.nvim_win_is_valid(modified_win) then
+        local _, modified_buf = lifecycle.get_buffers(tabpage)
+        local last = (modified_buf and vim.api.nvim_buf_is_valid(modified_buf)
+          and vim.api.nvim_buf_line_count(modified_buf)) or s
+        vim.api.nvim_win_set_cursor(modified_win, { math.min(s, last), 0 })
+        vim.api.nvim_set_current_win(modified_win)
+      end
+    end, 50)
+  end)
 end
 
 function M.toggle_list()
