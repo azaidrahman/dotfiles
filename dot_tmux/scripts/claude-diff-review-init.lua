@@ -25,19 +25,19 @@ vim.g.maplocalleader = " "
 vim.o.number = true
 vim.o.signcolumn = "yes"
 vim.o.termguicolors = true
-vim.o.background = "light"
+vim.o.background = "dark"
 
 local repo = vim.env.REPO
 if repo and repo ~= "" then
   vim.cmd("cd " .. vim.fn.fnameescape(repo))
 end
 
--- Warm light theme so codediff's diff highlights read clearly: it draws
+-- Warm dark theme so codediff's diff highlights read clearly: it draws
 -- line-level diffs from DiffAdd/DiffDelete and derives char-level from them, so
--- the muddy default colorscheme made changes hard to see. gruvbox (light) has a
--- cream/brown background with well-defined, high-contrast diff groups (DiffText
--- is a bold amber). pcall-guarded so a missing plugin degrades to the default
--- colorscheme rather than erroring the popup.
+-- the muddy default colorscheme made changes hard to see. gruvbox (dark) has a
+-- warm dark background with well-defined, high-contrast diff groups (DiffText is
+-- a bright amber, so changed chars pop). pcall-guarded so a missing plugin
+-- degrades to the default colorscheme rather than erroring the popup.
 pcall(function()
   vim.cmd.colorscheme("gruvbox")
 end)
