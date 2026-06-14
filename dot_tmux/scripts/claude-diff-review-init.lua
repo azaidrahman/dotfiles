@@ -262,6 +262,12 @@ function M.toggle_list()
       M.jump_to(M.collected[idx].ref)
     end
   end, { buffer = buf, desc = "jump to ref" })
+  vim.keymap.set("n", "e", function()
+    local idx = vim.fn.line(".")
+    if M.collected[idx] then
+      M.open_comment_buffer(M.collected[idx].ref, idx)
+    end
+  end, { buffer = buf, desc = "edit comment" })
 end
 
 function M.confirm()
