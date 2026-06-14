@@ -12,7 +12,7 @@
 --   <leader><CR>    confirm: paste refs to the origin pane (errors if not Claude)
 --   q  /  :q        bail — quit, send nothing
 --   <leader>?       show this cheatsheet
--- codediff nav: ]f/[f next/prev file · <CR> open file from explorer
+-- codediff nav: ]f/[f or <Tab>/<S-Tab> next/prev file · <CR> open from explorer
 --   <C-h/j/k/l> move between windows · ]c/[c hunk · <C-f>/<C-b> scroll
 --   t toggle side-by-side/inline · i list/tree · gc fold unchanged
 
@@ -327,7 +327,7 @@ function M.show_help()
     " q / :q        bail — quit, send nothing",
     " <leader>?     toggle this help",
     "",
-    " nav: ]f/[f file · ]c/[c hunk · <C-h/j/k/l> windows",
+    " nav: ]f/[f or Tab/S-Tab file · ]c/[c hunk · <C-h/j/k/l> windows",
     "      <CR> open file · t layout · i list/tree · gc fold unchanged",
   }
   local buf = vim.api.nvim_create_buf(false, true)
@@ -416,6 +416,12 @@ vim.keymap.set("n", "<leader>z", M.jump_repo, { desc = "jump to another repo (zo
 vim.keymap.set("n", "<leader>?", M.show_help, { desc = "show diff-review key cheatsheet" })
 vim.keymap.set("n", "<leader><CR>", M.confirm, { desc = "confirm & paste refs to Claude" })
 vim.keymap.set("n", "q", function() vim.cmd("qa!") end, { desc = "bail (send nothing)" })
+
+-- Tab / Shift-Tab cycle files too, as aliases for ]f/[f (old diffview muscle
+-- memory). codediff's public navigation API acts on the current diff session, so
+-- these work from both the explorer and the diff panes, and no-op when none is open.
+vim.keymap.set("n", "<Tab>", function() require("codediff").next_file() end, { desc = "next file" })
+vim.keymap.set("n", "<S-Tab>", function() require("codediff").prev_file() end, { desc = "prev file" })
 
 -- Ctrl+h/j/k/l move between windows (file panel <-> diff sides), matching the
 -- vim-tmux-navigator muscle memory. Plain wincmd — no tmux integration needed
