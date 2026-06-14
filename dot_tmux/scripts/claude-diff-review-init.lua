@@ -18,18 +18,28 @@
 
 local data = vim.fn.stdpath("data")
 vim.opt.rtp:prepend(data .. "/lazy/codediff.nvim")
+vim.opt.rtp:prepend(data .. "/lazy/folkeTokyonight")
 
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 vim.o.number = true
 vim.o.signcolumn = "yes"
 vim.o.termguicolors = true
-vim.o.background = "dark"
+vim.o.background = "light"
 
 local repo = vim.env.REPO
 if repo and repo ~= "" then
   vim.cmd("cd " .. vim.fn.fnameescape(repo))
 end
+
+-- Light theme so codediff's diff highlights read clearly: it draws line-level
+-- diffs from DiffAdd/DiffDelete and derives char-level highlights from them, so
+-- the muddy default colorscheme made changes hard to see. tokyonight's "day"
+-- style has well-defined, high-contrast diff groups. pcall-guarded so a missing
+-- plugin degrades to the default colorscheme rather than erroring the popup.
+pcall(function()
+  vim.cmd.colorscheme("tokyonight-day")
+end)
 
 -- codediff config: side-by-side, explorer on the left. codediff does not bind
 -- bare <space>, so our leader works. It DOES bind <leader>hs/hu/hr to
