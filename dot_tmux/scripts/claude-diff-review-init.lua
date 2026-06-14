@@ -108,7 +108,7 @@ end
 
 local function add_ref(s, e)
   local ref = rel_path() .. ":" .. s .. "-" .. e
-  table.insert(M.collected, ref)
+  table.insert(M.collected, { ref = ref, comment = "" })
   vim.notify("+ collected (" .. #M.collected .. "): " .. ref)
 end
 
@@ -116,7 +116,19 @@ local function list_lines()
   if #M.collected == 0 then
     return { "(nothing collected)" }
   end
-  return vim.deepcopy(M.collected)
+  local out = {}
+  for _, entry in ipairs(M.collected) do
+    local first = "(no comment)"
+    if entry.comment ~= "" then
+      first = vim.split(entry.comment, "\n", { plain = true })[1]
+    end
+    local line = entry.ref .. "  │ " .. first
+    if #line > 58 then
+      line = line:sub(1, 57) .. "…"
+    end
+    table.insert(out, line)
+  end
+  return out
 end
 
 function M.refresh_list()
@@ -253,7 +265,7 @@ function M.toggle_list()
   vim.keymap.set("n", "<CR>", function()
     local idx = vim.fn.line(".")
     if M.collected[idx] then
-      M.jump_to(M.collected[idx])
+      M.jump_to(M.collected[idx].ref)
     end
   end, { buffer = buf, desc = "jump to ref" })
 end
@@ -278,8 +290,26 @@ function M.confirm()
     vim.notify("origin pane is not running Claude — nothing sent", vim.log.levels.ERROR)
     return
   end
-  local refs = table.concat(M.collected, " ") -- single line: no submit risk
-  vim.fn.system({ "tmux", "send-keys", "-t", pane, "-l", refs })
+  -- Compile the collected records into one review-comment message.
+  local lines = { "Please address these review comments:", "" }
+  for _, entry in ipairs(M.collected) do
+    table.insert(lines, "## " .. entry.ref)
+    if entry.comment ~= "" then
+      for _, cl in ipairs(vim.split(entry.comment, "\n", { plain = true })) do
+        table.insert(lines, cl)
+      end
+    end
+    table.insert(lines, "")
+  end
+  -- Deliver multi-line safely: a single `send-keys -l` would submit at each
+  -- newline. Load the text into a tmux paste buffer and paste it with bracketed
+  -- paste (-p) so the Claude TUI inserts it into the prompt WITHOUT submitting;
+  -- -d drops the buffer after.
+  local tmpfile = vim.fn.tempname()
+  vim.fn.writefile(lines, tmpfile)
+  vim.fn.system({ "tmux", "load-buffer", tmpfile })
+  vim.fn.system({ "tmux", "paste-buffer", "-p", "-d", "-t", pane })
+  vim.fn.delete(tmpfile)
   vim.cmd("qa!")
 end
 
