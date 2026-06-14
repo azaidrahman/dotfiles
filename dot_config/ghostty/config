@@ -69,7 +69,7 @@ background-opacity = 1
 background-blur = true
 
 unfocused-split-opacity = 0.2
-keybind = shift+enter=text:\x1b\r
+# keybind = shift+enter=text:\x1b\r
 #
 # https://ghostty.org/docs/help/terminfo#ssh
 # shell-integration-features = ssh-terminfo,ssh-env
