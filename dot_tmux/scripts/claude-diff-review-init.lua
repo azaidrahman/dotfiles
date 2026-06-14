@@ -18,7 +18,7 @@
 
 local data = vim.fn.stdpath("data")
 vim.opt.rtp:prepend(data .. "/lazy/codediff.nvim")
-vim.opt.rtp:prepend(data .. "/lazy/folkeTokyonight")
+vim.opt.rtp:prepend(data .. "/lazy/gruvbox.nvim")
 
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
@@ -32,13 +32,14 @@ if repo and repo ~= "" then
   vim.cmd("cd " .. vim.fn.fnameescape(repo))
 end
 
--- Light theme so codediff's diff highlights read clearly: it draws line-level
--- diffs from DiffAdd/DiffDelete and derives char-level highlights from them, so
--- the muddy default colorscheme made changes hard to see. tokyonight's "day"
--- style has well-defined, high-contrast diff groups. pcall-guarded so a missing
--- plugin degrades to the default colorscheme rather than erroring the popup.
+-- Warm light theme so codediff's diff highlights read clearly: it draws
+-- line-level diffs from DiffAdd/DiffDelete and derives char-level from them, so
+-- the muddy default colorscheme made changes hard to see. gruvbox (light) has a
+-- cream/brown background with well-defined, high-contrast diff groups (DiffText
+-- is a bold amber). pcall-guarded so a missing plugin degrades to the default
+-- colorscheme rather than erroring the popup.
 pcall(function()
-  vim.cmd.colorscheme("tokyonight-day")
+  vim.cmd.colorscheme("gruvbox")
 end)
 
 -- codediff config: side-by-side, explorer on the left. codediff does not bind
