@@ -50,12 +50,13 @@ require("codediff").setup({
 -- ── collection state ──────────────────────────────────────────────────────
 local M = { collected = {} }
 
--- The HEAD/left side of a diffview is a `diffview://` git-blob URI; the
--- working-tree side is the real file on disk. Only the latter has line numbers
--- that match the actual file, so collection is restricted to it.
+-- The HEAD/left side is a `codediff://` virtual buffer (filereadable returns 0);
+-- the working-tree side is the real file on disk. Only the latter has line
+-- numbers that match the actual file, so collection is restricted to it. The
+-- filereadable check is the real guard; the scheme check is a fast early-out.
 local function is_worktree_side()
   local name = vim.api.nvim_buf_get_name(0)
-  if name == "" or name:match("^diffview://") then
+  if name == "" or name:match("^codediff://") then
     return false
   end
   return vim.fn.filereadable(name) == 1
@@ -68,7 +69,7 @@ end
 
 -- Find the changed-hunk line range (in the new/working file) containing `line`,
 -- by parsing `git diff -U0 HEAD` for the current file (HEAD, to match what
--- diffview.open() shows: working tree vs HEAD, incl. staged changes).
+-- :CodeDiff shows: working tree vs HEAD, incl. staged changes).
 -- Returns start,stop or nil.
 local function hunk_range_at(line)
   local file = vim.api.nvim_buf_get_name(0)
