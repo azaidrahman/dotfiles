@@ -208,7 +208,7 @@ function M.confirm()
   vim.cmd("qa!")
 end
 
--- Re-point the popup at another git repo, cd-ing there and reopening diffview.
+-- Re-point the popup at another git repo, cd-ing there and reopening codediff.
 -- Collected refs are repo-relative, so switching clears them for a fresh context.
 local function switch_repo(dir)
   if not dir or dir == "" or vim.fn.isdirectory(dir) == 0 then
@@ -219,7 +219,15 @@ local function switch_repo(dir)
     vim.notify("not a git repo: " .. dir, vim.log.levels.WARN)
     return
   end
-  pcall(function() require("diffview").close() end)
+  -- Tear down any open codediff view, then reset to a single empty buffer/tab so
+  -- the next :CodeDiff takes the open path (not its toggle-close path). Sequence
+  -- per codediff source: cleanup_all() clears session state/highlights/keymaps
+  -- but does NOT close windows/tabs (and is a safe no-op when nothing is open);
+  -- tabonly/enew/only do the actual window reset.
+  pcall(function() require("codediff.ui.lifecycle").cleanup_all() end)
+  vim.cmd("silent! tabonly")
+  vim.cmd("silent! enew")
+  vim.cmd("silent! only")
   vim.cmd("cd " .. vim.fn.fnameescape(dir))
   if #M.collected > 0 then
     M.collected = {}
@@ -230,7 +238,7 @@ local function switch_repo(dir)
   if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
     vim.api.nvim_win_set_height(M.list_win, 1)
   end
-  require("diffview").open()
+  vim.cmd("CodeDiff")
 end
 
 -- Show a cheatsheet of this popup's custom keys in a floating window.
