@@ -431,20 +431,33 @@ for _, k in ipairs({ "h", "j", "k", "l" }) do
   vim.keymap.set("n", "<C-" .. k .. ">", "<C-w>" .. k, { desc = "focus window " .. k })
 end
 
--- codediff binds buffer-local `q` to close its own view, which would shadow our
--- global `q -> qa!`. Re-assert the bail binding across the popup's windows after
--- codediff opens or selects a file (scheduled so it runs AFTER codediff sets its
--- own keymaps). Our floats (collected list, help) set their own buffer-local q.
-local function rebind_bail()
+-- Run after codediff opens or switches a file (scheduled so it runs AFTER
+-- codediff sets its own keymaps/layout). Two jobs:
+--  1. Re-assert `q -> qa!` on every window: codediff binds buffer-local `q` to
+--     close its own view, which would otherwise shadow our global bail. (Our
+--     floats set their own buffer-local q.)
+--  2. Land focus in the working-tree (right) pane — the only side collection
+--     works on — so `<leader>a` collects immediately without window-hopping.
+--     It's identified the same way is_worktree_side() does: a real, readable
+--     on-disk file (not the codediff:// HEAD side, not the nofile explorer).
+local function on_codediff_ready()
+  local worktree_win
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     local buf = vim.api.nvim_win_get_buf(win)
     vim.keymap.set("n", "q", function() vim.cmd("qa!") end,
       { buffer = buf, desc = "bail (send nothing)" })
+    local name = vim.api.nvim_buf_get_name(buf)
+    if name ~= "" and not name:match("^codediff://") and vim.fn.filereadable(name) == 1 then
+      worktree_win = win
+    end
+  end
+  if worktree_win and vim.api.nvim_win_is_valid(worktree_win) then
+    vim.api.nvim_set_current_win(worktree_win)
   end
 end
 vim.api.nvim_create_autocmd("User", {
   pattern = { "CodeDiffOpen", "CodeDiffFileSelect" },
-  callback = function() vim.schedule(rebind_bail) end,
+  callback = function() vim.schedule(on_codediff_ready) end,
 })
 
 -- Open the working-tree diff once the UI is ready. Guarded so that a headless
