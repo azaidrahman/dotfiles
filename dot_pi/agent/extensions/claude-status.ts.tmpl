@@ -1,0 +1,173 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
+
+// pi-tui ships under different scopes depending on the installed pi build
+// (newer @earendil-works/*, older Homebrew @mariozechner/*). Resolve through
+// pi's own module loader against whichever is present, and degrade gracefully
+// if neither resolves so a missing module never kills the whole extension.
+let truncateToWidth: (line: string, width: number) => string = (line, width) => line.slice(0, Math.max(0, width));
+let visibleWidth: (line: string) => number = (line) => line.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, "").length;
+
+for (const scope of ["@earendil-works/pi-tui", "@mariozechner/pi-tui"]) {
+    try {
+        const mod = await import(scope);
+        truncateToWidth = mod.truncateToWidth;
+        visibleWidth = mod.visibleWidth;
+        break;
+    } catch {
+        // try the next scope
+    }
+}
+import * as path from "node:path";
+
+// LiteLLM proxy base URL — baked per-host at `chezmoi apply` time, matching
+// litellm-provider.ts.tmpl: aqua reaches onyx's proxy over Tailscale, onyx
+// talks to its own local proxy, any other host skips the weekly-cost feature.
+// The key is never stored here; it is read from $LITELLM_MASTER_KEY (exported
+// by the encrypted ~/.zshenv) and expanded by the shell in the curl call.
+{{- if eq .chezmoi.hostname "aqua" }}
+const LITELLM_BASE_URL = "http://onyx:4000";
+{{- else if eq .chezmoi.hostname "onyx" }}
+const LITELLM_BASE_URL = "http://localhost:4000";
+{{- else }}
+const LITELLM_BASE_URL = "";
+{{- end }}
+
+export default function (pi: ExtensionAPI) {
+    let weeklyCostStr = "$0.000";
+    let intervalId: NodeJS.Timeout;
+    // ctx.ui has no requestRender(); only the `tui` passed to the footer
+    // callback does. Capture it so background updates can trigger a re-render.
+    let tui: { requestRender: () => void } | undefined;
+
+    // Fetch the weekly cost from LiteLLM in the background. $LITELLM_MASTER_KEY
+    // is a literal here (not a JS ${} interpolation) so the shell expands it.
+    const updateWeeklyCost = async () => {
+        if (!LITELLM_BASE_URL) return; // host without access to the LiteLLM proxy
+        try {
+            const command = `curl -s -X GET "${LITELLM_BASE_URL}/key/info" -H "Authorization: Bearer $LITELLM_MASTER_KEY"`;
+            const { stdout } = await execAsync(command);
+            const data = JSON.parse(stdout);
+
+            if (data && data.info && typeof data.info.spend !== 'undefined') {
+                const spend = data.info.spend;
+                weeklyCostStr = `$${Number(spend).toFixed(3)}`;
+            }
+        } catch (e) {
+            // Silently ignore if proxy is down
+        }
+    };
+
+    pi.on("session_start", async (_event, ctx) => {
+        // Fetch immediately, then every 10 seconds
+        updateWeeklyCost().catch(() => {});
+        intervalId = setInterval(() => {
+            updateWeeklyCost().catch(() => {});
+            tui?.requestRender();
+        }, 10000);
+
+        // Set the custom footer component
+        ctx.ui.setFooter((tuiInstance, theme, footerData) => {
+            tui = tuiInstance;
+            // Re-render when the git branch changes
+            const unsub = footerData.onBranchChange(() => tui.requestRender());
+
+            return {
+                dispose: unsub,
+                invalidate() {}, // We don't cache anything that needs clearing on theme change
+                render(width: number): string[] {
+                    // 1. Calculate total cost for the current session/branch
+                    let sessionCost = 0;
+                    for (const e of ctx.sessionManager.getBranch()) {
+                        if (e.type === "message" && e.message.role === "assistant") {
+                            const m = e.message as AssistantMessage;
+                            if (m.usage?.cost?.total) {
+                                sessionCost += m.usage.cost.total;
+                            } else if (m.usage?.input && m.usage?.output) {
+                                // Fallback for providers that don't emit cost
+                                sessionCost += (m.usage.input / 1000000) * 0.07;
+                                sessionCost += (m.usage.output / 1000000) * 0.21;
+                            }
+                        }
+                    }
+
+                    // Helper to format cost with dynamic color (Green -> Yellow -> Red)
+                    const colorizeCost = (val: number, prefix: string) => {
+                        let str = `${prefix}$${val.toFixed(3)}`;
+                        if (val < 10) {
+                            return `\x1b[38;2;0;255;0m${str}\x1b[39m`;
+                        } else if (val < 50) {
+                            const ratio = (val - 10) / 40;
+                            const r = Math.min(255, Math.floor(ratio * 510));
+                            const g = Math.min(255, Math.floor((1 - ratio) * 510));
+                            return `\x1b[38;2;${r};${g};0m${str}\x1b[39m`;
+                        } else {
+                            return `\x1b[38;2;255;0;0m${str}\x1b[39m`;
+                        }
+                    };
+
+                    const sessCostStr = colorizeCost(sessionCost, "");
+                    const wkCostVal = Number(weeklyCostStr.replace('$', '')) || 0;
+                    const wkCostColorStr = colorizeCost(wkCostVal, "wk:");
+
+                    const combinedCostStr = `${sessCostStr} ${theme.fg("dim", "|")} ${wkCostColorStr}`;
+
+                    // 3. Model
+                    const modelId = ctx.model?.id || "no-model";
+                    const modelStr = theme.fg("accent", modelId);
+
+                    // 4. Effort / Thinking
+                    const thinkingLevel = pi.getThinkingLevel();
+                    const effortStr = theme.fg("dim", `effort: ${thinkingLevel}`);
+
+                    // 5. Context Usage
+                    const usage = ctx.getContextUsage();
+                    const tokens = usage?.tokens || 0;
+                    const contextWindow = ctx.model?.contextWindow || 128000;
+                    const pct = ((tokens / contextWindow) * 100).toFixed(1);
+                    const ctxStr = theme.fg("dim", `ctx: ${pct}%`);
+
+                    // 6. Worktree and Branch
+                    const worktree = path.basename(ctx.cwd);
+                    const branch = footerData.getGitBranch();
+                    const rightStr = theme.fg("dim", branch ? `${worktree} (${branch})` : worktree);
+
+                    // Assemble the left side
+                    const leftStr = `${modelStr}  ${effortStr}  ${combinedCostStr}  ${ctxStr}`;
+
+                    // 7. Calculate spacing and layout
+                    const leftVisible = visibleWidth(leftStr);
+                    const rightVisible = visibleWidth(rightStr);
+
+                    const padLen = Math.max(1, width - leftVisible - rightVisible);
+                    const pad = " ".repeat(padLen);
+
+                    // Return the single truncated line
+                    return [truncateToWidth(leftStr + pad + rightStr, width)];
+                }
+            };
+        });
+    });
+
+    pi.on("turn_end", async (_event, ctx) => {
+        // Fetch new cost immediately after completion, then wait 2s and fetch again
+        // because LiteLLM writes to Postgres asynchronously and might lag slightly behind.
+        updateWeeklyCost().catch(() => {}).finally(() => {
+            tui?.requestRender();
+        });
+
+        setTimeout(() => {
+            updateWeeklyCost().catch(() => {}).finally(() => {
+                tui?.requestRender();
+            });
+        }, 2000);
+    });
+
+    pi.on("exit", async () => {
+        if (intervalId) clearInterval(intervalId);
+    });
+}
