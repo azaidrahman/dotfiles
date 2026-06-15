@@ -1,0 +1,78 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+// LiteLLM proxy provider — managed by chezmoi; the base URL is baked per-host
+// at `chezmoi apply` time so this file is context-aware:
+//   aqua  -> reaches the proxy running on onyx over Tailscale
+//   onyx  -> talks to its own local proxy
+//   other -> no proxy access, registration is skipped
+// The master key is never stored here; it is read from $LITELLM_MASTER_KEY
+// (exported by the encrypted ~/.zshenv) and interpolated by pi at load time.
+{{- if eq .chezmoi.hostname "aqua" }}
+const LITELLM_BASE_URL = "http://onyx:4000";
+{{- else if eq .chezmoi.hostname "onyx" }}
+const LITELLM_BASE_URL = "http://localhost:4000";
+{{- else }}
+const LITELLM_BASE_URL = "";
+{{- end }}
+
+export default function (pi: ExtensionAPI) {
+	if (!LITELLM_BASE_URL) return; // host without access to the LiteLLM proxy
+
+	const cost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+
+	pi.registerProvider("litellm", {
+		name: "LiteLLM (onyx)",
+		baseUrl: LITELLM_BASE_URL,
+		apiKey: "$LITELLM_MASTER_KEY",
+		// All models are served through LiteLLM's Anthropic Messages endpoint
+		// (/v1/messages). LiteLLM translates this to each backend (vertex_ai
+		// gemini + claude), so one uniform api covers the whole model list and
+		// pi sends the correct x-api-key auth header. Verified end-to-end
+		// against onyx for both gemini and claude. (openai-responses also works
+		// via /v1/responses if a model ever needs it.)
+		api: "anthropic-messages",
+		models: [
+			{
+				id: "gemini-3.1-pro-preview",
+				name: "Gemini 3.1 Pro (litellm)",
+				reasoning: true,
+				input: ["text", "image"],
+				cost,
+				contextWindow: 1048576,
+				maxTokens: 65536,
+			},
+			{
+				id: "gemini-3.5-flash",
+				name: "Gemini 3.5 Flash (litellm)",
+				reasoning: false,
+				input: ["text", "image"],
+				cost,
+				contextWindow: 1048576,
+				maxTokens: 65536,
+			},
+			{
+				// reasoning:false on purpose — Vertex's claude-opus-4-8 rejects
+				// the Anthropic "thinking.type.enabled" param that pi emits when
+				// reasoning is on (it wants the newer adaptive-thinking format).
+				// Flagging it as non-reasoning keeps the model usable; revisit if
+				// pi gains adaptive-thinking support.
+				id: "claude-opus-4-8",
+				name: "Claude Opus 4.8 (litellm)",
+				reasoning: false,
+				input: ["text", "image"],
+				cost,
+				contextWindow: 200000,
+				maxTokens: 32768,
+			},
+			{
+				id: "claude-sonnet-4-6",
+				name: "Claude Sonnet 4.6 (litellm)",
+				reasoning: true,
+				input: ["text", "image"],
+				cost,
+				contextWindow: 200000,
+				maxTokens: 65536,
+			},
+		],
+	});
+}

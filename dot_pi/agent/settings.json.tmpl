@@ -1,6 +1,10 @@
 {
   "lastChangelogVersion": "0.79.3",
+{{- if or (eq .chezmoi.hostname "aqua") (eq .chezmoi.hostname "onyx") }}
+  "defaultProvider": "litellm",
+{{- else }}
   "defaultProvider": "google",
+{{- end }}
   "defaultModel": "gemini-3.1-pro-preview",
   "defaultThinkingLevel": "xhigh"
 }
