@@ -1,16 +1,58 @@
-# piv - Pi coding agent on the Vertex backend (Gemini).
+# piv - Pi coding agent on the Vertex backend (Gemini/Claude via LiteLLM).
 #       Claude Code can't drive Gemini natively, so Gemini work lives here.
-#       Pi reads Agent Skills from ~/.agents/skills/ (shared skill farm;
-#       re-sync with ~/.agents/sync-skills.sh).
+#       Pi talks to a local LiteLLM proxy (localhost:4000) that forwards to
+#       Vertex AI and tracks spend. This wrapper makes sure that proxy is up
+#       before launching pi, auto-starting it when possible.
 #
 #   piv [pi-args...]   Run Pi against Vertex AI (default: gemini-3.1-pro-preview).
 #                      Switch models in-session, or override:
-#                        piv --model gemini-3-flash-preview
-#                      (`pi --list-models google-vertex` shows the full list;
-#                       note there is no "gemini-3.5-flash" on Vertex.)
+#                        piv --model claude-opus-4-8
+#                      (`pi --list-models` shows the configured list.)
 #
 # Auth: Application Default Credentials (gcloud auth application-default login).
+# Proxy: ~/projects/gamuda/litellm-tracker (docker compose; .env is chezmoi-encrypted).
+
+local _piv_dir="$HOME/projects/gamuda/litellm-tracker"
+local _piv_health="http://localhost:4000/health/liveliness"
+
+# Healthy already? Skip straight to pi.
+if ! curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1; then
+    print -u2 "piv: LiteLLM proxy not responding at localhost:4000."
+
+    # Fallback 1: can't auto-start without the compose project — bail clearly.
+    if [[ ! -f "$_piv_dir/docker-compose.yml" ]]; then
+        print -u2 "piv: compose file missing at $_piv_dir."
+        print -u2 "piv: restore it with 'chezmoi apply', then run 'docker compose -f $_piv_dir/docker-compose.yml up -d'."
+        return 1
+    fi
+
+    # Fallback 2: Docker daemon must be running to start the stack.
+    if ! docker info >/dev/null 2>&1; then
+        print -u2 "piv: Docker isn't running. Start Docker Desktop, then re-run piv"
+        print -u2 "piv: (or start the proxy yourself: docker compose -f $_piv_dir/docker-compose.yml up -d)."
+        return 1
+    fi
+
+    # Fallback 3: auto-start the stack and wait for it to become healthy.
+    print -u2 "piv: starting LiteLLM proxy (docker compose up -d)..."
+    if ! docker compose -f "$_piv_dir/docker-compose.yml" up -d >/dev/null 2>&1; then
+        print -u2 "piv: 'docker compose up -d' failed. Check: docker compose -f $_piv_dir/docker-compose.yml logs"
+        return 1
+    fi
+
+    local _i
+    for _i in {1..30}; do
+        curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1 && break
+        sleep 1
+    done
+    if ! curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1; then
+        print -u2 "piv: proxy did not become healthy within 30s."
+        print -u2 "piv: inspect with 'docker compose -f $_piv_dir/docker-compose.yml logs litellm'."
+        return 1
+    fi
+    print -u2 "piv: proxy is up."
+fi
 
 GOOGLE_CLOUD_PROJECT=gtech-sb-zaidsani-dev \
 GOOGLE_CLOUD_LOCATION=global \
-pi --provider google-vertex --model gemini-3.1-pro-preview "$@"
+pi --provider google --model gemini-3.1-pro-preview "$@"
