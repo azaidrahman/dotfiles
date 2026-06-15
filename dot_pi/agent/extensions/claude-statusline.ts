@@ -1,7 +1,21 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import { truncateToWidth } from "@earendil-works/pi-tui";
 import * as path from "node:path";
+
+// pi-tui ships under different scopes depending on the installed pi build
+// (newer @earendil-works/*, older Homebrew @mariozechner/*). Resolve through
+// pi's own module loader against whichever is present, and degrade gracefully
+// if neither resolves so a missing module never kills the whole extension.
+let truncateToWidth: (line: string, width: number) => string = (line, width) =>
+	line.slice(0, Math.max(0, width));
+for (const scope of ["@earendil-works/pi-tui", "@mariozechner/pi-tui"]) {
+	try {
+		({ truncateToWidth } = await import(scope));
+		break;
+	} catch {
+		// try the next scope
+	}
+}
 
 const PALETTE = [82, 226, 208, 196]; // green, yellow, orange, red
 const GRAY = 244;
