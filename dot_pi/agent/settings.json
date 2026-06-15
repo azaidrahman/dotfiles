@@ -1,6 +1,6 @@
 {
   "lastChangelogVersion": "0.79.3",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
+  "defaultProvider": "google",
+  "defaultModel": "gemini-3.1-pro-preview",
   "defaultThinkingLevel": "xhigh"
 }
