@@ -1,24 +1,56 @@
 # piv - Pi coding agent on the Vertex backend (Gemini/Claude via LiteLLM).
 #       Claude Code can't drive Gemini natively, so Gemini work lives here.
-#       Pi talks to a local LiteLLM proxy (localhost:4000) that forwards to
-#       Vertex AI and tracks spend. This wrapper makes sure that proxy is up
-#       before launching pi, auto-starting it when possible.
+#       Pi talks to a LiteLLM proxy that forwards to Vertex AI and tracks spend,
+#       via pi's "litellm" provider (registered by the chezmoi-managed
+#       extension dot_pi/agent/extensions/litellm-provider.ts.tmpl). This
+#       wrapper makes sure that proxy is reachable before launching pi.
+#
+#       Host-aware:
+#         onyx - the proxy runs locally (docker compose); auto-start if down.
+#         aqua - the proxy runs on onyx, reached over Tailscale at onyx:4000;
+#                only its reachability is checked (never start one here).
 #
 #   piv [pi-args...]   Run Pi against Vertex AI (default: gemini-3.1-pro-preview).
 #                      Switch models in-session, or override:
 #                        piv --model claude-opus-4-8
-#                      (`pi --list-models` shows the configured list.)
+#                      (`pi --list-models litellm` shows the configured list.)
 #
-# Auth: Application Default Credentials (gcloud auth application-default login).
-# Proxy: ~/projects/gamuda/litellm-tracker (docker compose; .env is chezmoi-encrypted).
+# Auth: the proxy (on onyx) holds the Vertex creds; pi authenticates to the
+#       proxy with $LITELLM_MASTER_KEY (exported from the encrypted ~/.zshenv).
+# Proxy source: ~/projects/gamuda/litellm-tracker (.env is chezmoi-encrypted).
 
 local _piv_dir="$HOME/projects/gamuda/litellm-tracker"
-local _piv_health="http://localhost:4000/health/liveliness"
+
+# Where does the proxy live, relative to this host?
+local _piv_base _piv_local
+if [[ "${HOST%%.*}" == "onyx" ]]; then
+    _piv_base="http://localhost:4000"
+    _piv_local=1
+else
+    _piv_base="http://onyx:4000"
+    _piv_local=0
+fi
+local _piv_health="$_piv_base/health/liveliness"
+
+if [[ -z "$LITELLM_MASTER_KEY" ]]; then
+    print -u2 "piv: \$LITELLM_MASTER_KEY is not set (expected from ~/.zshenv)."
+    print -u2 "piv: run 'chezmoi apply ~/.zshenv' and start a new shell."
+    return 1
+fi
 
 # Healthy already? Skip straight to pi.
 if ! curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1; then
-    print -u2 "piv: LiteLLM proxy not responding at localhost:4000."
+    print -u2 "piv: LiteLLM proxy not responding at $_piv_base."
 
+    if (( ! _piv_local )); then
+        # Remote proxy (we're on aqua): we don't manage onyx's docker here.
+        print -u2 "piv: the proxy runs on onyx; it can't be started from this host."
+        print -u2 "piv: check onyx is up and on the tailnet (e.g. 'ssh onyx'),"
+        print -u2 "piv: then start it there: ssh onyx 'docker compose -f $_piv_dir/docker-compose.yml up -d'."
+        return 1
+    fi
+
+    # Local proxy (we're on onyx): auto-start the stack.
     # Fallback 1: can't auto-start without the compose project — bail clearly.
     if [[ ! -f "$_piv_dir/docker-compose.yml" ]]; then
         print -u2 "piv: compose file missing at $_piv_dir."
@@ -28,7 +60,7 @@ if ! curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1; then
 
     # Fallback 2: Docker daemon must be running to start the stack.
     if ! docker info >/dev/null 2>&1; then
-        print -u2 "piv: Docker isn't running. Start Docker Desktop, then re-run piv"
+        print -u2 "piv: Docker isn't running. Start Docker, then re-run piv"
         print -u2 "piv: (or start the proxy yourself: docker compose -f $_piv_dir/docker-compose.yml up -d)."
         return 1
     fi
@@ -53,6 +85,4 @@ if ! curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1; then
     print -u2 "piv: proxy is up."
 fi
 
-GOOGLE_CLOUD_PROJECT=gtech-sb-zaidsani-dev \
-GOOGLE_CLOUD_LOCATION=global \
-pi --provider google --model gemini-3.1-pro-preview "$@"
+pi --provider litellm --model gemini-3.1-pro-preview "$@"
