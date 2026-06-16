@@ -2,7 +2,7 @@
 -- as a live terminal in a floating window. Promote the float into a split to keep
 -- the running process and its scrollback while you work.
 local M = {}
-local state = { win = nil, buf = nil }
+local state = { win = nil, buf = nil, job = nil }
 
 -- Walk up from the current file's dir until we hit a Makefile
 local function find_makefile()
@@ -56,20 +56,27 @@ function M.run()
         local buf = vim.api.nvim_create_buf(false, true)
         state.buf = buf
         state.win = open_float(buf) -- enters the float, so buf is current
-        vim.fn.jobstart({ "make", choice }, { term = true, cwd = root })
+        state.job = vim.fn.jobstart({ "make", choice }, {
+            term = true,
+            cwd = root,
+            on_exit = function() state.job = nil end,
+        })
         -- Stay in Normal-mode (mode "nt") so the buffer is navigable and <leader>
         -- mappings fire. Do NOT startinsert: in Terminal-mode, once the job exits
         -- the next keystroke closes the terminal (and leaks through). Press `i` to
         -- interact with a live process; `<esc>` brings you back to navigate.
         vim.keymap.set("t", "<esc>", [[<C-\><C-n>]], { buffer = buf })
-        vim.keymap.set("n", "q", M.close, { buffer = buf, desc = "Close run float" })
+        vim.keymap.set("n", "q", M.close, { buffer = buf, desc = "Close run float (job keeps running)" })
+        vim.keymap.set("n", "Q", M.kill, { buffer = buf, desc = "Stop the job and close the float" })
         vim.keymap.set("n", "g?", M.cheatsheet, { buffer = buf, desc = "Show run buffer keys" })
     end)
 end
 
 -- Buffer-local keys available inside a run buffer (single source of truth for g?)
 M.keys = {
-    { "q",        "Close this float (job keeps running, hidden)" },
+    { "q",        "Close: prompt to hide (keep running) or stop the job" },
+    { "Q",        "Stop the job (SIGTERM->SIGKILL the group) and close" },
+    { "<leader>qo", "Reopen the hidden run float (resume watching)" },
     { "<space>o", "Promote float into a bottom split" },
     { "i",        "Enter Terminal-mode to type into a live process" },
     { "<esc>",    "Leave Terminal-mode, back to navigating" },
@@ -86,8 +93,8 @@ function M.cheatsheet()
     vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "makerun" })
 end
 
--- q — close the floating run window (the terminal buffer/job stays alive, hidden)
-function M.close()
+-- Just hide the window; the terminal buffer/job stays alive in the background.
+local function hide()
     if state.win and vim.api.nvim_win_is_valid(state.win) then
         vim.api.nvim_win_close(state.win, false)
         state.win = nil
@@ -95,6 +102,57 @@ function M.close()
         vim.cmd("close")
     end
 end
+
+-- q — ask what to do. If the job is still running, offer to hide (keep it going,
+-- reopen later with <leader>qo) or stop it outright. If it already finished,
+-- there is nothing to keep alive, so just close.
+function M.close()
+    if not state.job then
+        return hide()
+    end
+    local choice = vim.fn.confirm(
+        "Job still running:",
+        "&Hide (keep running)\n&Stop job\n&Cancel",
+        1
+    )
+    if choice == 1 then
+        hide()
+    elseif choice == 2 then
+        M.kill()
+    end
+    -- choice 3 or <esc> (0): do nothing, stay in the float
+end
+
+-- <leader>qo — reopen the hidden run buffer in a fresh float (resume watching it)
+function M.open()
+    if not (state.buf and vim.api.nvim_buf_is_valid(state.buf)) then
+        return vim.notify("No run buffer to reopen", vim.log.levels.INFO)
+    end
+    if state.win and vim.api.nvim_win_is_valid(state.win) then
+        return vim.api.nvim_set_current_win(state.win)
+    end
+    state.win = open_float(state.buf)
+    vim.cmd("normal! G")
+end
+
+-- Q — stop the running job, then close the float. jobstop sends SIGTERM to the
+-- whole process group (nvim starts jobs via setsid) and SIGKILL if it lingers, so
+-- the make -> `go run` -> compiled child chain all dies. `go run` itself won't
+-- forward signals to its child, but the group signal reaches the child directly.
+function M.kill()
+    if state.job then
+        pcall(vim.fn.jobstop, state.job)
+        state.job = nil
+    end
+    M.close()
+end
+
+-- Belt-and-suspenders: never let a tracked job outlive nvim itself.
+vim.api.nvim_create_autocmd("VimLeavePre", {
+    callback = function()
+        if state.job then pcall(vim.fn.jobstop, state.job) end
+    end,
+})
 
 -- <leader>o — promote the float into a real split, same buffer, process intact
 function M.promote()
