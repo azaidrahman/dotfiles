@@ -1,10 +1,29 @@
 {
-  "lastChangelogVersion": "0.79.3",
+  "lastChangelogVersion": "0.79.4",
 {{- if or (eq .chezmoi.hostname "aqua") (eq .chezmoi.hostname "onyx") }}
   "defaultProvider": "litellm",
 {{- else }}
   "defaultProvider": "google",
 {{- end }}
-  "defaultModel": "gemini-3.1-pro-preview",
-  "defaultThinkingLevel": "xhigh"
+  "defaultModel": "gemini-3.5-flash",
+  "defaultThinkingLevel": "xhigh",
+  "enabledModels": [
+{{- if or (eq .chezmoi.hostname "aqua") (eq .chezmoi.hostname "onyx") }}
+    "litellm/gemini-3.5-flash",
+    "litellm/gemini-3.1-pro-preview",
+    "litellm/claude-opus-4-8",
+    "litellm/claude-sonnet-4-6"
+{{- else }}
+    "google/gemini-3.5-flash",
+    "google/gemini-3.1-pro-preview",
+    "google/claude-opus-4-8",
+    "google/claude-sonnet-4-6"
+{{- end }}
+  ],
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-lens",
+    "npm:pi-cache-optimizer"
+  ],
+  "theme": "effort-colors"
 }
