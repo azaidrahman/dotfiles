@@ -1,16 +1,16 @@
 ---
 name: branch-pane
-description: Use when — inside tmux — the user wants to fork the current branch into a new worktree opened in a new pane running claude. Triggers like "open this in a new branch/pane", "fork this into a worktree", "branch this off", "spin up a side pane".
+description: Use when — inside tmux — the user wants to fork the current Claude conversation into a new pane. Triggers like "branch this into a pane", "fork this chat into a side pane", "open a fork of this session", "branch this off".
 ---
 
-# Branch into a new pane
+# Branch the conversation into a new pane
 
-Forks the **current branch** into a fresh worktree + branch and opens it in a new
-tmux pane running `claude`. Branch name is `<current-branch>-<random id>` (e.g.
-`main-4821`) — no topic-naming, no thinking required. Your current pane and checkout
-are left untouched.
+Forks the **current Claude conversation** into a new tmux pane. Same working
+directory, same git branch — only the *session* is forked. This is the
+`/branch` built-in (conversation fork) opened side-by-side instead of in place.
 
-The `/branch` built-in forks the *conversation*; this forks the *workspace*.
+Your current pane stays attached to the **original** session, untouched — you
+never have to switch back. The new pane gets the fork.
 
 ## How to run it
 
@@ -24,27 +24,17 @@ bash "$CLAUDE_PLUGIN_ROOT/branch-pane.sh" v    # vertical (below) split
 If `$CLAUDE_PLUGIN_ROOT` isn't set, use the absolute path
 `~/.claude/skills/branch-pane/branch-pane.sh`.
 
-Then relay the script's output (branch, worktree path, new pane id) to the user. Don't
-re-derive a branch name or open the pane yourself — the script owns all of that.
+Then relay the script's output (forked session id, new pane id) to the user.
 
 ## What the script does
 
 1. Aborts if not inside tmux (`$TMUX` unset).
-2. `BRANCH=<current-branch>-<4-digit random>`, worktree at `.worktrees/<branch>` (slashes flattened).
-3. Aborts (never forces) if that branch or path already exists.
-4. `git worktree add -b` off current HEAD — no fetch, no push.
-5. Splits a new pane unfocused (`-d`), `cd`'d into the worktree, and sends `claude`.
+2. Reads the current session id from `$CLAUDE_CODE_SESSION_ID` (falls back to the
+   newest session `.jsonl` for `$PWD` if that's somehow unset).
+3. Splits a new pane unfocused (`-d`) in the same directory.
+4. Sends `claude --resume <id> --fork-session` into it — forking the conversation
+   into a fresh session that lives in the new pane.
+5. Titles the pane `fork:<short-id>` and reports.
 
-## Cleaning up forks
-
-`branch-pane-clean.sh` removes forks that are **safe** to drop — clean working tree and
-no commits unique to the branch. Dirty or unmerged forks are kept and reported.
-
-```bash
-bash "$CLAUDE_PLUGIN_ROOT/branch-pane-clean.sh"            # sweep all .worktrees/* forks
-bash "$CLAUDE_PLUGIN_ROOT/branch-pane-clean.sh" main-2097  # one specific fork
-```
-
-(Same `~/.claude/skills/branch-pane/` fallback path if `$CLAUDE_PLUGIN_ROOT` is unset.)
-
-For ticket-anchored work (Jira key, proper base branch), use [[start-ticket]] instead.
+For ticket-anchored work in an isolated worktree (Jira key, proper base branch),
+use [[start-ticket]] instead — that forks the *workspace*, this forks the *chat*.
