@@ -112,7 +112,9 @@ vim.keymap.set("n", "<leader>lx", function()
 	})
 end, { desc = "Toggle LSP diagnostics" })
 
-vim.keymap.set("n", "<leader>qr","<cmd>make<cr>", descopts("Run makefile") )
+local makerun = require("zaid.core.makerun")
+vim.keymap.set("n", "<leader>qr", makerun.run, descopts("Pick Makefile target, run in float"))
+vim.keymap.set("n", "<leader>o", makerun.promote, descopts("Promote run float to split"))
 
 vim.keymap.set("n", "<leader>pq", "<cmd>copen<CR>", descopts("Open quickfix list") )
 
