@@ -8,6 +8,37 @@ return {
         },
         config = function(_, opts)
             require("showkeys").setup(opts)
+
+            -- Durable guard against an upstream race: the timer-driven
+            -- clear_and_close and the WinClosed/TabEnter autocmds can run after
+            -- the float's window id is already invalid, so redraw() ->
+            -- update_win_w() -> nvim_win_set_config() throws. We can't patch the
+            -- plugin's `local update_win_w` directly, but we can wrap its public
+            -- entry points to no-op / reset cleanly when state.win is dead.
+            local utils = require("showkeys.utils")
+            local state = require("showkeys.state")
+            local win_dead = function()
+                return state.win and not vim.api.nvim_win_is_valid(state.win)
+            end
+
+            local orig_redraw = utils.redraw
+            utils.redraw = function(...)
+                if win_dead() then
+                    return
+                end
+                return orig_redraw(...)
+            end
+
+            local orig_clear_and_close = utils.clear_and_close
+            utils.clear_and_close = function(...)
+                if win_dead() then
+                    state.keys = {}
+                    state.win = nil
+                    return
+                end
+                return orig_clear_and_close(...)
+            end
+
             require("showkeys").toggle()
         end,
         opts = {
