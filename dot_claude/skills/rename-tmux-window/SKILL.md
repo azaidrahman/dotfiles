@@ -44,29 +44,28 @@ Apply in order to the raw Jira summary:
 
 ## 2. Apply (preserves the glyph, claims the name)
 
-`~/.claude/hooks/notify-tmux.sh` manages window names: it prefixes a status glyph
-(`●`/`⚠`/`⏸`/`✓`) stored against `@claude_base`, and on each `stop` it auto-names the
-window from Claude Code's conversation topic — **unless `@claude_autoname_done` is set.**
-So you must do two things or the auto-namer will clobber your name on the next stop:
-
-1. Store the base name in `@claude_base` (the glyph hook re-renders from this).
-2. Set `@claude_autoname_done 1` to claim the window — this tells `notify-tmux.sh`
-   the window is named, so its topic-based capture stands down.
-
-**Always target `$TMUX_PANE`**, not the bare query. `tmux display-message -p '...'`
-reports the *attached client's active window* — whichever the user is looking at right now —
-not the window this Claude pane lives in. `$TMUX_PANE` is set by tmux to this process's own
-pane, so `-t "$TMUX_PANE"` always resolves to Claude's window regardless of user focus.
+The mechanical tmux dance is scripted - pass the finished name from step 1 to:
 
 ```bash
-NAME="<the name from step 1>"
-WID=$(tmux display-message -p -t "$TMUX_PANE" '#{window_id}')
-CUR=$(tmux display-message -p -t "$TMUX_PANE" '#{window_name}')
-GLYPH=$(printf '%s' "$CUR" | grep -oE '^[●⚠⏸✓]' || true)
-tmux set-option -w -t "$WID" @claude_base "$NAME"
-tmux set-option -w -t "$WID" @claude_autoname_done 1
-tmux rename-window -t "$WID" "${GLYPH:+$GLYPH }$NAME"
+~/.claude/skills/rename-tmux-window/rename-tmux-window.sh "<name from step 1>"
 ```
+
+It prints `renamed: <glyph> <name>` on success, or exits non-zero with a message
+on stderr if not in tmux. Do not hand-type the tmux commands - the script exists
+to get the three easy-to-miss details right every time. What it guarantees, and why:
+
+- **Targets `$TMUX_PANE`**, not a bare `display-message` query. The bare query
+  reports the *attached client's active window* - whichever the user is looking at
+  right now - not the window this Claude pane lives in. `$TMUX_PANE` is set by tmux
+  to this process's own pane, so it always resolves to Claude's window. (It is
+  inherited by the script, so running it from the Bash tool targets the right window.)
+- **Sets `@claude_base`** to the glyph-less name. `~/.claude/hooks/notify-tmux.sh`
+  re-renders the window name from this on every status event - without it the glyph
+  hook reverts your name on the next event.
+- **Sets `@claude_autoname_done 1`** to claim the window. On each `stop` the hook
+  otherwise auto-names the window from Claude Code's conversation topic; this flag
+  tells it to stand down.
+- **Preserves the leading status glyph** (`●`/`⚠`/`⏸`/`✓`) if one is already present.
 
 ## 3. Confirm
 
@@ -74,8 +73,11 @@ Report the new name back (e.g. `Renamed window → ● GTI-197 jira-optimizer`).
 
 ## Common mistakes
 
-- **Skipping `@claude_base`** — the glyph hook reverts the name on the next status event without it.
-- **Skipping `@claude_autoname_done`** — `notify-tmux.sh` overwrites your name with the conversation-topic name on the next `stop` if this isn't set.
-- **Using `-t` with a bare `display-message` query** — targets the user's current window, not Claude's pane; use `$TMUX_PANE`.
-- **Using raw Jira summary verbatim** — 60-char summaries defeat status-bar readability; always squeeze.
+The three tmux-plumbing pitfalls (skipping `@claude_base` / `@claude_autoname_done`,
+or targeting the wrong window) are handled by the script in step 2 - don't re-type
+those commands by hand. The mistakes left to you are in *deciding the name*:
+
+- **Re-typing the tmux commands instead of calling the script** — reintroduces the
+  exact pitfalls the script exists to prevent.
+- **Using the raw Jira summary verbatim** — 60-char summaries defeat status-bar readability; always squeeze.
 - **Keeping ceremony verbs** (`create`, `make`, `setup`) — strip them; they appear in 80% of summaries and carry no signal.

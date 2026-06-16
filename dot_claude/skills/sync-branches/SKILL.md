@@ -13,15 +13,25 @@ Sync current feature branch up through the branch hierarchy. Supports flexible t
 
 **Default target is `develop`** unless the user explicitly asks for main or says "full sync" / "all the way".
 
-## Prerequisites
+## Preflight (scripted)
 
-Before starting, run in parallel:
-- `git status` - must be clean (no uncommitted changes)
-- `git branch --show-current` - must be on a feature branch (not develop or main)
+Run the read-only feasibility check with the chosen chain (default `develop`):
 
-**If working tree is dirty:** Stop. Tell the user to commit or stash first. Do not proceed.
+```bash
+~/.claude/skills/sync-branches/sync-preflight.sh <target...>   # e.g. develop  OR  develop main
+```
 
-**If on develop or main:** Stop. Tell the user to switch to their feature branch first.
+It fetches refs (safe), then reports per target whether an `ff-only` merge is
+possible and how many commits would move. Act on the exit code:
+
+| Exit | Meaning |
+|------|---------|
+| `2`  | Hard stop - reason on stdout (not a repo / detached / **on base** / **dirty tree**). Relay and stop. |
+| `5`  | No target is fast-forwardable - branches diverged. Tell the user to rebase the feature branch on the target first; do **not** auto-resolve. |
+| `0`  | At least one target is ff-able. Proceed to the workflow below for those targets. |
+
+The preflight does no merge, push, or checkout - those stay in the workflow, where
+the main-branch confirmation gate lives.
 
 ## Workflow
 

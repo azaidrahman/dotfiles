@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# worklog-tmux-session.sh — deterministic tmux session provisioning for one Jira ticket.
+#
+# Ensures a detached tmux session exists for <KEY>, rooted in the ticket's git
+# worktree. Idempotent: safe to run repeatedly. The only non-deterministic part of
+# the worklog tmux flow (creating a missing worktree via the start-ticket skill,
+# whose slug comes from the Jira summary) is intentionally NOT here — the caller
+# handles exit code 3.
+#
+# Usage:   worklog-tmux-session.sh <KEY> [REPO]
+#          REPO defaults to the gtech-atlas working copy.
+#
+# stdout:  one status line — "already-live: <name>" | "created: <name>"
+# Exit codes:
+#   0  session is now live (created, or already existed)
+#   3  no worktree for <KEY> yet  → caller runs start-ticket, then re-invokes
+#   2  precondition failure (bad key, repo not found, no tmux server) — msg on stderr
+set -euo pipefail
+
+KEY=${1:-}
+REPO_ARG=${2:-/Users/abdullahzaidas-sani/projects/gamuda/gtech-atlas}
+
+[ -n "$KEY" ] || { echo "usage: $0 <KEY> [REPO]" >&2; exit 2; }
+case "$KEY" in
+  [A-Z]*-[0-9]*) ;;
+  *) echo "bad key: '$KEY' (expected e.g. GTI-123)" >&2; exit 2 ;;
+esac
+
+REPO=$(git -C "$REPO_ARG" rev-parse --show-toplevel 2>/dev/null) \
+  || { echo "repo not found at: $REPO_ARG" >&2; exit 2; }
+tmux list-sessions >/dev/null 2>&1 \
+  || { echo "no tmux server running" >&2; exit 2; }
+
+# 1. Liveness — match on the key prefix so key-only sessions (GTI-333) count too.
+live=$(tmux list-sessions -F '#S' 2>/dev/null | grep -E "^${KEY}(-|$)" | head -1 || true)
+if [ -n "$live" ]; then
+  echo "already-live: $live"
+  exit 0
+fi
+
+# 2. Worktree directory tail starting with <KEY>- (parse only `worktree ` path lines,
+#    so HEAD/branch lines can't leak a branch slug in place of the directory).
+tail=$(git -C "$REPO" worktree list --porcelain \
+  | sed -n 's#^worktree .*/##p' | grep -E "^${KEY}-" | head -1 || true)
+if [ -z "$tail" ]; then
+  echo "no-worktree: $KEY"
+  exit 3
+fi
+
+# 3. Create the detached session rooted in the worktree. Sanitize the name (tmux
+#    forbids . and :) and guard against an exact-name session step 1's prefix
+#    match could miss.
+name=${tail//[.:]/-}
+dir="$REPO/.worktrees/$tail"
+if tmux has-session -t "=$name" 2>/dev/null; then
+  echo "already-live: $name"
+  exit 0
+fi
+tmux new-session -d -s "$name" -c "$dir"
+echo "created: $name"

@@ -21,9 +21,7 @@ or `stop`.
 
 ## Fixed facts
 
-- Vault root: `/Users/abdullahzaidas-sani/Documents/Zaid Personal`. The
-  `Documents - GB07162's MacBook Pro/Zaid Personal` copy is an old backup and is
-  never touched.
+- Vault root: `/Users/abdullahzaidas-sani/vaults/Polaris` (i.e. `~/vaults/Polaris`).
 - Today's entry path: `<vault>/2-Journals/Entry/<ddd, DD-MM-YYYY>.md`. Build the
   filename with `date "+%a, %d-%m-%Y"`, e.g. `Wed, 03-06-2026`.
 - Entry template: `<vault>/98-Templates/Journal Template.md`.
@@ -102,6 +100,40 @@ priorities with them, and only write the set they choose to focus on today.
 9. Before saving, confirm the new content has no U+2014 character and that each
    task line stays within the length limit.
 10. Report to the terminal: number of tasks written and the entry path.
+11. Offer the tmux session sync (see below). This is opt-in - ask once, act only
+    if the user says yes.
+
+## tmux sessions per ticket (start, opt-in)
+
+After the checklist is written, offer to give each Jira focus ticket its own
+detached tmux session, so the user can attach and start working immediately.
+Only for the Jira tickets in today's focus set - skip non-Jira task lines.
+
+The deterministic mechanics - liveness check, worktree lookup, session creation,
+duplicate/illegal-name guards - live in `worklog-tmux-session.sh` (next to this
+file). Do not re-type those commands inline; call the script. The agent's only
+job is the loop, skipping non-Jira lines, and handling the one case the script
+can't (creating a missing worktree, whose slug needs the Jira summary).
+
+For each **Jira** ticket KEY in the focus set, run:
+
+```bash
+~/.claude/skills/worklog/worklog-tmux-session.sh "<KEY>"
+```
+
+Act on the exit code:
+
+| Exit | stdout | What it means / do next |
+|------|--------|--------------------------|
+| `0`  | `already-live: <name>` or `created: <name>` | Done - report it, next ticket. |
+| `3`  | `no-worktree: <KEY>` | No worktree yet. Invoke the `start-ticket` skill for `<KEY>` to create the branch + worktree, then **re-run the script** (it now finds the worktree and creates the session). When using start-ticket here, **skip its Step 8 tmux tagging** - that renames the *current* window (running worklog); the script names the new session itself. |
+| `2`  | error on stderr | Precondition failed (repo not found / no tmux server). Report and skip the whole sync - don't improvise. |
+
+The script is idempotent: it matches existing sessions on the `<KEY>` prefix (so
+key-only sessions like `GTI-333` count), names new ones `<KEY>-<slug>` after the
+worktree directory, and roots them there with `tmux new-session -c`. Re-running
+`/worklog start` never duplicates a session. It assumes GTI worktrees live in
+`gtech-atlas` (override with a second arg: `... "<KEY>" "/path/to/repo"`).
 
 ## stop procedure
 
