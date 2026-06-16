@@ -17,8 +17,12 @@ return {
             -- entry points to no-op / reset cleanly when state.win is dead.
             local utils = require("showkeys.utils")
             local state = require("showkeys.state")
+            -- "dead" means there is no usable float to reconfigure: either the
+            -- window id was never set / already reset to nil, or it points at a
+            -- window that has since been closed. Both cases must no-op, since
+            -- the upstream crash is nvim_win_set_config(nil, ...).
             local win_dead = function()
-                return state.win and not vim.api.nvim_win_is_valid(state.win)
+                return not state.win or not vim.api.nvim_win_is_valid(state.win)
             end
 
             local orig_redraw = utils.redraw
