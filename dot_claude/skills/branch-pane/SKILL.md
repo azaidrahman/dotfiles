@@ -24,7 +24,23 @@ bash "$CLAUDE_PLUGIN_ROOT/branch-pane.sh" v    # vertical (below) split
 If `$CLAUDE_PLUGIN_ROOT` isn't set, use the absolute path
 `~/.claude/skills/branch-pane/branch-pane.sh`.
 
-Then relay the script's output (forked session id, new pane id) to the user.
+Then relay the script's output in **one line** — forked session id and new pane
+id, nothing else.
+
+## Don't waste context on either side
+
+The fork inherits the **entire conversation history**. It already knows
+everything you know: every file explored, every hypothesis, every decision. So:
+
+- **Never write a handoff summary or "marching orders" into the origin pane.**
+  Recapping what the fork should do re-states context the fork already has — it
+  wastes the origin's context for zero gain. One line (ids) is the whole message.
+- **Never send a briefing into the fork.** It resumes with full history; a
+  summary would only duplicate what it already carries.
+- If the user assigned the fork a specific angle, a **half-sentence** is the cap
+  ("fork takes the JWT angle, you stay on the DB theory") — never a quoted brief.
+
+Both panes stay minimal. The split is the handoff; the history is the briefing.
 
 ## What the script does
 
