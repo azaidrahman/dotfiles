@@ -61,6 +61,13 @@ keybind = super+i=inspector:toggle
 keybind = super+r=reload_config
 keybind = cmd+d=unbind
 
+# macOS-style word/line delete. Terminals can't forward cmd/alt to nvim, so
+# emit the control bytes that nvim insert mode (and zsh) already understand:
+#   alt+backspace -> Ctrl-W (\x17) = delete previous word
+#   cmd+backspace -> Ctrl-U (\x15) = delete to start of line
+keybind = alt+backspace=text:\x17
+keybind = cmd+backspace=text:\x15
+
 macos-icon = official
 
 # On macOS, changing this configuration requires restarting Ghostty completely.
