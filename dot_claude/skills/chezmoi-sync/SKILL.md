@@ -25,19 +25,27 @@ Detect, validate, and push chezmoi-managed dotfile changes from the current sess
 
 ## Workflow
 
-### 1. Detect Changes
+### 1. Detect Changes (scripted)
 
-Run in parallel:
+Run the read-only detector - it combines `git status` (source) + `chezmoi diff`
+(diverged targets) and scans both diffs for secrets and `private_`/`encrypted_`
+files in one pass:
 
 ```bash
-git -C ~/.local/share/chezmoi status
-chezmoi diff --no-pager
+~/.claude/skills/chezmoi-sync/chezmoi-detect.sh
 ```
 
-- **git status**: uncommitted changes in chezmoi source
-- **chezmoi diff**: target files that diverged from source (edited outside chezmoi)
+Act on the exit code:
 
-If BOTH are clean, nothing to sync. Tell the user and stop.
+| Exit | Meaning |
+|------|---------|
+| `2`  | Precondition failed (chezmoi missing / source not a repo) - relay and stop. |
+| `0`  | `status: clean` - nothing to sync. Tell the user and stop. |
+| `10` | Changes detected, no warnings - read the listings, continue to Step 2. |
+| `11` | Changes detected **WITH warnings** (possible secrets / `private_` files). STOP, show the WARNINGS section, and get explicit user sign-off before going further. |
+
+The detector mutates nothing (no `chezmoi add`/`apply`, no git writes). Reconcile
+(Step 2) and commit/push (Step 4) stay below, where the judgment and confirmation live.
 
 ### 2. Reconcile Diverged Targets
 

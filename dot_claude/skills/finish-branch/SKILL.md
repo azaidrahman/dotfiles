@@ -7,26 +7,33 @@ description: Use when done with a feature branch and want to verify nothing is l
 
 Safely close a feature branch: verify the objective is done, confirm nothing is lost, sync to develop, then delete.
 
-## Prerequisites
+## Preflight (scripted)
 
-Run in parallel before anything else:
+Run the read-only precheck - it gathers every fact this skill needs (clean tree,
+current branch, base, commits not in base, stash, remote existence) in one report
+so you don't hand-type them:
 
 ```bash
-git status                        # must be clean
-git branch --show-current         # capture current branch name
+~/.claude/skills/finish-branch/finish-branch-precheck.sh
 ```
 
-**If working tree is dirty:** Stop. Tell the user to commit or stash first.
+Act on the exit code:
 
-**If already on develop or main:** Stop. Nothing to close.
+| Exit | Meaning |
+|------|---------|
+| `2`  | Hard stop - reason on stdout (not a repo / detached / on base / **dirty tree**). Relay it and stop. |
+| `0`  | Report printed. Read `unmerged_count`, `stash_count`, `remote_exists`, and the commit listing, then continue to Step 1. |
+
+The report replaces the inline `git status` / `git log develop..HEAD` / `git stash list`
+/ `git ls-remote` commands below - don't re-run them; use its values. It mutates nothing;
+all deletes stay gated behind your confirmation in Steps 3-4.
 
 ## Step 1 — Verify "Done"ness
 
-Run these in parallel:
+The commits-unique-to-branch and stash facts already came from the preflight report
+(`unmerged_count` + listing, `stash_count`). For plans, additionally run:
 
 ```bash
-git log --oneline develop..HEAD        # commits unique to this branch
-git stash list                         # any stashed work?
 ls docs/superpowers/plans/ 2>/dev/null # any plans to check?
 ```
 
@@ -67,13 +74,11 @@ Do not proceed unless the user says yes. If plans show open tasks, name them exp
 
 ## Step 2 — Check What Would Be Lost
 
-```bash
-git log --oneline develop..HEAD
-```
+Use the preflight's `unmerged_count` (no need to re-run `git log`).
 
-If output is **empty** → branch is fully merged into develop. Safe to delete.
+If `unmerged_count: 0` → branch is fully merged into the base. Safe to delete.
 
-If output has **commits** → those commits are NOT in develop. Show them:
+If it is **> 0** → those commits are NOT in the base. Show the listing from the report:
 
 ```
 ⚠️  These commits are not in develop:
@@ -101,13 +106,8 @@ If `git branch -d` refuses (branch not fully merged per git's check), show the w
 
 ## Step 4 — Clean Up Remote (Optional)
 
-Check if the remote branch still exists:
-
-```bash
-git ls-remote --heads origin <branch>
-```
-
-If it exists, ask: **"Delete the remote branch too?"**
+The preflight already reported `remote_exists`. If it was `yes`, ask:
+**"Delete the remote branch too?"**
 
 If yes:
 ```bash
