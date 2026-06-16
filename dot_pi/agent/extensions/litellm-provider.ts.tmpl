@@ -24,17 +24,21 @@ export default function (pi: ExtensionAPI) {
 		name: "LiteLLM (onyx)",
 		baseUrl: LITELLM_BASE_URL,
 		apiKey: "$LITELLM_MASTER_KEY",
-		// All models are served through LiteLLM's Anthropic Messages endpoint
-		// (/v1/messages). LiteLLM translates this to each backend (vertex_ai
-		// gemini + claude), so one uniform api covers the whole model list and
-		// pi sends the correct x-api-key auth header. Verified end-to-end
-		// against onyx for both gemini and claude. (openai-responses also works
-		// via /v1/responses if a model ever needs it.)
+		// Claude models go through LiteLLM's Anthropic Messages endpoint
+		// (/v1/messages) — pi sends the x-api-key auth header. The Gemini models
+		// override api to "openai-completions" (/v1/chat/completions, Bearer auth):
+		// LiteLLM's Anthropic-Messages translation for Vertex Gemini drops tool-call
+		// input deltas in STREAMING mode (content_block_start carries input:{} and
+		// no input_json_delta ever follows), so every Gemini tool call arrived with
+		// empty args and failed schema validation. Non-streaming /v1/messages and
+		// streaming /v1/chat/completions both return the args intact — verified
+		// against onyx — so routing Gemini through the native OpenAI path fixes it.
 		api: "anthropic-messages",
 		models: [
 			{
 				id: "gemini-3.1-pro-preview",
 				name: "Gemini 3.1 Pro (litellm)",
+				api: "openai-completions",
 				reasoning: true,
 				input: ["text", "image"],
 				cost,
@@ -44,6 +48,7 @@ export default function (pi: ExtensionAPI) {
 			{
 				id: "gemini-3.5-flash",
 				name: "Gemini 3.5 Flash (litellm)",
+				api: "openai-completions",
 				reasoning: false,
 				input: ["text", "image"],
 				cost,
@@ -51,18 +56,18 @@ export default function (pi: ExtensionAPI) {
 				maxTokens: 65536,
 			},
 			{
-				// reasoning:false on purpose — Vertex's claude-opus-4-8 rejects
-				// the Anthropic "thinking.type.enabled" param that pi emits when
-				// reasoning is on (it wants the newer adaptive-thinking format).
-				// Flagging it as non-reasoning keeps the model usable; revisit if
-				// pi gains adaptive-thinking support.
+				// Vertex's claude-opus-4-8 requires the adaptive-thinking format
+				// (thinking.type: "adaptive"), not the legacy "thinking.type.enabled"
+				// param. forceAdaptiveThinking makes pi emit the adaptive format, so
+				// reasoning can stay on.
 				id: "claude-opus-4-8",
 				name: "Claude Opus 4.8 (litellm)",
-				reasoning: false,
+				reasoning: true,
 				input: ["text", "image"],
 				cost,
 				contextWindow: 200000,
 				maxTokens: 32768,
+				compat: { forceAdaptiveThinking: true },
 			},
 			{
 				id: "claude-sonnet-4-6",
@@ -72,6 +77,7 @@ export default function (pi: ExtensionAPI) {
 				cost,
 				contextWindow: 200000,
 				maxTokens: 65536,
+				compat: { forceAdaptiveThinking: true },
 			},
 		],
 	});
