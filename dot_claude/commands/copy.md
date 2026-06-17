@@ -1,5 +1,5 @@
 ---
-description: Copy my previous response verbatim to the macOS clipboard (for nvim MarkdownPreview via tmux prefix+p)
+description: Copy my previous response verbatim to the macOS clipboard
 allowed-tools: Bash(pbcopy)
 ---
 
@@ -12,4 +12,4 @@ raw markdown to the macOS clipboard, verbatim.
 - Do NOT re-run any tools or recompute anything; just reproduce the text you
   already wrote.
 - After copying, reply with a single short line confirming it's on the
-  clipboard (e.g. "Copied — hit tmux prefix+p to preview").
+  clipboard (e.g. "Copied to clipboard.").
