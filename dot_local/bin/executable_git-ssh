@@ -1,0 +1,6 @@
+#!/bin/sh
+# git-ssh — ssh wrapper for git (GIT_SSH_COMMAND). Seed the per-login agent on
+# first git-over-SSH, then hand off to ssh. Seeding is a no-op when already
+# seeded or when riding a forwarded agent.
+"$HOME/.local/bin/ssh-agent-seed"
+exec ssh "$@"
