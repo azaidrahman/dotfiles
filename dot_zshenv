@@ -18,9 +18,6 @@ if [ -z "$SSH_CONNECTION" ]; then
     export SSH_AUTH_SOCK="$HOME/.cache/ssh/agent.sock"
 fi
 
-# git-over-SSH seeds the session agent on first use, then hands off to ssh.
-export GIT_SSH_COMMAND="$HOME/.local/bin/git-ssh"
-
 # --- PATH-dependency vars -------------------------------------------------
 export XDG_CONFIG_HOME="$HOME/.config"
 export PYENV_ROOT="$HOME/.pyenv"
