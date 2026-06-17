@@ -22,6 +22,15 @@ export PYENV_ROOT="$HOME/.pyenv"
 export BUN_INSTALL="$HOME/.bun"
 export GOPATH="$HOME/go"
 
+# --- gcloud PATH (sourced before path array so typeset -U keeps pyenv first) -
+# Prefer brew install (aqua, onyx); fall back to classic Downloads install.
+# Completion is wired in plugins.zsh (interactive only).
+if [ -f "/opt/homebrew/share/google-cloud-sdk/path.zsh.inc" ]; then
+    . "/opt/homebrew/share/google-cloud-sdk/path.zsh.inc"
+elif [ -f "$HOME/Downloads/google-cloud-sdk/path.zsh.inc" ]; then
+    . "$HOME/Downloads/google-cloud-sdk/path.zsh.inc"
+fi
+
 # --- PATH (declarative; typeset -U auto-dedupes, keeps first occurrence) ---
 typeset -U path
 path=(
@@ -37,11 +46,3 @@ path=(
   /Applications/Obsidian.app/Contents/MacOS
   $HOME/.iximiuz/labctl/bin
 )
-
-# --- gcloud PATH (completion lives in plugins.zsh) ------------------------
-# Prefer brew install (aqua, onyx); fall back to classic Downloads install.
-if [ -f "/opt/homebrew/share/google-cloud-sdk/path.zsh.inc" ]; then
-    . "/opt/homebrew/share/google-cloud-sdk/path.zsh.inc"
-elif [ -f "$HOME/Downloads/google-cloud-sdk/path.zsh.inc" ]; then
-    . "$HOME/Downloads/google-cloud-sdk/path.zsh.inc"
-fi
