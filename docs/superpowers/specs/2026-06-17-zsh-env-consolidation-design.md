@@ -65,7 +65,7 @@ path=(
   /opt/homebrew/bin
   $HOME/.local/bin
   $HOME/.bun/bin
-  $HOME/go/bin
+  $GOPATH/bin
   /opt/homebrew/opt/openjdk/bin
   /opt/homebrew/opt/postgresql@18/bin
   $path                              # inherited
@@ -75,8 +75,8 @@ path=(
 ```
 
 PATH-dependency vars set before the block: `XDG_CONFIG_HOME`, `PYENV_ROOT`,
-`BUN_INSTALL`, and a `GOPATH` default if relied upon (else `$HOME/go/bin` is
-hardcoded as today). gcloud `path.zsh.inc` is sourced after the block (it is
+`BUN_INSTALL`, and `GOPATH` (`export GOPATH="$HOME/go"`; the PATH block uses
+`$GOPATH/bin`). gcloud `path.zsh.inc` is sourced after the block (it is
 PATH-affecting); its completion stays in `plugins.zsh`.
 
 SSH agent guard appears once in `.zshenv` (the duplicate in `exports.zsh` is
