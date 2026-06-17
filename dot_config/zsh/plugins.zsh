@@ -36,6 +36,12 @@ if command -v kubectl >/dev/null 2>&1; then
   source "$_kubectl_cache"
   unset _kubectl_cache
 fi
+
+# Replay compdefs captured from turbo-deferred plugins (zsh-completions,
+# fzf-tab). They call `compdef` AFTER the early compinit in launch.zsh, so
+# zinit queues those calls; cdreplay applies them in one pass.
+zinit cdreplay -q
+
 #
 # zinit ice wait"2" as"command" from"gh-r" lucid \
 #   mv"zoxide*/zoxide -> zoxide" \
