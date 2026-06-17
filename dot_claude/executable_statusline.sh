@@ -121,7 +121,7 @@ color_for_cost() {
 
 # ── Build segments ─────────────────────────────────────────────────────────────
 
-sep="  |  "
+sep=" | "
 segments=()        # left side
 right_segments=()  # right-aligned: worktree / branch
 
@@ -175,7 +175,7 @@ if [ -n "$mode" ]; then
   else
     color=$'\033[38;5;244m'   # gray
   fi
-  left=$(printf '%s%s\033[0m  |  %s' "$color" "${mode:0:1}" "$result")
+  left=$(printf '%s%s\033[0m | %s' "$color" "${mode:0:1}" "$result")
 else
   left="$result"
 fi
