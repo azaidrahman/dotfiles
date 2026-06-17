@@ -1,0 +1,53 @@
+# ~/.config/zsh/exports.zsh — non-sensitive, non-PATH interactive env.
+# PATH + PATH-dependent vars live in ~/.zshenv. Secrets live in secrets.zsh.
+
+# === Editor ===
+# nvr inside an embedded nvim terminal; plain nvim otherwise.
+if [ -n "$NVIM_LISTEN_ADDRESS" ]; then
+    export VISUAL="nvr -cc split --remote-wait +'set bufhidden=wipe'"
+    export EDITOR="$VISUAL"
+else
+    export VISUAL="nvim"
+    export EDITOR="nvim"
+fi
+export SUDO_EDITOR="nvim"
+export FCEDITOR="nvim"
+
+# === Prompt & UI ===
+export STARSHIP_CONFIG="$HOME/.config/zsh/starship.toml"
+export TERMINAL="Ghostty"
+
+# === Tools ===
+export FZF_DEFAULT_COMMAND='rg --files --hidden -g !.git/'
+export GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn"
+
+# === Pyenv (interactive init) ===
+# Shims dir is already on PATH via .zshenv; this sets up the `pyenv` shell
+# function + completion. Cached to avoid the slow `pyenv init` on every shell;
+# 'command pyenv rehash' stripped from cache (it blocks on stale locks) and run
+# in the background instead. Regenerate: rm ~/.cache/pyenv-init.zsh
+_pyenv_cache="${XDG_CACHE_HOME:-$HOME/.cache}/pyenv-init.zsh"
+if [[ ! -f "$_pyenv_cache" ]] || [[ "$(realpath "$(command -v pyenv)")" -nt "$_pyenv_cache" ]]; then
+    mkdir -p "${_pyenv_cache:h}"
+    pyenv init - zsh | grep -v 'command pyenv rehash' > "$_pyenv_cache"
+fi
+source "$_pyenv_cache"
+unset _pyenv_cache
+{ rm -f "$PYENV_ROOT/shims/.pyenv-shim"; command pyenv rehash; } &!
+
+# === Git over SSH ===
+# Use ssh-keygen for commit signing over SSH (op-ssh-sign can't reach remote 1Password).
+if [[ -n "$SSH_CONNECTION" ]]; then
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0="gpg.ssh.program"
+    export GIT_CONFIG_VALUE_0="ssh-keygen"
+fi
+
+# === Project dirs ===
+export GCP_SCRIPTS="$HOME/projects/gamuda/gtech-atlas/scripts/"
+export INFRA="$HOME/projects/gamuda/gtech-atlas/"
+export GTECH_DOCS="$HOME/projects/gamuda/gtech-docs/apps/docs/platform/"
+export WTREE="$HOME/projects/gamuda/worktrees"
+{{- if eq .chezmoi.hostname "aqua" }}
+export VAULT_PATH="$HOME/Documents/Zaid Personal"
+{{- end }}
