@@ -1,0 +1,47 @@
+#!/bin/sh
+# ssh-agent-seed — load this machine's SSH keys into the per-login session
+# ssh-agent from 1Password, once, with a 12h ttl. Idempotent and quiet.
+#
+#   - Inbound SSH ($SSH_CONNECTION set): no-op — use the forwarded agent.
+#   - Agent already holds identities: no-op.
+#   - Otherwise: op read each key (ONE Touch ID, batched) | ssh-add -t 43200.
+#
+# OP_SERVICE_ACCOUNT_TOKEN must NOT be set here, or op would skip biometric.
+
+[ -n "$SSH_CONNECTION" ] && exit 0          # inbound: ride the forwarded agent
+[ -z "$SSH_AUTH_SOCK" ] && exit 0           # no agent configured
+
+# Reachability + already-seeded check. ssh-add -l: exit 0 = has keys,
+# 1 = reachable but empty, 2 = cannot connect.
+ssh-add -l >/dev/null 2>&1
+case $? in
+  0) exit 0 ;;                              # already seeded
+  2) [ -e /dev/tty ] && echo "ssh-agent-seed: agent unreachable at $SSH_AUTH_SOCK" >/dev/tty
+     exit 1 ;;
+esac
+
+host=$(scutil --get LocalHostName 2>/dev/null | tr '[:upper:]' '[:lower:]')
+case "$host" in
+  aqua) keys="op://Gamuda/Signing.BB.GD/private key
+op://Personal Development/Auth.onyx/private key" ;;
+  onyx) keys="op://Gamuda/Signing.BB.GD/private key
+op://Personal Development/Auth.aqua/private key" ;;
+  *)    keys="op://Gamuda/Signing.BB.GD/private key" ;;
+esac
+
+[ -e /dev/tty ] && printf 'ssh-agent-seed: loading SSH keys from 1Password (approve once)…\n' >/dev/tty
+
+rc=0
+# Read each private key in openssh format and add with a 12h lifetime.
+# IFS=newline so vault/item names with spaces survive.
+OLDIFS=$IFS
+IFS='
+'
+for ref in $keys; do
+  if ! op read "${ref}?ssh-format=openssh" 2>/dev/null | ssh-add -t 43200 - >/dev/null 2>&1; then
+    [ -e /dev/tty ] && echo "ssh-agent-seed: failed to load ${ref}" >/dev/tty
+    rc=1
+  fi
+done
+IFS=$OLDIFS
+exit $rc
