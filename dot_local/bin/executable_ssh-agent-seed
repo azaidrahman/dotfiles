@@ -34,14 +34,24 @@ esac
 rc=0
 # Read each private key in openssh format and add with a 12h lifetime.
 # IFS=newline so vault/item names with spaces survive.
+# op stderr is captured to a temp file so it can be shown on failure without
+# ever writing key material to disk (the key flows only through the pipe).
 OLDIFS=$IFS
 IFS='
 '
+_seed_tmp=$(mktemp /tmp/.ssh-agent-seed.XXXXXX)
 for ref in $keys; do
-  if ! op read "${ref}?ssh-format=openssh" 2>/dev/null | ssh-add -t 43200 - >/dev/null 2>&1; then
-    [ -e /dev/tty ] && echo "ssh-agent-seed: failed to load ${ref}" >/dev/tty
+  op read "${ref}?ssh-format=openssh" 2>"$_seed_tmp" | ssh-add -t 43200 - >/dev/null 2>&1
+  # shellcheck disable=SC2181  # pipeline exit status intentionally checked after
+  if [ $? -ne 0 ]; then
+    if [ -e /dev/tty ]; then
+      echo "ssh-agent-seed: failed to load ${ref}" >/dev/tty
+      [ -s "$_seed_tmp" ] && cat "$_seed_tmp" >/dev/tty 2>/dev/null
+    fi
     rc=1
   fi
+  : >"$_seed_tmp"
 done
+rm -f "$_seed_tmp"
 IFS=$OLDIFS
 exit $rc
