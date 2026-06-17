@@ -150,6 +150,7 @@ cat <<'JSON' | jq --arg effort "$effort" --arg model "$model" \
   "theme": "dark-daltonized",
   "editorMode": "vim",
   "preferredNotifChannel": "ghostty",
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "tui": "fullscreen"
 }
 JSON
