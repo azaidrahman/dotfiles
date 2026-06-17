@@ -88,14 +88,18 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
 **Lazy tool completions** (`### lazy tool completions`):
 
 ```zsh
-_lazy_completion jj      'source <(jj util completion zsh)'
-_lazy_completion labctl  'source <(labctl completion zsh)'
-_lazy_completion docker  'FPATH="$HOME/.docker/completions:$FPATH"; autoload -Uz compinit && compinit -C'
+_lazy_completion jj        'source <(jj util completion zsh)'
+_lazy_completion labctl    'source <(labctl completion zsh)'
+_lazy_completion docker    'fpath=("$HOME/.docker/completions" $fpath); autoload -Uz _docker && compdef _docker docker'
 _lazy_completion terraform '_ensure_bashcompinit; complete -o nospace -C /opt/homebrew/bin/terraform terraform'
 _lazy_completion terramate '_ensure_bashcompinit; complete -o nospace -C /opt/homebrew/bin/terramate terramate'
 ```
 
-Note docker now uses `compinit -C` (cached) instead of a full rebuild.
+Note docker no longer re-runs `compinit` at all. The original full `compinit`
+rebuild was heavy; `compinit -C` would be cheap but reads the cached dump and
+would *not* pick up the freshly-added `~/.docker/completions` dir. Instead we
+prepend that dir to `fpath`, autoload `_docker`, and register it with `compdef`
+— light and correct.
 
 ### 2. `plugins.zsh`
 
