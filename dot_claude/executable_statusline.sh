@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Claude Code status line: [vim mode] | model | effort | ctx | worktree | branch | rate limits
+# Claude Code status line: [vim mode] | model | effort | ctx | rate limits   …   worktree | branch
+# (worktree/branch are right-aligned to the terminal edge)
 input=$(cat)
 
 dir=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty')
@@ -71,6 +72,23 @@ EFFORT_RANK=('low|minimal' 'medium|normal' 'high' 'xhigh' 'ultra|max|highest')
 color_for_model()  { rank_color "$1" "${MODEL_RANK[@]}"; }
 color_for_effort() { rank_color "$1" "${EFFORT_RANK[@]}"; }
 
+# Short model label: family initial + version, dropping any "(1M context)" suffix.
+# e.g. "Sonnet 4.6" → "S4.6", "Opus 4.8 (1M context)" → "O4.8". Color still comes
+# from the full name, so the rank logic above is untouched. Unknown family → as-is.
+model_short() {
+  local lc letter ver
+  lc=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$lc" in
+    *haiku*)  letter=H ;;
+    *sonnet*) letter=S ;;
+    *opus*)   letter=O ;;
+    *fable*)  letter=F ;;
+    *)        printf '%s' "$1"; return ;;
+  esac
+  ver=$(printf '%s' "$1" | grep -oE '[0-9]+(\.[0-9]+)?' | head -n1)
+  printf '%s%s' "$letter" "$ver"
+}
+
 # color_for_rate <pct>: gray below 50%, green→red from 50% to 100%
 color_for_rate() {
   local pct=$1
@@ -104,9 +122,10 @@ color_for_cost() {
 # ── Build segments ─────────────────────────────────────────────────────────────
 
 sep="  |  "
-segments=()
+segments=()        # left side
+right_segments=()  # right-aligned: worktree / branch
 
-[ -n "$model"  ] && segments+=("$(color_for_model  "$model")${model}${reset}")
+[ -n "$model"  ] && segments+=("$(color_for_model  "$model")$(model_short "$model")${reset}")
 [ -n "$effort" ] && segments+=("$(color_for_effort "$effort")eff:${effort}${reset}")
 
 if [ -n "$cost_raw" ]; then
@@ -115,9 +134,6 @@ if [ -n "$cost_raw" ]; then
 fi
 
 segments+=("ctx:${ctx_pct}%")
-
-[ -n "$wt" ] && segments+=("wt:${wt}")
-[ -n "$br" ] && segments+=("br:${br}")
 
 if [ -n "$five_h_pct" ]; then
   label="5h:${five_h_pct}%"
@@ -129,18 +145,25 @@ if [ -n "$seven_d_pct" ]; then
   segments+=("$(color_for_rate "$seven_d_pct")7d:${seven_d_pct}%${reset}")
 fi
 
+[ -n "$wt" ] && right_segments+=("wt:${wt}")
+[ -n "$br" ] && right_segments+=("br:${br}")
+
 # ── Assemble ───────────────────────────────────────────────────────────────────
 
-result=""
-for i in "${!segments[@]}"; do
-  if [ "$i" -eq 0 ]; then
-    result="${segments[$i]}"
-  else
-    result="${result}${sep}${segments[$i]}"
-  fi
-done
+# join <sep> <elements…> → joined string
+join_segs() {
+  local s=$1; shift
+  local out="" i
+  for i in "$@"; do
+    [ -z "$out" ] && out="$i" || out="${out}${s}${i}"
+  done
+  printf '%s' "$out"
+}
 
-# Vim-mode indicator: blue for INSERT, gray otherwise.
+result=$(join_segs "$sep" "${segments[@]}")
+
+# Vim-mode indicator: blue for INSERT, gray otherwise. Shown as a single letter
+# (I / N / V …) rather than the full word.
 # Deliberately 256-color (not 24-bit) and NO trailing newline:
 #  - tmux here reports RGB=no, so a truecolor SGR gets re-downsampled every
 #    repaint; an explicit 256-color code is tmux-native and stable per frame.
@@ -152,7 +175,36 @@ if [ -n "$mode" ]; then
   else
     color=$'\033[38;5;244m'   # gray
   fi
-  printf '%s%s\033[0m  |  %s' "$color" "$mode" "$result"
+  left=$(printf '%s%s\033[0m  |  %s' "$color" "${mode:0:1}" "$result")
 else
-  printf '%s' "$result"
+  left="$result"
+fi
+
+right=$(join_segs "$sep" "${right_segments[@]}")
+
+# Right-align worktree/branch to the terminal edge. Claude Code exports COLUMNS
+# before running this script (tput cols does NOT work here — output is captured,
+# not attached to a tty). Visible width ignores ANSI SGR codes. If both sides
+# can't share one line, append inline instead so the status never wraps to a
+# second row (a wrapped status flickers — same reason we avoid a trailing \n).
+visible_len() {
+  local s; s=$(printf '%s' "$1" | sed $'s/\033\\[[0-9;]*m//g')
+  printf '%s' "${#s}"
+}
+
+RMARGIN=6   # columns kept blank at the right edge. Must cover Claude Code's built-in
+            # status indent + a wrap-safety column, else the branch truncates. Bump higher
+            # if the rightmost text still gets cut; lower it to sit closer to the edge.
+
+if [ -n "$right" ] && [ "${COLUMNS:-0}" -gt 0 ]; then
+  pad=$(( COLUMNS - RMARGIN - $(visible_len "$left") - $(visible_len "$right") ))
+  if [ "$pad" -ge 1 ]; then
+    printf '%s%*s%s' "$left" "$pad" "" "$right"
+  else
+    printf '%s%s%s' "$left" "$sep" "$right"   # too narrow to right-align; keep inline
+  fi
+elif [ -n "$right" ]; then
+  printf '%s%s%s' "$left" "$sep" "$right"
+else
+  printf '%s' "$left"
 fi
