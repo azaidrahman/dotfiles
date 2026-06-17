@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# Preview the clipboard as markdown in a popup, confirm, then open it in nvim
-# with MarkdownPreview. Invoked from `prefix p` via display-popup -E.
+# prefix+P viewer: dump the clipboard to a temp file and preview it via
+# md-open.sh (the shared bat-preview -> nvim MarkdownPreview flow). The clipboard
+# is the hand-off, so this works with Claude's /copy or any copy-mode `y` yank.
 #
-# $1 — name of the window this was launched from (for the new window's label)
+# Invoked via run-shell so tmux expands the #{...} formats into the args below;
+# the clipboard grab happens here, then we open a popup for the interactive
+# preview, passing plain values (display-popup does NOT expand formats in its
+# command). Mirrors the claude-diff-review.sh pattern.
+#
+# $1 — origin window name (for the new window's md:<name> label)
 # $2 — directory to open the new window in
 set -euo pipefail
 
@@ -12,23 +18,5 @@ tmp=/tmp/claude-preview.md
 
 pbpaste >"$tmp"
 
-if [[ ! -s "$tmp" ]]; then
-    printf '\nClipboard is empty — nothing to preview.\n'
-    read -rsn1 -p 'Press any key to close…'
-    exit 0
-fi
-
-# Scrollable markdown preview (q to quit the pager).
-bat --style=plain --language=markdown --paging=always "$tmp"
-
-printf '\nOpen in nvim MarkdownPreview? [y/N] '
-read -r ans
-case "$ans" in
-    [yY]*)
-        tmux new-window -c "$src_dir" -n "md:${src_window}" \
-            "nvim '+MarkdownPreview' '$tmp'"
-        ;;
-    *)
-        : # cancelled — popup just closes
-        ;;
-esac
+tmux display-popup -E -w 80% -h 80% -d "$src_dir" -T ' Markdown Preview ' \
+    "$HOME/.tmux/scripts/md-open.sh '$tmp' '$src_window' '$src_dir'"
