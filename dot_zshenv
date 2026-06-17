@@ -9,12 +9,17 @@
 # --- Secrets (LITELLM_MASTER_KEY, BITBUCKET_*) ---------------------------
 source "$HOME/.config/zsh/secrets.zsh"
 
-# --- 1Password SSH agent (git commit signing / ssh auth from any shell) ---
-# Only set when NOT inside an incoming SSH session, else we'd stomp the
-# forwarded agent socket sshd provides (breaks aqua<->onyx agent forwarding).
+# --- Session ssh-agent (per-login, launchd-managed; see com.zaid.ssh-agent) --
+# Outbound local SSH uses our own ssh-agent, seeded once per login from
+# 1Password via Touch ID (ssh-agent-seed) and silent for 12h. Only set when
+# NOT inside an incoming SSH session, so a forwarded agent (phone/peer-Mac)
+# always wins and the receiving end never seeds.
 if [ -z "$SSH_CONNECTION" ]; then
-    export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    export SSH_AUTH_SOCK="$HOME/.cache/ssh/agent.sock"
 fi
+
+# git-over-SSH seeds the session agent on first use, then hands off to ssh.
+export GIT_SSH_COMMAND="$HOME/.local/bin/git-ssh"
 
 # --- PATH-dependency vars -------------------------------------------------
 export XDG_CONFIG_HOME="$HOME/.config"
