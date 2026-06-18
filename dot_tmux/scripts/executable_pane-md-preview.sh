@@ -31,27 +31,40 @@ hold() {
 mapfile -t hits < <(tmux capture-pane -p -t "$pane_id" -S -3000 \
     | grep -oE '[[:alnum:]~./_-]+\.md' | tail -r 2>/dev/null || true)
 
+# Roots to resolve relative paths against: the pane's cwd, plus any linked git
+# worktrees. A pane's cwd is often the main repo while the path printed (e.g. by
+# Claude) is relative to a worktree — so cwd+path alone misses it. Try each root.
+roots=("$src_dir")
+if git -C "$src_dir" rev-parse --git-dir >/dev/null 2>&1; then
+    while IFS= read -r line; do
+        [[ $line == "worktree "* ]] && roots+=("${line#worktree }")
+    done < <(git -C "$src_dir" worktree list --porcelain 2>/dev/null || true)
+fi
+
 # Resolve each, keep the ones that exist, dedupe (most-recent mention wins).
 declare -A seen
 candidates=()
 for raw in "${hits[@]}"; do
+    f=""
     case "$raw" in
-        "~/"*) f="${raw/#\~/$HOME}" ;;
-        /*)    f="$raw" ;;
-        *)     f="$src_dir/$raw" ;;
+        "~/"*) [[ -f "${raw/#\~/$HOME}" ]] && f="${raw/#\~/$HOME}" ;;
+        /*)    [[ -f "$raw" ]] && f="$raw" ;;
+        *)     for root in "${roots[@]}"; do
+                   [[ -f "$root/$raw" ]] && { f="$root/$raw"; break; }
+               done ;;
     esac
-    [[ -f "$f" ]] || continue
+    [[ -n $f ]] || continue
     [[ -n ${seen[$f]:-} ]] && continue
     seen[$f]=1
     candidates+=("$f")
 done
 
 if (( ${#candidates[@]} == 0 )); then
-    hold 'No .md file path found in this pane.'
+    hold 'No .md file path found in this pane.' || true
     exit 0
 fi
 
 printf '%s\n' "${candidates[@]}" > "$list"
 
-tmux display-popup -E -w 80% -h 80% -d "$src_dir" -T ' Markdown Preview ' \
+tmux display-popup -EE -w 80% -h 80% -d "$src_dir" -T ' Markdown Preview ' \
     "$HOME/.tmux/scripts/md-pick.sh '$list' '$src_window' '$src_dir'"
