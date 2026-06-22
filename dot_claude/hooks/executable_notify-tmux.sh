@@ -171,6 +171,20 @@ window_status() {
         # status glyph left by the old name-prefix scheme.
         base=$(printf '%s' "$WNAME" | sed -E 's/^[^[:alnum:]]+[[:space:]]*//; s/[[:space:]]+$//')
         tmux set-option -w -t "$WIN_ID" @claude_base "$base" 2>/dev/null
+    else
+        # Honor a manual rename. We re-render the window to @claude_base on every
+        # state change, so a user `rename-window` would otherwise be reverted on
+        # the next event. If the live name (minus our status glyph) diverged from
+        # @claude_base, the user renamed it themselves — adopt their name as the
+        # new base and claim autoname_done so stop-capture won't fight it either.
+        local live
+        live=$(printf '%s' "$WNAME" | sed -E 's/^[^[:alnum:]]+[[:space:]]*//; s/[[:space:]]+$//')
+        if [ -n "$live" ] && [ "$live" != "$base" ] && ! is_default_name "$live"; then
+            dlog "manual rename: live=[$live] != base=[$base] -> adopt"
+            base="$live"
+            tmux set-option -w -t "$WIN_ID" @claude_base "$base" 2>/dev/null
+            tmux set-option -w -t "$WIN_ID" @claude_autoname_done 1 2>/dev/null
+        fi
     fi
     if [ -n "$PANE" ]; then
         tmux set-option -p -t "$PANE" @claude_state "$state" 2>/dev/null
