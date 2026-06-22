@@ -30,6 +30,7 @@ tmux list-windows -a -F '#{window_stack_index}	#{session_last_attached}	#{sessio
       {
         sess = $1; idx = $2; wname = $3; state = $4
         if (sess == "mobile" || sess == "quickterminal") next   # reachable via prefix+F (tv channels)
+        if (wname ~ /^md: /) next                                # markdown-preview scratch windows
         # Claude state lives in the @claude_state window option (set by
         # notify-tmux.sh): color the row by it. Names are kept clean now, but
         # strip any legacy/manual leading glyph just in case.
