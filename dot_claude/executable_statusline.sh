@@ -28,12 +28,11 @@ out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" --arg show_cost
     $wt,
     $br,
     (if .rate_limits.five_hour then (.rate_limits.five_hour.used_percentage | round | tostring) else "" end),
-    (if .rate_limits.five_hour then (.rate_limits.five_hour.resets_at | strflocaltime("%H:%M")) else "" end),
     (if .rate_limits.seven_day then (.rate_limits.seven_day.used_percentage | round | tostring) else "" end),
     (.session_id // "")
   ] | join("")')
 
-IFS=$'\x01' read -r model effort cost_raw ctx_pct wt br five_h_pct five_h_resets seven_d_pct session_id <<< "$out"
+IFS=$'\x01' read -r model effort cost_raw ctx_pct wt br five_h_pct seven_d_pct session_id <<< "$out"
 
 # ── Color helpers (256-color for tmux stability) ───────────────────────────────
 
@@ -91,15 +90,17 @@ model_short() {
   printf '%s%s' "$letter" "$ver"
 }
 
-# color_for_rate <pct>: gray below 50%, green→red from 50% to 100%
-color_for_rate() {
-  local pct=$1
-  if   [ "$pct" -lt 50 ]; then printf '\033[38;5;244m'  # gray  — not worth highlighting yet
-  elif [ "$pct" -lt 70 ]; then printf '\033[38;5;82m'   # green
-  elif [ "$pct" -lt 85 ]; then printf '\033[38;5;226m'  # yellow
-  elif [ "$pct" -lt 95 ]; then printf '\033[38;5;208m'  # orange
-  else                         printf '\033[38;5;196m'  # red
+# rate_glyph <letter> <pct>: a single colored letter once usage clears 40% —
+# yellow 40–70, orange 70–90, red >90. Below 40% it's noise, so emit nothing.
+rate_glyph() {
+  local letter=$1 pct=$2 col
+  [ -z "$pct" ] && return
+  if   [ "$pct" -le 40 ]; then return                   # hidden — not worth a glyph yet
+  elif [ "$pct" -le 70 ]; then col='\033[38;5;226m'     # yellow
+  elif [ "$pct" -le 90 ]; then col='\033[38;5;208m'     # orange
+  else                         col='\033[38;5;196m'     # red
   fi
+  printf '%b%s%b' "$col" "$letter" "$reset"
 }
 
 # color_for_cost <usd>: gray below $20, green→red from $20 to $100+
@@ -135,18 +136,13 @@ if [ -n "$cost_raw" ]; then
   segments+=("$(color_for_cost "$cost_raw")${cost_display}${reset}")
 fi
 
+# Rate-limit glyphs, right before ctx: S = session (5h), W = weekly (7d). Each
+# letter appears (colored by severity) only once its limit clears 40%; otherwise
+# it's omitted. So this segment is "SW", "W", "S", or absent — e.g. "SW | ctx:50%".
+glyphs="$(rate_glyph S "$five_h_pct")$(rate_glyph W "$seven_d_pct")"
+[ -n "$glyphs" ] && segments+=("$glyphs")
+
 segments+=("ctx:${ctx_pct}%")
-
-# Rate limits are noise until they get high — only surface 5h/7d past 80%.
-if [ -n "$five_h_pct" ] && [ "$five_h_pct" -gt 80 ]; then
-  label="5h:${five_h_pct}%"
-  [ -n "$five_h_resets" ] && label="${label} (back at ${five_h_resets})"
-  segments+=("$(color_for_rate "$five_h_pct")${label}${reset}")
-fi
-
-if [ -n "$seven_d_pct" ] && [ "$seven_d_pct" -gt 80 ]; then
-  segments+=("$(color_for_rate "$seven_d_pct")7d:${seven_d_pct}%${reset}")
-fi
 
 # Session ID, last 5 chars — enough to disambiguate panes without the clutter.
 [ -n "$session_id" ] && segments+=("${gray}id:${session_id: -5}${reset}")

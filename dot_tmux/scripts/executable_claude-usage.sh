@@ -21,6 +21,27 @@ color_for() { # pct -> green/yellow/red
   fi
 }
 
+to_countdown() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "in 2h 15m" (empty on parse failure)
+  local s=$1 raw mday t yr epoch now diff d h m
+  raw=${s%% (*}        # drop trailing " (tz)"
+  raw=${raw/ at / }    # "Jun 22 4pm"
+  mday=${raw% *}       # "Jun 22"
+  t=${raw##* }         # "4pm" or "11:30am"
+  [[ $t != *:* ]] && t=$(printf '%s' "$t" | sed -E 's/^([0-9]+)(am|pm)$/\1:00\2/')  # 4pm -> 4:00pm
+  yr=$(date +%Y)
+  epoch=$(date -j -f "%b %d %Y %I:%M%p" "$mday $yr $t" +%s 2>/dev/null) || return
+  [ -z "$epoch" ] && return
+  now=$(date +%s)
+  (( epoch < now - 86400 )) && epoch=$(date -j -f "%b %d %Y %I:%M%p" "$mday $((yr+1)) $t" +%s 2>/dev/null)  # year wrap
+  diff=$(( epoch - now ))
+  (( diff <= 0 )) && { printf 'now'; return; }
+  d=$(( diff / 86400 )); h=$(( (diff % 86400) / 3600 )); m=$(( (diff % 3600) / 60 ))
+  if   (( d > 0 )); then printf 'in %dd %dh' "$d" "$h"
+  elif (( h > 0 )); then printf 'in %dh %dm' "$h" "$m"
+  else                   printf 'in %dm' "$m"
+  fi
+}
+
 repeat() { # char count -> char repeated count times (0-safe)
   local ch=$1 n=$2 out=''
   while (( n-- > 0 )); do out+=$ch; done
@@ -40,7 +61,12 @@ bar() { # label pct reset
   printf '  %-26s ' "$label"
   printf '%s%s%s%s%s' "$col" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" "$c_reset"
   printf ' %s%3d%%%s' "$c_bold" "$pct" "$c_reset"
-  [ -n "$reset" ] && printf ' %sresets %s%s' "$c_dim" "$reset" "$c_reset"
+  if [ -n "$reset" ]; then
+    printf ' %sresets %s' "$c_dim" "$reset"
+    local cd; cd=$(to_countdown "$reset")
+    [ -n "$cd" ] && printf ' · %s' "$cd"
+    printf '%s' "$c_reset"
+  fi
   printf '\n'
 }
 
