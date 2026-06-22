@@ -135,6 +135,29 @@ worktree directory, and roots them there with `tmux new-session -c`. Re-running
 `/worklog start` never duplicates a session. It assumes GTI worktrees live in
 `gtech-atlas` (override with a second arg: `... "<KEY>" "/path/to/repo"`).
 
+### Launch Claude in each session (opt-in)
+
+After the sessions exist, optionally kick off a Claude Code instance inside each
+one that immediately runs `/start-ticket` for its ticket - so attaching drops the
+user straight into an agent already oriented on that ticket. Ask once before
+doing this; act only if the user says yes.
+
+The session name equals the worktree directory tail (the `created:`/`already-live:`
+value the script printed), so send the launch command straight to it. For each
+Jira focus ticket KEY with a live session `<SESSION>`:
+
+```bash
+tmux send-keys -t "<SESSION>" "claude \"/start-ticket <KEY>\"" Enter
+```
+
+Notes:
+- Send only to sessions the script reported as `created`/`already-live` - never to
+  a session that failed provisioning.
+- The worktree and branch already exist by this point, so `/start-ticket` finds
+  them and reports the path rather than recreating - that is expected and fine.
+- This launches an interactive agent per session; do not wait on or drive them
+  from the worklog session. Just report which sessions were launched.
+
 ## stop procedure
 
 1. Compute the entry path (same as start, step 1).
