@@ -29,14 +29,16 @@ out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" --arg show_cost
     $br,
     (if .rate_limits.five_hour then (.rate_limits.five_hour.used_percentage | round | tostring) else "" end),
     (if .rate_limits.five_hour then (.rate_limits.five_hour.resets_at | strflocaltime("%H:%M")) else "" end),
-    (if .rate_limits.seven_day then (.rate_limits.seven_day.used_percentage | round | tostring) else "" end)
+    (if .rate_limits.seven_day then (.rate_limits.seven_day.used_percentage | round | tostring) else "" end),
+    (.session_id // "")
   ] | join("")')
 
-IFS=$'\x01' read -r model effort cost_raw ctx_pct wt br five_h_pct five_h_resets seven_d_pct <<< "$out"
+IFS=$'\x01' read -r model effort cost_raw ctx_pct wt br five_h_pct five_h_resets seven_d_pct session_id <<< "$out"
 
 # ── Color helpers (256-color for tmux stability) ───────────────────────────────
 
 reset=$'\033[0m'
+gray=$'\033[38;5;244m'   # dim — for low-signal labels (session id, etc.)
 
 # Shared green→red ramp (256-color, coolest→hottest = cheapest/lowest → priciest/highest).
 PALETTE=(82 226 208 196)   # green  yellow  orange  red
@@ -135,15 +137,19 @@ fi
 
 segments+=("ctx:${ctx_pct}%")
 
-if [ -n "$five_h_pct" ]; then
+# Rate limits are noise until they get high — only surface 5h/7d past 80%.
+if [ -n "$five_h_pct" ] && [ "$five_h_pct" -gt 80 ]; then
   label="5h:${five_h_pct}%"
-  [ "$five_h_pct" -gt 50 ] && [ -n "$five_h_resets" ] && label="${label} (back at ${five_h_resets})"
+  [ -n "$five_h_resets" ] && label="${label} (back at ${five_h_resets})"
   segments+=("$(color_for_rate "$five_h_pct")${label}${reset}")
 fi
 
-if [ -n "$seven_d_pct" ]; then
+if [ -n "$seven_d_pct" ] && [ "$seven_d_pct" -gt 80 ]; then
   segments+=("$(color_for_rate "$seven_d_pct")7d:${seven_d_pct}%${reset}")
 fi
+
+# Session ID, last 5 chars — enough to disambiguate panes without the clutter.
+[ -n "$session_id" ] && segments+=("${gray}id:${session_id: -5}${reset}")
 
 [ -n "$wt" ] && right_segments+=("wt:${wt}")
 [ -n "$br" ] && right_segments+=("br:${br}")
