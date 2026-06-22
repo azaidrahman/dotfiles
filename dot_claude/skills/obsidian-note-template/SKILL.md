@@ -24,8 +24,8 @@ Use this skill whenever the user asks you to create, draft, edit, organize, or c
 
 Decide which kind of note this is first, because the skeleton differs:
 
-- **Concept note** explains an idea (theory, mental model, how something works). Gets the full skeleton including `My own words`.
-- **Reference snippet** is a short command or fact lookup. Gets a trimmed skeleton, no `My own words`.
+- **Concept note** explains an idea (theory, mental model, how something works). Gets the full skeleton.
+- **Reference snippet** is a short command or fact lookup. Gets a trimmed skeleton.
 
 ## Section skeleton
 
@@ -38,9 +38,10 @@ Canonical headings, in order:
 3. `# How it works` (optional) the mechanism, step by step.
 4. `# Example` (optional) a concrete worked case.
 5. `# Commands` (optional) runnable commands, in a fenced block.
-6. `# My own words` (concept notes only) left thin and mostly empty for the user to fill in. Never write this section densely.
-7. `# Further reading` (recommended) links to external sources for extra reading: docs, articles, videos, specs. This is separate from `# Reference`, which is internal vault wikilinks. The user wants external sources captured, so include this whenever the note draws on or relates to anything external, with a one-line note on what each link covers.
-8. `# Reference` (always) wikilinks to related notes.
+6. `# Further reading` (recommended) links to external sources for extra reading: docs, articles, videos, specs. This is separate from `# Reference`, which is internal vault wikilinks. The user wants external sources captured, so include this whenever the note draws on or relates to anything external, with a one-line note on what each link covers.
+7. `# Reference` (always) wikilinks to related notes.
+
+Do not add a `# My own words` section, or any other empty placeholder section for the user to fill in. The user writes their own thoughts themselves; an empty heading is noise. Only write sections you are actually filling with content.
 
 Frontmatter is fixed and always leads the file:
 
@@ -59,8 +60,6 @@ Concept note shape:
 # Intro
 
 Short baseline explanation.
-
-# My own words
 
 # Further reading
 
@@ -113,7 +112,7 @@ How to validate:
 
 If you cannot validate something, do one of these instead of asserting it:
 
-- Leave that part as a thin baseline for the user to fill, the same way `# My own words` is left thin.
+- Leave that part out and keep the note thinner, so the user can fill it in themselves.
 - Mark it explicitly as unverified, for example a short `[!NOTE]` callout saying "unverified, confirm before relying on this".
 - Ask the user, or say plainly in your reply that you left it out because you could not confirm it.
 
@@ -151,7 +150,7 @@ Keep emphasis minimal and sparse. The goal is readability, so most prose should 
 
 ## Defining terms and marking external info
 
-Use a blockquote led by an italic question to define a key term, especially when the explanation comes from an external source (a video, article, docs, a person) rather than your own synthesis. The question frames what is being defined; the lines under it answer it in plain words. This keeps externally-sourced facts visually distinct from the user's own thinking in `My own words`.
+Use a blockquote led by an italic question to define a key term, especially when the explanation comes from an external source (a video, article, docs, a person) rather than your own synthesis. The question frames what is being defined; the lines under it answer it in plain words. This keeps externally-sourced facts visually distinct as quoted material rather than the user's own synthesis.
 
 ```md
 > *What is a bridge?*
