@@ -35,6 +35,17 @@ source "$_pyenv_cache"
 unset _pyenv_cache
 { rm -f "$PYENV_ROOT/shims/.pyenv-shim"; command pyenv rehash; } &!
 
+# === Mise (interactive init) ===
+# Node/Go/Java via shims on PATH (.zshenv) — shims handle per-directory version
+# switching AND work in non-interactive shells (Claude Bash, cron). We do NOT
+# `mise activate`: its PATH hook strips the shims and reinserts install dirs
+# *after* /opt/homebrew/bin, letting brew's leftover node shadow mise's. So we
+# just set JAVA_HOME (single global java) here; mirrors the pyenv block, which
+# also leaves PATH to .zshenv and only adds shell niceties.
+if command -v mise >/dev/null 2>&1; then
+    export JAVA_HOME="$(mise where java 2>/dev/null)"
+fi
+
 # === Git over SSH ===
 # Use ssh-keygen for commit signing over SSH (op-ssh-sign can't reach remote 1Password).
 if [[ -n "$SSH_CONNECTION" ]]; then

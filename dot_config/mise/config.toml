@@ -1,0 +1,12 @@
+# ~/.config/mise/config.toml — global runtime versions.
+# mise replaces pyenv-style per-tool managers for Node/Go/Java. Python stays
+# on pyenv (see exports.zsh). Per-project .tool-versions / mise.toml override
+# these. Shims (~/.local/share/mise/shims) are on PATH via .zshenv so every
+# shell — interactive, non-interactive (Claude Bash tool, cron, scripts) —
+# resolves correctly and gets per-directory switching. We deliberately skip
+# `mise activate` (its PATH hook lets brew's leftover node shadow mise's);
+# exports.zsh only sets JAVA_HOME.
+[tools]
+node = "26"
+go = "1.26"
+java = "openjdk-25"

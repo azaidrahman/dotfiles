@@ -38,11 +38,11 @@ typeset -U path
 path=(
   $PYENV_ROOT/shims
   $PYENV_ROOT/bin
+  $HOME/.local/share/mise/shims
   /opt/homebrew/bin
   $HOME/.local/bin
   $BUN_INSTALL/bin
   $GOPATH/bin
-  /opt/homebrew/opt/openjdk/bin
   /opt/homebrew/opt/postgresql@18/bin
   $path
   /Applications/Obsidian.app/Contents/MacOS
