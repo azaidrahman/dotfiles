@@ -13,6 +13,12 @@ else
 fi
 local health="${base}/health/liveliness"
 
+if [[ -z "$LITELLM_MASTER_KEY" ]]; then
+  print -u2 "cv: \$LITELLM_MASTER_KEY is not set (expected from ~/.zshenv)."
+  print -u2 "cv: run 'chezmoi apply ~/.zshenv' and start a new shell."
+  return 1
+fi
+
 # Proxy guard: ensure the proxy is up; auto-start locally on onyx, SSH-start on aqua.
 if ! curl -fsS -m 3 "$health" >/dev/null 2>&1; then
   print -u2 "cv: LiteLLM proxy not reachable at ${base} — attempting to start it…"
