@@ -145,6 +145,35 @@ render_cost() {
   fi
 }
 
+COST_CACHE="${TMPDIR:-/tmp}/claude-cost.cache"
+
+cost_main() {
+  # instant draw from cache (computed compute-output is what we cache)
+  if [[ -s $COST_CACHE ]]; then
+    render_cost "$(cat "$COST_CACHE")"
+    printf '\n  %s(cached — refreshing…)%s\n' "$c_dim" "$c_reset"
+  else
+    clear 2>/dev/null
+    echo
+    printf '  %sCost · last 7 days%s\n\n  %sLoading…%s\n' "$c_bold" "$c_reset" "$c_dim" "$c_reset"
+  fi
+
+  # fresh compute over last-7-day transcripts
+  local cutoff; cutoff=$(( $(date +%s) - 7*86400 ))
+  local files=()
+  while IFS= read -r f; do files+=("$f"); done < <(find "$HOME/.claude/projects" -name '*.jsonl' -mtime -7 2>/dev/null)
+  local fresh; fresh=$(cost_compute "$cutoff" "${files[@]}")
+  printf '%s\n' "$fresh" > "$COST_CACHE"
+  render_cost "$fresh"
+
+  echo
+  printf '  %s[any key to close]%s' "$c_dim" "$c_reset"
+  local old_stty; old_stty=$(stty -g 2>/dev/null)
+  stty -echo -icanon min 1 time 0 2>/dev/null
+  dd bs=1 count=1 >/dev/null 2>&1
+  [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
+}
+
 bar() { # label pct reset
   local label=$1 pct=$2 reset=$3
   (( pct > 100 )) && pct=100
