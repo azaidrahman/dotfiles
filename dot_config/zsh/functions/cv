@@ -1,25 +1,42 @@
-# cv - Claude Code on the Vertex backend (cost shown in statusline).
-#       Plain `c` uses the Anthropic subscription instead.
-#
-#   cv [claude-args...]   Run Claude Code (Opus/Sonnet/Haiku) via Vertex AI.
-#
-# See also: cvres (resume), ov (opencode + Gemini on Vertex).
+# cv - Claude Code routed through the LiteLLM proxy on onyx (unified cost tracking).
+#      onyx hosts the proxy (~/projects/gamuda/litellm-tracker, OrbStack compose);
+#      aqua reaches it over Tailscale. Native-Vertex path retired.
+#      See docs/superpowers/specs/2026-06-24-route-cv-through-litellm-design.md
+emulate -L zsh
 
-# Publish the Vertex flag into the tmux session environment so the prefix+u
-# usage popup (spawned by the tmux server, which can't see this process's env)
-# switches to the cost breakdown while a cv session is running. Cleared on exit
-# (always-block) so the popup reverts to rate-limit bars afterward.
-[[ -n "$TMUX" ]] && tmux set-environment CLAUDE_CODE_USE_VERTEX 1
+local litellm_dir="$HOME/projects/gamuda/litellm-tracker"
+local base
+if [[ "$(hostname -s)" == onyx* ]]; then
+  base="http://localhost:4000"
+else
+  base="http://onyx.tail5d740c.ts.net:4000"
+fi
+local health="${base}/health/liveliness"
 
-{
-  CLAUDE_CODE_USE_VERTEX=1 \
-  CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
-  ANTHROPIC_VERTEX_PROJECT_ID=gtech-sb-zaidsani-dev \
-  CLOUD_ML_REGION=global \
-  ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
-  ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \
-  ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
-  claude --allow-dangerously-skip-permissions "$@"
-} always {
-  [[ -n "$TMUX" ]] && tmux set-environment -u CLAUDE_CODE_USE_VERTEX
-}
+# Proxy guard: ensure the proxy is up; auto-start locally on onyx, SSH-start on aqua.
+if ! curl -fsS -m 3 "$health" >/dev/null 2>&1; then
+  print -u2 "cv: LiteLLM proxy not reachable at ${base} — attempting to start it…"
+  if [[ "$(hostname -s)" == onyx* ]]; then
+    ( cd "$litellm_dir" && docker compose up -d ) || { print -u2 "cv: failed to start proxy locally"; return 1; }
+  else
+    ssh onyx "cd ${litellm_dir} && docker compose up -d" || { print -u2 "cv: failed to start proxy on onyx via ssh"; return 1; }
+  fi
+  local i
+  for i in {1..20}; do
+    curl -fsS -m 2 "$health" >/dev/null 2>&1 && break
+    sleep 1
+  done
+  if ! curl -fsS -m 2 "$health" >/dev/null 2>&1; then
+    print -u2 "cv: proxy still not healthy at ${base}."
+    print -u2 "    Start it on onyx with: (cd ${litellm_dir} && docker compose up -d)"
+    return 1
+  fi
+fi
+
+ANTHROPIC_BASE_URL="$base" \
+ANTHROPIC_AUTH_TOKEN="$LITELLM_MASTER_KEY" \
+CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
+ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
+ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \
+ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
+claude --allow-dangerously-skip-permissions "$@"
