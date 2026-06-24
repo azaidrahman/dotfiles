@@ -5,11 +5,21 @@
 #
 # See also: cvres (resume), ov (opencode + Gemini on Vertex).
 
-CLAUDE_CODE_USE_VERTEX=1 \
-CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
-ANTHROPIC_VERTEX_PROJECT_ID=gtech-sb-zaidsani-dev \
-CLOUD_ML_REGION=global \
-ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
-ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \
-ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
-claude --allow-dangerously-skip-permissions "$@"
+# Publish the Vertex flag into the tmux session environment so the prefix+u
+# usage popup (spawned by the tmux server, which can't see this process's env)
+# switches to the cost breakdown while a cv session is running. Cleared on exit
+# (always-block) so the popup reverts to rate-limit bars afterward.
+[[ -n "$TMUX" ]] && tmux set-environment CLAUDE_CODE_USE_VERTEX 1
+
+{
+  CLAUDE_CODE_USE_VERTEX=1 \
+  CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
+  ANTHROPIC_VERTEX_PROJECT_ID=gtech-sb-zaidsani-dev \
+  CLOUD_ML_REGION=global \
+  ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
+  ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
+  claude --allow-dangerously-skip-permissions "$@"
+} always {
+  [[ -n "$TMUX" ]] && tmux set-environment -u CLAUDE_CODE_USE_VERTEX
+}
