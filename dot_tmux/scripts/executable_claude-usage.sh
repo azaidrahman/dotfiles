@@ -176,8 +176,8 @@ cost_main() {
 }
 
 provider_tag() {
-  if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
-    printf '\033[35mLiteLLM\033[0m \033[2m(%s)\033[0m' "${ANTHROPIC_BASE_URL}"
+  if curl -fsS -m 1 "$(litellm_base)/health/liveliness" >/dev/null 2>&1; then
+    printf '\033[35mLiteLLM\033[0m \033[2m(%s)\033[0m' "$(litellm_base)"
   elif [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; then
     printf '\033[34mVertex AI (direct)\033[0m'
   else
