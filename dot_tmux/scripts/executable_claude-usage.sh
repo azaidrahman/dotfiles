@@ -253,6 +253,14 @@ litellm_base() {
 # subscription session.
 main() {
   SRC_PANE="${1:-}"
+  # display-popup does NOT expand formats in its command string, so the
+  # keybinding's #{pane_id} arrives here literally (or empty). When it isn't a
+  # real pane id, self-resolve to the session's active pane — which is the pane
+  # that triggered the popup.
+  case "$SRC_PANE" in
+    %[0-9]*) ;;
+    *) SRC_PANE=$(tmux display-message -p '#{pane_id}' 2>/dev/null) ;;
+  esac
   if [ "$(session_provider)" = "litellm" ]; then
     cost_main
   else
