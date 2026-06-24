@@ -48,124 +48,110 @@ repeat() { # char count -> char repeated count times (0-safe)
   printf '%s' "$out"
 }
 
-# Vertex per-1M-token pricing (USD). Family-substring matched; flat (no long-context tier).
-# cache-write = 5-minute rate (1.25x input); accepted approximation.
-COST_PRICE_JSON='{
-  "opus":  {"in":5, "out":25,"cw":6.25,"cr":0.5},
-  "sonnet":{"in":3, "out":15,"cw":3.75,"cr":0.3},
-  "haiku": {"in":1, "out":5, "cw":1.25,"cr":0.1},
-  "fable": {"in":10,"out":50,"cw":12.5,"cr":1.0}
-}'
-
-# cost_compute <cutoff_epoch> <file>... : sum spend by token type. cutoff 0 = no time filter.
-cost_compute() {
-  local cutoff=$1; shift
-  [ "$#" -eq 0 ] && { printf 'input 0\noutput 0\ncache_write 0\ncache_read 0\ntotal 0\nother_tokens 0\nother_models \n'; return; }
-  cat "$@" 2>/dev/null | jq -nrR --argjson cutoff "$cutoff" --argjson price "$COST_PRICE_JSON" '
-    def family($m): ($m // "") | ascii_downcase as $l
-      | if   ($l|test("opus"))   then "opus"
-        elif ($l|test("sonnet")) then "sonnet"
-        elif ($l|test("haiku"))  then "haiku"
-        elif ($l|test("fable"))  then "fable"
-        else "other" end;
-    def epoch($t): ($t // "") | sub("\\.[0-9]+Z$";"Z") | (try fromdateiso8601 catch 0);
-    reduce (inputs | (fromjson? // empty)) as $e
-      ({input:0,output:0,cw:0,cr:0,other_tok:0,others:{}};
-        if ($e.type=="assistant") and ($e.message.usage != null)
-           and (epoch($e.timestamp) >= $cutoff)
-        then
-          family($e.message.model) as $f
-          | $e.message.usage as $u
-          | (($u.input_tokens // 0)) as $it
-          | (($u.output_tokens // 0)) as $ot
-          | (($u.cache_creation_input_tokens // 0)) as $ct
-          | (($u.cache_read_input_tokens // 0)) as $rt
-          | if $f=="other"
-            then .other_tok += ($it+$ot+$ct+$rt) | .others[($e.message.model // "unknown")] = true
-            else $price[$f] as $p
-              | .input  += $it*$p.in/1000000
-              | .output += $ot*$p.out/1000000
-              | .cw     += $ct*$p.cw/1000000
-              | .cr     += $rt*$p.cr/1000000
-            end
-        else . end)
-    | .total = (.input + .output + .cw + .cr)
-    | "input \(.input)\noutput \(.output)\ncache_write \(.cw)\ncache_read \(.cr)\ntotal \(.total)\nother_tokens \(.other_tok)\nother_models \((.others|keys|join(",")))"
-  '
+# litellm_key : the proxy master key. Prefer the env var (present when sourced
+# from a zsh that read ~/.zshenv); fall back to extracting it from secrets.zsh,
+# because this popup runs as a fresh bash shell that never sourced ~/.zshenv.
+litellm_key() {
+  if [ -n "${LITELLM_MASTER_KEY:-}" ]; then printf '%s' "$LITELLM_MASTER_KEY"; return; fi
+  local f="$HOME/.config/zsh/secrets.zsh"
+  [ -r "$f" ] || return
+  grep -E '^export[[:space:]]+LITELLM_MASTER_KEY=' "$f" | head -1 \
+    | sed -E 's/^export[[:space:]]+LITELLM_MASTER_KEY=//; s/^["'\'']//; s/["'\'']$//'
 }
 
-# render_cost <compute_output> : draw the 7-day cost breakdown.
+# litellm_curl <base> <key> <path> : authenticated GET against the proxy.
+litellm_curl() {
+  curl -fsS -m 5 -H "Authorization: Bearer $2" "$1$3" 2>/dev/null
+}
+
+# cost_blob <models_json> <spend_json> <logs_json> <cutoff_date> : fold the
+# proxy's real ledger into a cacheable, render-ready blob (pure; no network).
+#   TOTALALL <usd>            grand total across all logged requests
+#   TOTAL7D  <usd>            spend on/after <cutoff_date> (YYYY-MM-DD)
+#   MODEL    <usd>\t<model>   per-model spend, one line each
+cost_blob() {
+  local mj=$1 sj=$2 lj=$3 cut=$4 all sevend
+  all=$(printf '%s' "$sj"  | jq -r '.spend // 0' 2>/dev/null); all=${all:-0}
+  sevend=$(printf '%s' "$lj" | jq -r --arg c "$cut" \
+    '[.[] | select(.date >= $c) | .spend] | add // 0' 2>/dev/null); sevend=${sevend:-0}
+  printf 'TOTALALL %s\nTOTAL7D %s\n' "$all" "$sevend"
+  # only models with real spend; drop the "vertex_ai/" provider prefix for width
+  printf '%s' "$mj" | jq -r '
+    [.[] | select((.total_spend // 0) > 0)] | sort_by(-.total_spend)[]
+    | "MODEL \(.total_spend)\t\(.model | sub("^[a-z_]+/"; ""))"' 2>/dev/null
+}
+
+# render_cost <blob> : draw the LiteLLM ledger — one bar per model (all-time
+# spend), then last-7-day and all-time totals. <blob> is cost_blob's output.
 render_cost() {
-  local data=$1 v
-  v() { printf '%s\n' "$data" | grep "^$1 " | cut -d' ' -f2-; }
-  local in=$(v input) out=$(v output) cw=$(v cache_write) cr=$(v cache_read)
-  local total=$(v total) other=$(v other_tokens) models=$(v other_models)
+  local blob=$1 total_all total7d models
+  total_all=$(printf '%s\n' "$blob" | awk '$1=="TOTALALL"{print $2; exit}')
+  total7d=$( printf '%s\n' "$blob" | awk '$1=="TOTAL7D"{print $2; exit}')
+  models=$(  printf '%s\n' "$blob" | sed -n 's/^MODEL //p')   # lines: "<spend>\t<model>"
 
   clear 2>/dev/null
   echo
-  printf '  %sCost · last 7 days%s\n' "$c_bold" "$c_reset"
+  printf '  %sCost · LiteLLM ledger%s\n' "$c_bold" "$c_reset"
   printf '  provider: %s\n\n' "$(provider_tag)"
 
-  # zero spend with no untracked models → fallback
-  if awk -v t="${total:-0}" -v o="${other:-0}" 'BEGIN{exit !((t+0==0) && (o+0==0))}'; then
-    printf '  %sno spend in the last 7 days%s\n' "$c_dim" "$c_reset"
+  if [ -z "$models" ]; then
+    printf '  %sno spend recorded by the proxy%s\n' "$c_dim" "$c_reset"
     return
   fi
 
-  # if total is 0 but other tokens exist, just show the flag and return
-  if awk -v t="${total:-0}" 'BEGIN{exit !(t+0==0)}'; then
-    if [ "${other:-0}" -gt 0 ] 2>/dev/null && [ "$other" != "0" ]; then
-      printf '  %s+ untracked model(s): %s — add to pricing table%s\n' "$c_dim" "$models" "$c_reset"
-    fi
-    return
-  fi
-
-  local max; max=$(awk -v a="$in" -v b="$out" -v c="$cw" -v d="$cr" \
-    'BEGIN{m=a;if(b>m)m=b;if(c>m)m=c;if(d>m)m=d; if(m<=0)m=1; print m}')
+  local max; max=$(printf '%s\n' "$models" | awk -F'\t' \
+    'BEGIN{m=0}{if($1+0>m)m=$1+0}END{if(m<=0)m=1; print m}')
   local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-  local bar_w=$(( width - 34 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 32 )) && bar_w=32
+  local bar_w=$(( width - 42 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 32 )) && bar_w=32
 
-  costbar() { # label value
-    local label=$1 val=$2 fill empty pct
-    pct=$(awk -v v="$val" -v m="$max" 'BEGIN{printf "%d", (v/m)*100}')
+  local spend model pct fill empty
+  while IFS=$'\t' read -r spend model; do
+    [ -z "$model" ] && continue
+    pct=$(awk -v v="$spend" -v m="$max" 'BEGIN{printf "%d", (v/m)*100}')
     fill=$(( pct * bar_w / 100 )); (( fill < 0 )) && fill=0; (( fill > bar_w )) && fill=bar_w
     empty=$(( bar_w - fill ))
-    printf '  %-12s %s%s%s%s%s %s$%0.2f%s\n' \
-      "$label" "$(color_for "$pct")" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" \
-      "$c_reset" "$c_bold" "$val" "$c_reset"
-  }
-  costbar "Input"       "$in"
-  costbar "Output"      "$out"
-  costbar "Cache write" "$cw"
-  costbar "Cache read"  "$cr"
-  printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 12 )))" "$c_reset"
-  printf '  %-12s %*s%s$%0.2f%s\n' "Total" "$bar_w" "" "$c_bold" "$total" "$c_reset"
+    printf '  %-24s %s%s%s%s%s %s$%0.2f%s\n' \
+      "${model:0:24}" "$(color_for "$pct")" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" \
+      "$c_reset" "$c_bold" "$spend" "$c_reset"
+  done <<< "$models"
 
-  if [ "${other:-0}" -gt 0 ] 2>/dev/null && [ "$other" != "0" ]; then
-    printf '\n  %s+ untracked model(s): %s — add to pricing table%s\n' "$c_dim" "$models" "$c_reset"
-  fi
+  printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 26 )))" "$c_reset"
+  printf '  %-24s %*s%s$%0.2f%s\n'      "Total · last 7 days" "$bar_w" "" "$c_bold" "${total7d:-0}" "$c_reset"
+  printf '  %s%-24s %*s$%0.2f%s\n' "$c_dim" "all-time" "$bar_w" "" "${total_all:-0}" "$c_reset"
 }
 
 COST_CACHE="${TMPDIR:-/tmp}/claude-cost.cache"
 
 cost_main() {
-  # instant draw from cache (computed compute-output is what we cache)
+  # instant draw from cache (the render-ready blob is what we cache)
   if [[ -s $COST_CACHE ]]; then
     render_cost "$(cat "$COST_CACHE")"
     printf '\n  %s(cached — refreshing…)%s\n' "$c_dim" "$c_reset"
   else
     clear 2>/dev/null
     echo
-    printf '  %sCost · last 7 days%s\n\n  %sLoading…%s\n' "$c_bold" "$c_reset" "$c_dim" "$c_reset"
+    printf '  %sCost · LiteLLM ledger%s\n\n  %sLoading…%s\n' "$c_bold" "$c_reset" "$c_dim" "$c_reset"
   fi
 
-  # fresh compute over last-7-day transcripts
-  local cutoff; cutoff=$(( $(date +%s) - 7*86400 ))
-  local files=()
-  while IFS= read -r f; do files+=("$f"); done < <(find "$HOME/.claude/projects" -name '*.jsonl' -mtime -7 2>/dev/null)
-  local fresh; fresh=$(cost_compute "$cutoff" "${files[@]}")
-  printf '%s\n' "$fresh" > "$COST_CACHE"
-  render_cost "$fresh"
+  # fresh pull from the proxy's own ledger (the real spend it logged)
+  local base key cutoff mj sj lj
+  base=$(litellm_base); key=$(litellm_key)
+  cutoff=$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d)
+  mj=$(litellm_curl "$base" "$key" "/global/spend/models")
+  sj=$(litellm_curl "$base" "$key" "/global/spend")
+  lj=$(litellm_curl "$base" "$key" "/global/spend/logs")
+
+  if [ -z "$mj" ] && [ -z "$sj" ]; then
+    clear 2>/dev/null
+    echo
+    printf '  %sCost · LiteLLM ledger%s\n' "$c_bold" "$c_reset"
+    printf '  provider: %s\n\n' "$(provider_tag)"
+    printf '  %sproxy unreachable — could not fetch spend%s\n' "$c_dim" "$c_reset"
+  else
+    local fresh; fresh=$(cost_blob "$mj" "$sj" "$lj" "$cutoff")
+    printf '%s\n' "$fresh" > "$COST_CACHE"
+    render_cost "$fresh"
+  fi
 
   echo
   printf '  %s[any key to close]%s' "$c_dim" "$c_reset"
@@ -175,8 +161,16 @@ cost_main() {
   [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
 }
 
+# session_provider : what the invoking pane's claude is routing through, read
+# from the per-pane @claude_provider marker that `cv` sets. Empty if unknown.
+# SRC_PANE is the pane id passed by the keybinding (see keys.conf).
+session_provider() {
+  [ -n "${SRC_PANE:-}" ] || return
+  tmux show-options -pqv -t "$SRC_PANE" @claude_provider 2>/dev/null
+}
+
 provider_tag() {
-  if curl -fsS -m 1 "$(litellm_base)/health/liveliness" >/dev/null 2>&1; then
+  if [ "$(session_provider)" = "litellm" ]; then
     printf '\033[35mLiteLLM\033[0m \033[2m(%s)\033[0m' "$(litellm_base)"
   elif [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; then
     printf '\033[34mVertex AI (direct)\033[0m'
@@ -253,8 +247,13 @@ litellm_base() {
   fi
 }
 
+# Decide the view by whether THIS session routes through LiteLLM (per-pane
+# marker), NOT by whether the proxy happens to be alive — the proxy is always
+# reachable over Tailscale, so liveness would show cost even for a plain
+# subscription session.
 main() {
-  if curl -fsS -m 1 "$(litellm_base)/health/liveliness" >/dev/null 2>&1; then
+  SRC_PANE="${1:-}"
+  if [ "$(session_provider)" = "litellm" ]; then
     cost_main
   else
     usage_main
