@@ -19,3 +19,6 @@ Emoji\ Pack/
 .pi/agent/trust.json
 .pi/agent/git/
 .pi/agent/npm/
+
+# Test directories
+.tmux/scripts/tests
