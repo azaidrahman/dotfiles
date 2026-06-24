@@ -103,7 +103,8 @@ render_cost() {
 
   clear 2>/dev/null
   echo
-  printf '  %sCost · last 7 days%s\n\n' "$c_bold" "$c_reset"
+  printf '  %sCost · last 7 days%s\n' "$c_bold" "$c_reset"
+  printf '  provider: %s\n\n' "$(provider_tag)"
 
   # zero spend with no untracked models → fallback
   if awk -v t="${total:-0}" -v o="${other:-0}" 'BEGIN{exit !((t+0==0) && (o+0==0))}'; then
@@ -174,6 +175,16 @@ cost_main() {
   [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
 }
 
+provider_tag() {
+  if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
+    printf '\033[35mLiteLLM\033[0m \033[2m(%s)\033[0m' "${ANTHROPIC_BASE_URL}"
+  elif [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; then
+    printf '\033[34mVertex AI (direct)\033[0m'
+  else
+    printf '\033[36mAnthropic API\033[0m'
+  fi
+}
+
 bar() { # label pct reset
   local label=$1 pct=$2 reset=$3
   (( pct > 100 )) && pct=100
@@ -200,7 +211,8 @@ render() { # raw-text status-note
   local raw=$1 note=$2 found=0 line
   clear 2>/dev/null
   echo
-  printf '  %sClaude Code usage%s  %s%s%s\n\n' "$c_bold" "$c_reset" "$c_dim" "$note" "$c_reset"
+  printf '  %sClaude Code usage%s  %s%s%s\n' "$c_bold" "$c_reset" "$c_dim" "$note" "$c_reset"
+  printf '  provider: %s\n\n' "$(provider_tag)"
   while IFS= read -r line; do
     if [[ $line =~ ^(.+):\ *([0-9]+)%\ used(\ *·\ *resets\ (.*))?$ ]]; then
       bar "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[4]:-}"
@@ -233,8 +245,16 @@ usage_main() {
   [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
 }
 
+litellm_base() {
+  if [[ "$(hostname -s)" == onyx* ]]; then
+    printf 'http://localhost:4000'
+  else
+    printf 'http://onyx.tail5d740c.ts.net:4000'
+  fi
+}
+
 main() {
-  if [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; then
+  if curl -fsS -m 1 "$(litellm_base)/health/liveliness" >/dev/null 2>&1; then
     cost_main
   else
     usage_main
