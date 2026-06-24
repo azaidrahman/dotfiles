@@ -52,4 +52,19 @@ cat "$TMP/opus.jsonl" >> "$TMP/bad.jsonl"
 res=$(cost_compute 0 "$TMP/bad.jsonl")
 check "malformed line skipped" "36.75" "$(printf '%s\n' "$res" | get total)"
 
+# Task 3: render_cost tests
+strip() { sed $'s/\033\\[[0-9;]*m//g'; }
+res=$(cost_compute 0 "$TMP/opus.jsonl")
+out=$(render_cost "$res" | strip)
+check "render shows input dollars"  "1" "$(printf '%s\n' "$out" | grep -c 'Input .* \$5\.00')"
+check "render shows total dollars"  "1" "$(printf '%s\n' "$out" | grep -c 'Total .* \$36\.75')"
+check "render has no other line"    "0" "$(printf '%s\n' "$out" | grep -c 'untracked')"
+
+res=$(cost_compute 0 "$TMP/other.jsonl")
+out=$(render_cost "$res" | strip)
+check "render flags unpriced model" "1" "$(printf '%s\n' "$out" | grep -c 'claude-zzz-9')"
+
+out=$(render_cost "$(cost_compute 1700000000 "$TMP/old.jsonl")" | strip)
+check "render empty-spend fallback" "1" "$(printf '%s\n' "$out" | grep -c 'no spend in the last 7 days')"
+
 exit $fail

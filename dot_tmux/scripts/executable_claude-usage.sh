@@ -94,6 +94,57 @@ cost_compute() {
   '
 }
 
+# render_cost <compute_output> : draw the 7-day cost breakdown.
+render_cost() {
+  local data=$1 v
+  v() { printf '%s\n' "$data" | grep "^$1 " | cut -d' ' -f2-; }
+  local in=$(v input) out=$(v output) cw=$(v cache_write) cr=$(v cache_read)
+  local total=$(v total) other=$(v other_tokens) models=$(v other_models)
+
+  clear 2>/dev/null
+  echo
+  printf '  %sCost · last 7 days%s\n\n' "$c_bold" "$c_reset"
+
+  # zero spend with no untracked models → fallback
+  if awk -v t="${total:-0}" -v o="${other:-0}" 'BEGIN{exit !((t+0==0) && (o+0==0))}'; then
+    printf '  %sno spend in the last 7 days%s\n' "$c_dim" "$c_reset"
+    return
+  fi
+
+  # if total is 0 but other tokens exist, just show the flag and return
+  if awk -v t="${total:-0}" 'BEGIN{exit !(t+0==0)}'; then
+    if [ "${other:-0}" -gt 0 ] 2>/dev/null && [ "$other" != "0" ]; then
+      printf '  %s+ untracked model(s): %s — add to pricing table%s\n' "$c_dim" "$models" "$c_reset"
+    fi
+    return
+  fi
+
+  local max; max=$(awk -v a="$in" -v b="$out" -v c="$cw" -v d="$cr" \
+    'BEGIN{m=a;if(b>m)m=b;if(c>m)m=c;if(d>m)m=d; if(m<=0)m=1; print m}')
+  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+  local bar_w=$(( width - 34 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 32 )) && bar_w=32
+
+  costbar() { # label value
+    local label=$1 val=$2 fill empty pct
+    pct=$(awk -v v="$val" -v m="$max" 'BEGIN{printf "%d", (v/m)*100}')
+    fill=$(( pct * bar_w / 100 )); (( fill < 0 )) && fill=0; (( fill > bar_w )) && fill=bar_w
+    empty=$(( bar_w - fill ))
+    printf '  %-12s %s%s%s%s%s %s$%0.2f%s\n' \
+      "$label" "$(color_for "$pct")" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" \
+      "$c_reset" "$c_bold" "$val" "$c_reset"
+  }
+  costbar "Input"       "$in"
+  costbar "Output"      "$out"
+  costbar "Cache write" "$cw"
+  costbar "Cache read"  "$cr"
+  printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 12 )))" "$c_reset"
+  printf '  %-12s %*s%s$%0.2f%s\n' "Total" "$bar_w" "" "$c_bold" "$total" "$c_reset"
+
+  if [ "${other:-0}" -gt 0 ] 2>/dev/null && [ "$other" != "0" ]; then
+    printf '\n  %s+ untracked model(s): %s — add to pricing table%s\n' "$c_dim" "$models" "$c_reset"
+  fi
+}
+
 bar() { # label pct reset
   local label=$1 pct=$2 reset=$3
   (( pct > 100 )) && pct=100
