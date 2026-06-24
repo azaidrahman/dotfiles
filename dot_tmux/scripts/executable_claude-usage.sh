@@ -84,23 +84,35 @@ render() { # raw-text status-note
   (( found )) || printf '%s\n' "$raw"
 }
 
-# 1. instant draw from cache (or a loading placeholder)
-if [[ -s $CACHE ]]; then
-  render "$(cat "$CACHE")" "(cached — refreshing…)"
-else
-  clear 2>/dev/null
+usage_main() {
+  # 1. instant draw from cache (or a loading placeholder)
+  if [[ -s $CACHE ]]; then
+    render "$(cat "$CACHE")" "(cached — refreshing…)"
+  else
+    clear 2>/dev/null
+    echo
+    printf '  %sClaude Code usage%s\n\n  %sLoading…%s\n' "$c_bold" "$c_reset" "$c_dim" "$c_reset"
+  fi
+
+  # 2. fetch fresh, cache, redraw
+  FRESH=$(claude -p /usage 2>&1)
+  printf '%s\n' "$FRESH" > "$CACHE"
+  render "$FRESH" ""
+
   echo
-  printf '  %sClaude Code usage%s\n\n  %sLoading…%s\n' "$c_bold" "$c_reset" "$c_dim" "$c_reset"
-fi
+  printf '  %s[any key to close]%s' "$c_dim" "$c_reset"
+  old_stty=$(stty -g 2>/dev/null)
+  stty -echo -icanon min 1 time 0 2>/dev/null
+  dd bs=1 count=1 >/dev/null 2>&1
+  [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
+}
 
-# 2. fetch fresh, cache, redraw
-FRESH=$(claude -p /usage 2>&1)
-printf '%s\n' "$FRESH" > "$CACHE"
-render "$FRESH" ""
+main() {
+  if [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; then
+    cost_main
+  else
+    usage_main
+  fi
+}
 
-echo
-printf '  %s[any key to close]%s' "$c_dim" "$c_reset"
-old_stty=$(stty -g 2>/dev/null)
-stty -echo -icanon min 1 time 0 2>/dev/null
-dd bs=1 count=1 >/dev/null 2>&1
-[ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
+[[ "${BASH_SOURCE[0]}" == "${0}" ]] && main "$@"
