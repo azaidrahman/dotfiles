@@ -4,7 +4,8 @@ services:
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
+      - "100.86.30.80:4000:4000"   # onyx Tailscale IP — reachable within tailnet only
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ~/.config/gcloud:/root/.config/gcloud:ro
@@ -29,7 +30,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - litellm_data:/var/lib/postgresql/data
 
