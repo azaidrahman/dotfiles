@@ -48,6 +48,52 @@ repeat() { # char count -> char repeated count times (0-safe)
   printf '%s' "$out"
 }
 
+# Vertex per-1M-token pricing (USD). Family-substring matched; flat (no long-context tier).
+# cache-write = 5-minute rate (1.25x input); accepted approximation.
+COST_PRICE_JSON='{
+  "opus":  {"in":5, "out":25,"cw":6.25,"cr":0.5},
+  "sonnet":{"in":3, "out":15,"cw":3.75,"cr":0.3},
+  "haiku": {"in":1, "out":5, "cw":1.25,"cr":0.1},
+  "fable": {"in":10,"out":50,"cw":12.5,"cr":1.0}
+}'
+
+# cost_compute <cutoff_epoch> <file>... : sum spend by token type. cutoff 0 = no time filter.
+cost_compute() {
+  local cutoff=$1; shift
+  [ "$#" -eq 0 ] && { printf 'input 0\noutput 0\ncache_write 0\ncache_read 0\ntotal 0\nother_tokens 0\nother_models \n'; return; }
+  cat "$@" 2>/dev/null | jq -nrR --argjson cutoff "$cutoff" --argjson price "$COST_PRICE_JSON" '
+    def family($m): ($m // "") | ascii_downcase as $l
+      | if   ($l|test("opus"))   then "opus"
+        elif ($l|test("sonnet")) then "sonnet"
+        elif ($l|test("haiku"))  then "haiku"
+        elif ($l|test("fable"))  then "fable"
+        else "other" end;
+    def epoch($t): ($t // "") | sub("\\.[0-9]+Z$";"Z") | (try fromdateiso8601 catch 0);
+    reduce (inputs | (fromjson? // empty)) as $e
+      ({input:0,output:0,cw:0,cr:0,other_tok:0,others:{}};
+        if ($e.type=="assistant") and ($e.message.usage != null)
+           and (epoch($e.timestamp) >= $cutoff)
+        then
+          family($e.message.model) as $f
+          | $e.message.usage as $u
+          | (($u.input_tokens // 0)) as $it
+          | (($u.output_tokens // 0)) as $ot
+          | (($u.cache_creation_input_tokens // 0)) as $ct
+          | (($u.cache_read_input_tokens // 0)) as $rt
+          | if $f=="other"
+            then .other_tok += ($it+$ot+$ct+$rt) | .others[($e.message.model // "unknown")] = true
+            else $price[$f] as $p
+              | .input  += $it*$p.in/1000000
+              | .output += $ot*$p.out/1000000
+              | .cw     += $ct*$p.cw/1000000
+              | .cr     += $rt*$p.cr/1000000
+            end
+        else . end)
+    | .total = (.input + .output + .cw + .cr)
+    | "input \(.input)\noutput \(.output)\ncache_write \(.cw)\ncache_read \(.cr)\ntotal \(.total)\nother_tokens \(.other_tok)\nother_models \((.others|keys|join(",")))"
+  '
+}
+
 bar() { # label pct reset
   local label=$1 pct=$2 reset=$3
   (( pct > 100 )) && pct=100
