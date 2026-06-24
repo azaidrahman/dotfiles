@@ -39,6 +39,13 @@ if ! curl -fsS -m 3 "$health" >/dev/null 2>&1; then
   fi
 fi
 
+# Mark this pane as LiteLLM-routed so the prefix+u popup (a fresh shell that
+# can't see these prefix env vars) knows THIS session uses the proxy. Unset on
+# exit so the pane reverts to the plain-subscription view.
+if [[ -n "$TMUX" ]]; then
+  tmux set -p @claude_provider litellm 2>/dev/null
+fi
+
 ANTHROPIC_BASE_URL="$base" \
 ANTHROPIC_AUTH_TOKEN="$LITELLM_MASTER_KEY" \
 CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
@@ -46,3 +53,9 @@ ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
 ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \
 ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
 claude --allow-dangerously-skip-permissions "$@"
+local rc=$?
+
+if [[ -n "$TMUX" ]]; then
+  tmux set -pu @claude_provider 2>/dev/null
+fi
+return $rc
