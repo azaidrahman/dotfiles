@@ -22,3 +22,6 @@ Emoji\ Pack/
 
 # Test directories
 .tmux/scripts/tests
+
+# Design docs — version-controlled in the source repo, not deployed to ~/docs
+docs/
