@@ -14,7 +14,7 @@ if gitinfo=$(git -C "$dir" rev-parse --show-toplevel --abbrev-ref HEAD 2>/dev/nu
 fi
 
 show_cost="false"
-[ -n "${CLAUDE_CODE_USE_VERTEX:-}" ] && show_cost="true"
+{ [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ] || [ -n "${ANTHROPIC_BASE_URL:-}" ]; } && show_cost="true"
 
 # jq pass: emit fields joined by \x01 (non-whitespace) so IFS read preserves empty fields.
 # Tab (\t) collapses consecutive delimiters in bash IFS read; \x01 does not.
