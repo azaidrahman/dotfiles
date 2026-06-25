@@ -1,3 +1,16 @@
+#!/usr/bin/env bash
+# chezmoi modify_ script for ~/.pi/agent/settings.json
+# Renders the managed settings below, but PRESERVES live dynamic keys:
+#   lastChangelogVersion - updated automatically by pi on new releases
+#   defaultThinkingLevel - updated via pi settings
+set -euo pipefail
+
+current=$(cat)
+changelog=$(printf '%s' "$current" | jq -r '.lastChangelogVersion // empty' 2>/dev/null || true)
+thinking=$(printf '%s' "$current" | jq -r '.defaultThinkingLevel // empty' 2>/dev/null || true)
+
+cat <<'EOF' | jq --arg changelog "$changelog" --arg thinking "$thinking" \
+    '(if $changelog != "" then .lastChangelogVersion = $changelog else . end) | (if $thinking != "" then .defaultThinkingLevel = $thinking else . end)'
 {
   "lastChangelogVersion": "0.79.4",
 {{- if or (eq .chezmoi.hostname "aqua") (eq .chezmoi.hostname "onyx") }}
@@ -27,3 +40,4 @@
   ],
   "theme": "effort-colors"
 }
+EOF
