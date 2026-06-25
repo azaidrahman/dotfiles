@@ -14,8 +14,7 @@ session_spend() {
   printf '%s' "$logs" | jq -r --arg s "$sid" '
     [ .[]?
       | select((.request_tags // []) as $t
-          | (($t | index($s)) != null)
-            or any($t[]?; type == "string" and contains($s)))
+          | any($t[]?; type == "string" and (. == $s or endswith(": " + $s))))
       | (.spend // 0) ]
     | (add // 0) | (. * 100 | round) / 100' 2>/dev/null || printf '0'
 }
