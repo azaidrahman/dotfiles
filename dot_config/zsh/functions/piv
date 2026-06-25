@@ -15,6 +15,11 @@
 #                        piv --model claude-opus-4-8
 #                      (`pi --list-models litellm` shows the configured list.)
 #
+#       `piv` is the shared launcher: it owns the proxy guard AND the per-pane
+#       `@claude_provider` marker that the prefix+u popup reads to show the
+#       LiteLLM cost view. The lighter `pi` wrapper (Gemini 3.5 Flash) rides on
+#       it via $PI_LITELLM_MODEL — keep the marker logic here, single-source.
+#
 # Auth: the proxy (on onyx) holds the Vertex creds; pi authenticates to the
 #       proxy with $LITELLM_MASTER_KEY (exported from the encrypted ~/.zshenv).
 # Proxy source: ~/projects/gamuda/litellm-tracker (.env is chezmoi-encrypted).
@@ -85,4 +90,22 @@ if ! curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1; then
     print -u2 "piv: proxy is up."
 fi
 
-pi --provider litellm --model gemini-3.1-pro-preview "$@"
+# Model: default to Pro; the `pi` wrapper sets $PI_LITELLM_MODEL=gemini-3.5-flash.
+local _piv_model="${PI_LITELLM_MODEL:-gemini-3.1-pro-preview}"
+
+# Mark this pane as LiteLLM-routed so the prefix+u popup (a fresh shell that
+# can't see pi's --provider flags) shows the cost view for THIS session — the
+# same marker `cv` sets for Claude. Harness-agnostic: it means "routes through
+# the proxy", not "is Claude". Unset on exit so the pane reverts to /usage.
+if [[ -n "$TMUX" ]]; then
+    tmux set -p @claude_provider litellm 2>/dev/null
+fi
+
+# `command` so this never recurses into the `pi` shell function (Flash wrapper).
+command pi --provider litellm --model "$_piv_model" "$@"
+local _piv_rc=$?
+
+if [[ -n "$TMUX" ]]; then
+    tmux set -pu @claude_provider 2>/dev/null
+fi
+return $_piv_rc
