@@ -71,4 +71,15 @@ check "missing cache -> empty" "" \
   "$(TMPDIR="$TMPDIR_T" litellm_session_cost http://x k sess-AAA 2>/dev/null; true)"
 rm -rf "$TMPDIR_T"
 
+# --- integration: statusline renders the ledger cost on the LiteLLM path ----
+STATUS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/executable_statusline.sh"
+TMPDIR_I=$(mktemp -d)
+printf '1.23' > "$TMPDIR_I/claude-cc-cost.test-sess"     # fresh cache, no refresh
+strip() { sed $'s/\033\\[[0-9;]*m//g'; }
+render=$(printf '{"session_id":"test-sess","model":{"display_name":"Opus 4.8"},"context_window":{"used_percentage":10}}' \
+  | TMPDIR="$TMPDIR_I" ANTHROPIC_BASE_URL="http://x" ANTHROPIC_AUTH_TOKEN="k" COLUMNS=200 \
+    bash "$STATUS" | strip)
+check "statusline shows ledger cost" "1" "$(printf '%s' "$render" | grep -c '\$1\.23')"
+rm -rf "$TMPDIR_I"
+
 exit $fail
