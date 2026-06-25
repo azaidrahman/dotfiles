@@ -122,8 +122,8 @@ The statusline repaints many times per second and must never curl inline.
 
 - Format unchanged: `$X.XX` via `awk`.
 - `color_for_cost` thresholds recalibrated for per-session magnitude (the current
-  $20/$50/$75/$100 ramp is for account-wide totals): gray `<$1`, green `<$3`,
-  yellow `<$6`, orange `<$10`, red `≥$10`. Tunable; lives in one `awk` block.
+  $20/$50/$75/$100 ramp is for account-wide totals): gray `<$3`, green `<$9`,
+  yellow `<$18`, orange `<$30`, red `≥$30`. Tunable; lives in one `awk` block.
 - Blank until the first successful fetch; `$0.00` once the proxy confirms zero
   spend for the session.
 
