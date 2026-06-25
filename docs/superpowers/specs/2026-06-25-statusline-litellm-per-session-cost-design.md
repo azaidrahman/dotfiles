@@ -1,7 +1,18 @@
 # Per-session LiteLLM ledger cost on the Claude Code statusline
 
 **Date:** 2026-06-25
-**Status:** Design
+**Status:** Implemented (branch `feat/statusline-litellm-cost`)
+
+> **Revision (2026-06-25, post-deploy):** the read path changed from `/spend/logs`
+> to `/tag/daily/activity?tags=<tag>`. Deploying on onyx revealed that
+> `/spend/logs` has no server-side tag filter and returns the *entire* proxy log
+> for the date window (~69 MB / 27k entries on a busy day) — it would time out
+> over Tailscale from the client. `/tag/daily/activity` filters server-side by
+> the `x-claude-code-session-id: <id>` tag and returns a small per-tag aggregate
+> (`~3 KB`); the client reads `.metadata.total_spend`. The pure function is now
+> `tag_total_spend <activity_json>` instead of `session_spend <logs_json> <sid>`.
+> Sections below referencing `/spend/logs`/`session_spend` reflect the original
+> design; the shipped code uses the tag endpoint.
 
 ## Problem
 
