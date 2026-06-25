@@ -36,3 +36,10 @@ model_list:
       model: vertex_ai/claude-haiku-4-5
       vertex_project: "os.environ/GCP_PROJECT_ID"
       vertex_location: "global"
+
+litellm_settings:
+  # Record Claude Code's per-session id (sent on every request) as a spend tag,
+  # so the statusline can sum a single session's real ledger cost.
+  # See docs/superpowers/specs/2026-06-25-statusline-litellm-per-session-cost-design.md
+  extra_spend_tag_headers:
+    - "x-claude-code-session-id"
