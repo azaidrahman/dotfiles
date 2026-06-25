@@ -19,6 +19,9 @@ set -g @continuum-restore 'on'
 set -g @plugin 'schasse/tmux-jump'
 set -g @jump-key 'g'
 
+# Open URLs and files from copy-mode with o / C-o
+set -g @plugin 'tmux-plugins/tmux-open'
+
 {{ if not $minimal -}}
 # --- Theme (visual; skipped on minimal hosts) ---
 # https://github.com/janoamaral/tokyo-night-tmux
