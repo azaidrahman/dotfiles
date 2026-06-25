@@ -3,6 +3,10 @@
 # (worktree/branch are right-aligned to the terminal edge)
 input=$(cat)
 
+# LiteLLM per-session cost helper (sibling file; same dir in source tree and in
+# ~/.claude when deployed).
+source "$(dirname -- "${BASH_SOURCE[0]}")/statusline-cost.sh" 2>/dev/null || true
+
 dir=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty')
 [ -z "$dir" ] && dir="$PWD"
 
@@ -13,17 +17,22 @@ if gitinfo=$(git -C "$dir" rev-parse --show-toplevel --abbrev-ref HEAD 2>/dev/nu
   br=$(printf '%s' "$gitinfo" | sed -n 2p)
 fi
 
+# Cost segment is three-way: LiteLLM-routed sessions show the proxy's real
+# per-session spend (ledger); Vertex-direct sessions keep Claude Code's own
+# estimate; everything else shows no cost.
+litellm_routed="false"
+[ -n "${ANTHROPIC_BASE_URL:-}" ] && litellm_routed="true"
 show_cost="false"
-{ [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ] || [ -n "${ANTHROPIC_BASE_URL:-}" ]; } && show_cost="true"
+{ [ "$litellm_routed" = "true" ] || [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; } && show_cost="true"
 
 # jq pass: emit fields joined by \x01 (non-whitespace) so IFS read preserves empty fields.
 # Tab (\t) collapses consecutive delimiters in bash IFS read; \x01 does not.
 mode=$(printf '%s' "$input" | jq -r '.vim.mode // ""')
-out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" --arg show_cost "$show_cost" '
+out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" --arg show_cost "$show_cost" --arg litellm "$litellm_routed" '
   [
     (.model.display_name // ""),
     (.effort.level // ""),
-    (if $show_cost == "true" and (.cost.total_cost_usd != null) then (.cost.total_cost_usd | tostring) else "" end),
+    (if $show_cost == "true" and $litellm == "false" and (.cost.total_cost_usd != null) then (.cost.total_cost_usd | tostring) else "" end),
     ((.context_window.used_percentage // 0) | tostring),
     $wt,
     $br,
@@ -33,6 +42,12 @@ out=$(printf '%s' "$input" | jq -r --arg wt "$wt" --arg br "$br" --arg show_cost
   ] | join("")')
 
 IFS=$'\x01' read -r model effort cost_raw ctx_pct wt br five_h_pct seven_d_pct session_id <<< "$out"
+
+# LiteLLM-routed: replace the (empty) estimate slot with this session's real
+# ledger spend, read from the cache (refreshed in the background by the helper).
+if [ "$litellm_routed" = "true" ]; then
+  cost_raw=$(litellm_session_cost "${ANTHROPIC_BASE_URL:-}" "${ANTHROPIC_AUTH_TOKEN:-}" "$session_id")
+fi
 
 # ── Color helpers (256-color for tmux stability) ───────────────────────────────
 
@@ -107,11 +122,11 @@ rate_glyph() {
 color_for_cost() {
   local tier
   tier=$(awk -v u="$1" 'BEGIN {
-    if      (u <  20) print "gray"
-    else if (u <  50) print "green"
-    else if (u <  75) print "yellow"
-    else if (u < 100) print "orange"
-    else              print "red"
+    if      (u <  3) print "gray"
+    else if (u <  9) print "green"
+    else if (u < 18) print "yellow"
+    else if (u < 30) print "orange"
+    else             print "red"
   }')
   case "$tier" in
     gray)   printf '\033[38;5;244m' ;;
