@@ -1,0 +1,4 @@
+# pires - resume the most recent Pi (Gemini 3.5 Flash via LiteLLM) session.
+#
+#   pires [pi-args...]   Equivalent to: pi --resume
+pi --resume "$@"

@@ -1,0 +1,12 @@
+# pi - Pi via the LiteLLM proxy on Gemini 3.5 Flash (cheap default for simple,
+#      high-volume tasks; saves cost vs. Pro). Shadows the `pi` binary so plain
+#      `pi` routes through the proxy and is cost-tracked by the prefix+u popup.
+#      For the raw, un-proxied agent use `command pi`.
+#
+#      Thin wrapper over `piv`, which owns the proxy guard and the per-pane cost
+#      marker; only the model differs (set via $PI_LITELLM_MODEL). See `piv` for
+#      proxy/auth details.
+#
+#   pi [pi-args...]   Run Pi against gemini-3.5-flash via LiteLLM.
+#   pires             Resume such a session (pi --resume).
+PI_LITELLM_MODEL=gemini-3.5-flash piv "$@"

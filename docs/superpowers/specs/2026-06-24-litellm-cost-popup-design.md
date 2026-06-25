@@ -43,15 +43,21 @@ a local estimate. Subscription sessions keep the unchanged `/usage` bar view.
 
 ## Detection: per-pane marker
 
-The reliable "does this session use LiteLLM" signal is published by `cv` as a
-**pane-scoped tmux option**, not session-environment (which leaks across panes):
+The reliable "does this session use LiteLLM" signal is published by each
+proxy-routing launcher as a **pane-scoped tmux option**, not session-environment
+(which leaks across panes). The marker is **harness-agnostic** — it means "this
+pane routes through the proxy", not "this pane is Claude":
 
-- `cv` runs `tmux set -p @claude_provider litellm` on launch and
+- `cv` (Claude) sets `tmux set -p @claude_provider litellm` on launch and
   `tmux set -pu @claude_provider` on exit (guarded by `[[ -n "$TMUX" ]]`).
+- `piv` (Pi) does the same — and since `pi` (the Gemini 3.5 Flash wrapper) and
+  the `pires`/`pivres` resume wrappers all delegate to `piv`, the marker logic
+  lives in `piv` alone, single-source. So Pi sessions get the cost view too.
 - The popup reads `tmux show-options -pqv -t <pane> @claude_provider`.
 
-Pane-scoped means a subscription pane and a `cv` pane side-by-side each report
-correctly. `provider_tag()` and the view-gating in `main()` both read it.
+Pane-scoped means a subscription pane and a `cv`/`piv` pane side-by-side each
+report correctly. `provider_tag()` and the view-gating in `main()` both read it.
+No popup code changed for Pi support — only the launcher now sets the marker.
 
 ### Resolving the triggering pane (the subtle bit)
 
@@ -95,8 +101,16 @@ models are dropped and the `vertex_ai/` provider prefix stripped for width.
   gemini-3.5-flash         █████░░░░░░░░░░░░░░░░░░░░░░░░░░░ $0.23
   ──────────────────────────────────────────────────────────
   Total · last 7 days                                     $0.78
+  month to date                                            $1.62
+  year to date                                             $2.71
   all-time                                                 $2.88
 ```
+
+Totals stack from narrowest to widest window: last 7 days, month-to-date,
+year-to-date, all-time. The first three are summed from `/global/spend/logs`
+(daily `[{date, spend}]`) against inclusive `YYYY-MM-DD` cutoffs computed at
+render time — `date -v-7d` for 7d, `date +%Y-%m-01` for MTD, `date +%Y-01-01`
+for YTD (all BSD + GNU safe). All-time is the `/global/spend` grand total.
 
 ## Files touched
 
