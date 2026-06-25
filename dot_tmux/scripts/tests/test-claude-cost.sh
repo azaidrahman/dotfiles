@@ -24,20 +24,25 @@ LOGS='[{"date":"2026-06-10","spend":5.0},
        {"date":"2026-06-20","spend":1.0},
        {"date":"2026-06-24","spend":0.5}]'
 
-blob=$(cost_blob "$MODELS" "$SPEND" "$LOGS" "2026-06-17")
+# cutoffs: 7d=2026-06-17, MTD=2026-06-01, YTD=2026-01-01
+blob=$(cost_blob "$MODELS" "$SPEND" "$LOGS" "2026-06-17" "2026-06-01" "2026-01-01")
 get() { printf '%s\n' "$blob" | awk -v k="$1" '$1==k{print $2; exit}'; }
 
 check "all-time total from /global/spend" "2.876" "$(get TOTALALL)"
 check "7-day total sums on/after cutoff"  "1.5"   "$(get TOTAL7D)"
+check "MTD total sums on/after 1st of month" "6.5" "$(get TOTALMTD)"
+check "YTD total sums on/after 1st of year"  "6.5" "$(get TOTALYTD)"
 check "models sorted by spend desc, prefix stripped" "gemini-3.1-pro" \
   "$(printf '%s\n' "$blob" | sed -n 's/^MODEL [^\t]*\t//p' | head -1)"
 check "zero-spend model dropped (3 of 4 kept)" "3" \
   "$(printf '%s\n' "$blob" | grep -c '^MODEL ')"
 
 # Empty / missing JSON degrades to zeros, no models.
-blob0=$(cost_blob "" "" "" "2026-06-17")
+blob0=$(cost_blob "" "" "" "2026-06-17" "2026-06-01" "2026-01-01")
 check "empty spend -> 0 all-time" "0" "$(printf '%s\n' "$blob0" | awk '$1=="TOTALALL"{print $2}')"
 check "empty spend -> 0 7-day"    "0" "$(printf '%s\n' "$blob0" | awk '$1=="TOTAL7D"{print $2}')"
+check "empty spend -> 0 MTD"      "0" "$(printf '%s\n' "$blob0" | awk '$1=="TOTALMTD"{print $2}')"
+check "empty spend -> 0 YTD"      "0" "$(printf '%s\n' "$blob0" | awk '$1=="TOTALYTD"{print $2}')"
 check "empty -> no MODEL lines"   "0" "$(printf '%s\n' "$blob0" | grep -c '^MODEL ')"
 
 # --- render_cost: draw the blob --------------------------------------------
@@ -45,6 +50,8 @@ strip() { sed $'s/\033\\[[0-9;]*m//g'; }
 out=$(SRC_PANE="" render_cost "$blob" | strip)
 check "render shows a model + dollars" "1" "$(printf '%s\n' "$out" | grep -c 'gemini-3.1-pro .* \$1\.40')"
 check "render shows 7-day total"       "1" "$(printf '%s\n' "$out" | grep -c 'last 7 days .* \$1\.50')"
+check "render shows month-to-date total" "1" "$(printf '%s\n' "$out" | grep -c 'month to date .* \$6\.50')"
+check "render shows year-to-date total"  "1" "$(printf '%s\n' "$out" | grep -c 'year to date .* \$6\.50')"
 check "render shows all-time total"    "1" "$(printf '%s\n' "$out" | grep -c 'all-time .* \$2\.88')"
 
 out=$(SRC_PANE="" render_cost "$blob0" | strip)
