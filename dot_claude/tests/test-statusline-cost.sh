@@ -14,32 +14,27 @@ check "source is side-effect free" "SOURCED_OK" "${out##*$'\n'}"
 
 source "$LIB" 2>/dev/null
 
-# --- session_spend: sum .spend over entries whose request_tags ⊇ session ----
-LOGS='[
- {"spend":0.10,"request_tags":["sess-AAA"]},
- {"spend":0.32,"request_tags":["sess-AAA","model-opus"]},
- {"spend":0.99,"request_tags":["sess-BBB"]},
- {"spend":0.05,"request_tags":[]}
-]'
-check "sums only the matching session"      "0.42" "$(session_spend "$LOGS" "sess-AAA")"
-check "non-matching session -> 0"           "0"    "$(session_spend "$LOGS" "sess-ZZZ")"
-check "header:value tag shape also matches" "0.07" \
-  "$(session_spend '[{"spend":0.07,"request_tags":["x-claude-code-session-id: sess-CCC"]}]' "sess-CCC")"
-check "empty json -> 0"                      "0"    "$(session_spend "" "sess-AAA")"
-check "malformed json -> 0"                  "0"    "$(session_spend "not json" "sess-AAA")"
-check "missing session id -> 0"             "0"    "$(session_spend "$LOGS" "")"
-check "prefix collision does not over-match" "0" \
-  "$(session_spend '[{"spend":0.10,"request_tags":["x-claude-code-session-id: sess-AAA"]}]' "sess-A")"
+# --- tag_total_spend: extract .metadata.total_spend, rounded 2dp ------------
+# Shape mirrors a real /tag/daily/activity response (filtered server-side to one
+# tag), so the client only reads the aggregate.
+ACT='{"results":[{"date":"2026-06-25","metrics":{"spend":0.42}}],"metadata":{"total_spend":0.42}}'
+check "extracts total_spend"        "0.42" "$(tag_total_spend "$ACT")"
+check "rounds to 2dp"               "0.07" "$(tag_total_spend '{"metadata":{"total_spend":0.067}}')"
+check "sub-cent rounds to 0"        "0"    "$(tag_total_spend '{"metadata":{"total_spend":0.000048}}')"
+check "empty results -> 0"          "0"    "$(tag_total_spend '{"results":[],"metadata":{"total_spend":0}}')"
+check "missing metadata -> 0"       "0"    "$(tag_total_spend '{}')"
+check "empty json -> 0"             "0"    "$(tag_total_spend '')"
+check "malformed json -> 0"         "0"    "$(tag_total_spend 'not json')"
 
 # --- cache + refresh -------------------------------------------------------
 TMPDIR_T=$(mktemp -d)
 CACHE="$TMPDIR_T/claude-cc-cost.sess-AAA"
 
-# refresh writes the summed total for the session, via the (stubbed) fetch.
-_litellm_fetch_logs() { printf '%s' "$LOGS"; }   # stub: return the fixture
+# refresh writes the per-tag total, via the (stubbed) fetch.
+_litellm_fetch_tag_activity() { printf '%s' "$ACT"; }   # stub: return the fixture
 _litellm_cost_refresh "http://x" "k" "sess-AAA" "$CACHE"
-check "refresh writes summed cache" "0.42" "$(cat "$CACHE" 2>/dev/null)"
-check "refresh clears its lock"     "1"    "$([ -d "$CACHE.lock" ]; echo $?)"
+check "refresh writes tag total" "0.42" "$(cat "$CACHE" 2>/dev/null)"
+check "refresh clears its lock"  "1"    "$([ -d "$CACHE.lock" ]; echo $?)"
 
 # a held lock blocks a concurrent refresh (no overwrite).
 printf '5.55' > "$CACHE"; mkdir "$CACHE.lock"
@@ -54,13 +49,13 @@ _litellm_cost_refresh "http://x" "k" "sess-AAA" "$CACHE"
 check "stale lock broken, refresh runs" "0.42" "$(cat "$CACHE")"
 
 # unreachable proxy (empty fetch) leaves the old cache untouched.
-_litellm_fetch_logs() { printf ''; }
+_litellm_fetch_tag_activity() { printf ''; }
 printf '7.77' > "$CACHE"
 _litellm_cost_refresh "http://x" "k" "sess-AAA" "$CACHE"
 check "empty fetch keeps old cache" "7.77" "$(cat "$CACHE")"
 
 # litellm_session_cost echoes a fresh cache and does NOT refresh.
-_litellm_fetch_logs() { printf '%s' "$LOGS"; }   # would write 0.42 if it ran
+_litellm_fetch_tag_activity() { printf '%s' "$ACT"; }   # would write 0.42 if it ran
 printf '1.23' > "$CACHE"
 check "fresh cache echoed as-is" "1.23" \
   "$(TMPDIR="$TMPDIR_T" litellm_session_cost http://x k sess-AAA)"
@@ -76,6 +71,7 @@ STATUS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/executable_statusline.s
 TMPDIR_I=$(mktemp -d)
 printf '1.23' > "$TMPDIR_I/claude-cc-cost.test-sess"     # fresh cache, no refresh
 strip() { sed $'s/\033\\[[0-9;]*m//g'; }
+# COLUMNS wide enough that right-aligned wt/br never folds the cost segment inline
 render=$(printf '{"session_id":"test-sess","model":{"display_name":"Opus 4.8"},"context_window":{"used_percentage":10}}' \
   | TMPDIR="$TMPDIR_I" ANTHROPIC_BASE_URL="http://x" ANTHROPIC_AUTH_TOKEN="k" COLUMNS=200 \
     bash "$STATUS" | strip)
