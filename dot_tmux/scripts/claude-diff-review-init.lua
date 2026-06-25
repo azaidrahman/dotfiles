@@ -296,13 +296,13 @@ function M.confirm()
     return
   end
   -- The popup opens in any git repo; the paste target only needs to be Claude
-  -- at confirm time. If the origin pane isn't running Claude, report and stay
-  -- open (nothing is lost — the user can bail with q or retry).
+  -- or Pi at confirm time. If the origin pane isn't running Claude or Pi, report
+  -- and stay open (nothing is lost — the user can bail with q or retry).
   local tty = vim.trim(vim.fn.system(
     { "tmux", "display-message", "-p", "-t", pane, "#{pane_tty}" }))
   vim.fn.system({ vim.env.HOME .. "/.tmux/scripts/is-claude-pane.sh", tty })
   if vim.v.shell_error ~= 0 then
-    vim.notify("origin pane is not running Claude — nothing sent", vim.log.levels.ERROR)
+    vim.notify("origin pane is not running Claude or Pi — nothing sent", vim.log.levels.ERROR)
     return
   end
   -- Compile the collected records into one review-comment message. Refs are
