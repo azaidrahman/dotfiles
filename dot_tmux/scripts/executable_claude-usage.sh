@@ -64,17 +64,23 @@ litellm_curl() {
   curl -fsS -m 5 -H "Authorization: Bearer $2" "$1$3" 2>/dev/null
 }
 
-# cost_blob <models_json> <spend_json> <logs_json> <cutoff_date> : fold the
-# proxy's real ledger into a cacheable, render-ready blob (pure; no network).
+# cost_blob <models_json> <spend_json> <logs_json> <cut7d> <cutMTD> <cutYTD> :
+# fold the proxy's real ledger into a cacheable, render-ready blob (pure; no
+# network). The three cutoffs are inclusive YYYY-MM-DD lower bounds summed from
+# the daily logs.
 #   TOTALALL <usd>            grand total across all logged requests
-#   TOTAL7D  <usd>            spend on/after <cutoff_date> (YYYY-MM-DD)
+#   TOTAL7D  <usd>            spend on/after <cut7d>
+#   TOTALMTD <usd>            spend on/after <cutMTD> (first of this month)
+#   TOTALYTD <usd>            spend on/after <cutYTD> (first of this year)
 #   MODEL    <usd>\t<model>   per-model spend, one line each
 cost_blob() {
-  local mj=$1 sj=$2 lj=$3 cut=$4 all sevend
+  local mj=$1 sj=$2 lj=$3 cut=$4 cutm=$5 cuty=$6 all
   all=$(printf '%s' "$sj"  | jq -r '.spend // 0' 2>/dev/null); all=${all:-0}
-  sevend=$(printf '%s' "$lj" | jq -r --arg c "$cut" \
-    '[.[] | select(.date >= $c) | .spend] | add // 0' 2>/dev/null); sevend=${sevend:-0}
-  printf 'TOTALALL %s\nTOTAL7D %s\n' "$all" "$sevend"
+  # sum the daily logs on/after an inclusive YYYY-MM-DD cutoff (0 on failure)
+  sum_since() { local s; s=$(printf '%s' "$lj" | jq -r --arg c "$1" \
+    '[.[] | select(.date >= $c) | .spend] | add // 0' 2>/dev/null); printf '%s' "${s:-0}"; }
+  printf 'TOTALALL %s\nTOTAL7D %s\nTOTALMTD %s\nTOTALYTD %s\n' \
+    "$all" "$(sum_since "$cut")" "$(sum_since "$cutm")" "$(sum_since "$cuty")"
   # only models with real spend; drop the "vertex_ai/" provider prefix for width
   printf '%s' "$mj" | jq -r '
     [.[] | select((.total_spend // 0) > 0)] | sort_by(-.total_spend)[]
@@ -82,11 +88,14 @@ cost_blob() {
 }
 
 # render_cost <blob> : draw the LiteLLM ledger — one bar per model (all-time
-# spend), then last-7-day and all-time totals. <blob> is cost_blob's output.
+# spend), then last-7-day / month-to-date / year-to-date / all-time totals.
+# <blob> is cost_blob's output.
 render_cost() {
-  local blob=$1 total_all total7d models
+  local blob=$1 total_all total7d totalmtd totalytd models
   total_all=$(printf '%s\n' "$blob" | awk '$1=="TOTALALL"{print $2; exit}')
   total7d=$( printf '%s\n' "$blob" | awk '$1=="TOTAL7D"{print $2; exit}')
+  totalmtd=$(printf '%s\n' "$blob" | awk '$1=="TOTALMTD"{print $2; exit}')
+  totalytd=$(printf '%s\n' "$blob" | awk '$1=="TOTALYTD"{print $2; exit}')
   models=$(  printf '%s\n' "$blob" | sed -n 's/^MODEL //p')   # lines: "<spend>\t<model>"
 
   clear 2>/dev/null
@@ -117,6 +126,8 @@ render_cost() {
 
   printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 26 )))" "$c_reset"
   printf '  %-24s %*s%s$%0.2f%s\n'      "Total · last 7 days" "$bar_w" "" "$c_bold" "${total7d:-0}" "$c_reset"
+  printf '  %-24s %*s$%0.2f\n'          "month to date" "$bar_w" "" "${totalmtd:-0}"
+  printf '  %-24s %*s$%0.2f\n'          "year to date"  "$bar_w" "" "${totalytd:-0}"
   printf '  %s%-24s %*s$%0.2f%s\n' "$c_dim" "all-time" "$bar_w" "" "${total_all:-0}" "$c_reset"
 }
 
@@ -134,9 +145,11 @@ cost_main() {
   fi
 
   # fresh pull from the proxy's own ledger (the real spend it logged)
-  local base key cutoff mj sj lj
+  local base key cutoff cutoff_m cutoff_y mj sj lj
   base=$(litellm_base); key=$(litellm_key)
   cutoff=$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d)
+  cutoff_m=$(date +%Y-%m-01)   # first of this month (BSD + GNU)
+  cutoff_y=$(date +%Y-01-01)   # first of this year
   mj=$(litellm_curl "$base" "$key" "/global/spend/models")
   sj=$(litellm_curl "$base" "$key" "/global/spend")
   lj=$(litellm_curl "$base" "$key" "/global/spend/logs")
@@ -148,7 +161,7 @@ cost_main() {
     printf '  provider: %s\n\n' "$(provider_tag)"
     printf '  %sproxy unreachable — could not fetch spend%s\n' "$c_dim" "$c_reset"
   else
-    local fresh; fresh=$(cost_blob "$mj" "$sj" "$lj" "$cutoff")
+    local fresh; fresh=$(cost_blob "$mj" "$sj" "$lj" "$cutoff" "$cutoff_m" "$cutoff_y")
     printf '%s\n' "$fresh" > "$COST_CACHE"
     render_cost "$fresh"
   fi
