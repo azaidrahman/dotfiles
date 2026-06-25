@@ -9,4 +9,4 @@
 #
 #   pi [pi-args...]   Run Pi against gemini-3.5-flash via LiteLLM.
 #   pires             Resume such a session (pi --resume).
-PI_LITELLM_MODEL=gemini-3.5-flash piv "$@"
+piv "$@"

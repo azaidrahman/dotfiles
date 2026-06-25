@@ -91,7 +91,7 @@ if ! curl -fsS -m 2 "$_piv_health" >/dev/null 2>&1; then
 fi
 
 # Model: default to Pro; the `pi` wrapper sets $PI_LITELLM_MODEL=gemini-3.5-flash.
-local _piv_model="${PI_LITELLM_MODEL:-gemini-3.1-pro-preview}"
+local _piv_model="${PI_LITELLM_MODEL:-gemini-3.5-flash}"
 
 # Mark this pane as LiteLLM-routed so the prefix+u popup (a fresh shell that
 # can't see pi's --provider flags) shows the cost view for THIS session — the
