@@ -28,5 +28,7 @@ check "header:value tag shape also matches" "0.07" \
 check "empty json -> 0"                      "0"    "$(session_spend "" "sess-AAA")"
 check "malformed json -> 0"                  "0"    "$(session_spend "not json" "sess-AAA")"
 check "missing session id -> 0"             "0"    "$(session_spend "$LOGS" "")"
+check "prefix collision does not over-match" "0" \
+  "$(session_spend '[{"spend":0.10,"request_tags":["x-claude-code-session-id: sess-AAA"]}]' "sess-A")"
 
 exit $fail
