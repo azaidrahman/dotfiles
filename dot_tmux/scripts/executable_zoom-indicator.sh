@@ -9,8 +9,8 @@ if [ "$zoomed" -eq 1 ]; then
     fi
     saved=$(tmux show -gv @zoom-saved-fmt 2>/dev/null)
     if [ -n "$saved" ]; then
-        # Green bg, black text/icons
-        modified=$(echo "$saved" | sed 's/#414868/#5fff00/g; s/#73daca/#000000/g; s/#a9b1d6/#000000/g')
+        # Green bg, black text/icons (force ALL state fg colors dark so text stays readable)
+        modified=$(echo "$saved" | sed 's/#414868/#5fff00/g; s/#73daca/#000000/g; s/#a9b1d6/#000000/g; s/#7dcfff/#000000/g; s/#f7768e/#000000/g; s/#bb9af7/#000000/g; s/#e0af68/#000000/g; s/#9ece6a/#000000/g')
         tmux set -g window-status-current-format "$modified"
     fi
 else
