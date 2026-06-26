@@ -118,6 +118,25 @@ rate_glyph() {
   printf '%b%s%b' "$col" "$letter" "$reset"
 }
 
+# color_for_ctx <pct>: gray below 30%, green→red from 30% to 85%+
+color_for_ctx() {
+  local tier
+  tier=$(awk -v p="$1" 'BEGIN {
+    if      (p < 30) print "gray"
+    else if (p < 50) print "green"
+    else if (p < 70) print "yellow"
+    else if (p < 85) print "orange"
+    else             print "red"
+  }')
+  case "$tier" in
+    gray)   printf '\033[38;5;244m' ;;
+    green)  printf '\033[38;5;82m'  ;;
+    yellow) printf '\033[38;5;226m' ;;
+    orange) printf '\033[38;5;208m' ;;
+    red)    printf '\033[38;5;196m' ;;
+  esac
+}
+
 # color_for_cost <usd>: gray below $20, green→red from $20 to $100+
 color_for_cost() {
   local tier
@@ -157,7 +176,7 @@ fi
 glyphs="$(rate_glyph S "$five_h_pct")$(rate_glyph W "$seven_d_pct")"
 [ -n "$glyphs" ] && segments+=("$glyphs")
 
-segments+=("ctx:${ctx_pct}%")
+segments+=("$(color_for_ctx "$ctx_pct")ctx:${ctx_pct}%${reset}")
 
 # Session ID, last 5 chars — enough to disambiguate panes without the clutter.
 [ -n "$session_id" ] && segments+=("${gray}id:${session_id: -5}${reset}")
