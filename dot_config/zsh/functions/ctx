@@ -1,0 +1,48 @@
+emulate -L zsh
+
+local ctx_base="$HOME/ctx"
+local ctx_file="$HOME/.config/active-ctx"
+
+case "${1:-}" in
+  ls|list)
+    if [[ -d "$ctx_base" ]]; then
+      local current=""
+      [[ -f "$ctx_file" ]] && current="$(< "$ctx_file")"
+      for d in "$ctx_base"/*/(:); do
+        local name="${d%/}"
+        name="${name##*/}"
+        if [[ "$name" == "$current" ]]; then
+          print "* $name"
+        else
+          print "  $name"
+        fi
+      done
+    else
+      print "no contexts yet — run: ctx <name>"
+    fi
+    ;;
+  cd)
+    if [[ -f "$ctx_file" ]]; then
+      cd "$ctx_base/$(< "$ctx_file")"
+    else
+      print "ctx: no active context" >&2
+      return 1
+    fi
+    ;;
+  "")
+    if [[ -f "$ctx_file" ]]; then
+      local current="$(< "$ctx_file")"
+      print "$current  →  $ctx_base/$current"
+    else
+      print "ctx: no active context — run: ctx <name>"
+    fi
+    ;;
+  *)
+    local name="$1"
+    local dir="$ctx_base/$name"
+    mkdir -p "$dir"
+    print "$name" > "$ctx_file"
+    export CTX_DIR="$dir"
+    print "ctx: $name  →  $dir"
+    ;;
+esac

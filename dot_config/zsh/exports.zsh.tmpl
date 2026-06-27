@@ -54,6 +54,11 @@ if [[ -n "$SSH_CONNECTION" ]]; then
     export GIT_CONFIG_VALUE_0="ssh-keygen"
 fi
 
+# === Active context ===
+_ctx_file="$HOME/.config/active-ctx"
+[[ -f "$_ctx_file" ]] && export CTX_DIR="$HOME/ctx/$(< "$_ctx_file")"
+unset _ctx_file
+
 # === Project dirs ===
 export GCP_SCRIPTS="$HOME/projects/gamuda/gtech-atlas/scripts/"
 export INFRA="$HOME/projects/gamuda/gtech-atlas/"
