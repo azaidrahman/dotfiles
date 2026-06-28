@@ -1,0 +1,13 @@
+# omp model config — chezmoi-managed. Base URL injected via LITELLM_BASE_URL env
+# var (set by _litellm_proxy at launch). API key via LITELLM_API_KEY (same source).
+providers:
+  litellm:
+    api: openai-completions
+    discovery:
+      type: litellm
+
+modelRoles:
+  default: litellm/claude-sonnet-4-6
+  smol:    litellm/gemini-3.5-flash
+  slow:    litellm/claude-opus-4-8
+  plan:    litellm/claude-opus-4-8
