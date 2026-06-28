@@ -409,7 +409,7 @@ end
 
 -- Jump to another repo via a zoxide frecency picker (snacks if available, else
 -- a plain vim.ui.select). snacks is loaded lazily here so popup startup stays fast.
-function M.jump_repo()
+function M.jump_repo(auto_exit_on_cancel)
   local ok = pcall(function()
     if not M._snacks_ready then
       vim.opt.rtp:prepend(vim.fn.stdpath("data") .. "/lazy/snacks.nvim")
@@ -445,9 +445,18 @@ function M.jump_repo()
         ctx.preview:highlight({ ft = "diff" })
       end,
       confirm = function(picker, item)
-        picker:close()
         if item then
-          switch_repo(item.file)
+          M._selected_repo = item.file
+        end
+        picker:close()
+      end,
+      on_close = function()
+        if M._selected_repo then
+          local dir = M._selected_repo
+          M._selected_repo = nil
+          switch_repo(dir)
+        elseif auto_exit_on_cancel then
+          vim.cmd("qa!")
         end
       end,
     })
@@ -463,6 +472,8 @@ function M.jump_repo()
   vim.ui.select(dirs, { prompt = "Jump to repo:" }, function(choice)
     if choice then
       switch_repo(choice)
+    elseif auto_exit_on_cancel then
+      vim.cmd("qa!")
     end
   end)
 end
@@ -704,7 +715,7 @@ vim.api.nvim_create_autocmd("VimEnter", {
     if cwd_has_changes() then
       vim.cmd("CodeDiff")
     else
-      M.jump_repo()
+      M.jump_repo(true)
     end
   end,
 })
