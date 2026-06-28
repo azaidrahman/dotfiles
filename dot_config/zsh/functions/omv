@@ -8,7 +8,7 @@ emulate -L zsh
 
 _litellm_proxy || return $?
 
-local _omv_model="${OMP_LITELLM_MODEL:-gemini-3.1-pro-preview}"
+local _omv_model="${OMP_LITELLM_MODEL:-gemini-3.5-flash}"
 
 [[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
 
