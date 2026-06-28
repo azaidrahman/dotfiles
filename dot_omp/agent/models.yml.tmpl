@@ -1,0 +1,16 @@
+# omp model config — chezmoi-managed template.
+# baseUrl is host-aware (onyx=local, anywhere else=tailscale).
+# apiKey uses omp's !cmd prefix to fetch from 1Password at startup.
+providers:
+  litellm:
+    baseUrl: {{ if hasPrefix "onyx" .chezmoi.hostname }}http://localhost:4000/v1{{ else }}http://onyx:4000/v1{{ end }}
+    apiKey: "!op read 'op://Personal Development/LiteLLM login/API Key'"
+    api: openai-completions
+    discovery:
+      type: litellm
+
+modelRoles:
+  default: litellm/claude-sonnet-4-6
+  smol:    litellm/gemini-3.5-flash
+  slow:    litellm/claude-opus-4-8
+  plan:    litellm/claude-opus-4-8

@@ -12,7 +12,7 @@ local _omv_model="${OMP_LITELLM_MODEL:-gemini-3.1-pro-preview}"
 
 [[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
 
-command omp --provider litellm --model "$_omv_model" "$@"
+command omp --model "litellm/$_omv_model" "$@"
 local rc=$?
 
 [[ -n "$TMUX" ]] && tmux set -pu @claude_provider 2>/dev/null
