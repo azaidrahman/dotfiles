@@ -59,6 +59,9 @@ _ctx_file="$HOME/.config/active-ctx"
 [[ -f "$_ctx_file" ]] && export CTX_DIR="$HOME/ctx/$(< "$_ctx_file")"
 unset _ctx_file
 
+# === HELM REGISTRY ===
+export HELM_REGISTRY_CONFIG="~/.docker/config.json"
+
 # === Project dirs ===
 export GCP_SCRIPTS="$HOME/projects/gamuda/gtech-atlas/scripts/"
 export INFRA="$HOME/projects/gamuda/gtech-atlas/"
