@@ -3,5 +3,18 @@ theme:
   dark: titanium
   light: light
 setupVersion: 1
-modelRoles: 
+modelRoles:
   default: litellm/gemini-3.5-flash:high
+# Keep startup context lean: don't auto-inject the whole Claude/Codex/Agents
+# skill marketplace (~20% of the window before you type). pi-native skills stay,
+# and slash-command invocation remains on for on-demand use.
+skills:
+  enabled: true
+  enableSkillCommands: true
+  enableClaudeUser: false
+  enableClaudeProject: false
+  enableCodexUser: false
+  enableAgentsUser: false
+  enableAgentsProject: false
+  enablePiUser: true
+  enablePiProject: true

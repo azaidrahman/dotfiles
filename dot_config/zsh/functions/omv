@@ -13,7 +13,11 @@ local _omv_model="${OMP_LITELLM_MODEL:-gemini-3.5-flash}"
 
 [[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
 
-command omp --model "litellm/$_omv_model" "$@"
+# Flash ignores CLAUDE.md rules, so enforce "no eager exploration" at the
+# system-prompt level (which it does respect) to keep startup context lean.
+local _omv_sys='Do not proactively explore the repo or run tools in response to greetings or trivial messages (e.g. "ping", "hi") — reply directly. Use tools only when the request clearly requires them. Never read ~/ctx or follow the active-context pointer unless the user explicitly asks about their context/research. Read specific files, not broad scans; never read large HTML files in full.'
+
+command omp --model "litellm/$_omv_model" --append-system-prompt "$_omv_sys" "$@"
 local rc=$?
 
 [[ -n "$TMUX" ]] && tmux set -pu @claude_provider 2>/dev/null
