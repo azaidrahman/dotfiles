@@ -1,0 +1,66 @@
+# dot_config/zsh/functions/_litellm_proxy
+# _litellm_proxy — shared guard for all LiteLLM-backed agent wrappers.
+#
+# Exports: LITELLM_MASTER_KEY, LITELLM_API_KEY, LITELLM_BASE_URL
+# Sets:    REPLY to the base URL (no trailing slash, no /v1)
+# Lazy:    fetches key from 1Password only on first call per session.
+# Guard:   health-checks proxy; auto-starts docker compose on onyx if down.
+# Returns: non-zero on any failure.
+emulate -L zsh
+
+local litellm_dir="$HOME/projects/gamuda/litellm-tracker"
+local base
+
+if [[ "${HOST%%.*}" == "onyx" ]]; then
+  base="http://localhost:4000"
+else
+  base="http://onyx:4000"
+fi
+
+# Lazy key fetch — only hits 1Password once per shell session.
+if [[ -z "$LITELLM_MASTER_KEY" ]]; then
+  print -u2 "_litellm_proxy: fetching LITELLM_MASTER_KEY from 1Password…"
+  LITELLM_MASTER_KEY="$(op read 'op://Personal Development/LiteLLM login/API Key')" || {
+    print -u2 "_litellm_proxy: op read failed — is 1Password unlocked?"
+    return 1
+  }
+  export LITELLM_MASTER_KEY
+  export LITELLM_API_KEY="$LITELLM_MASTER_KEY"   # native var for omp/pi
+  export LITELLM_BASE_URL="${base}/v1"            # native var for omp/pi base URL
+fi
+
+# Health check + conditional auto-start.
+local health="${base}/health/liveliness"
+if ! curl -fsS -m 3 "$health" >/dev/null 2>&1; then
+  print -u2 "_litellm_proxy: proxy not reachable at ${base} — attempting to start…"
+  if [[ "${HOST%%.*}" == "onyx" ]]; then
+    if [[ ! -f "$litellm_dir/docker-compose.yml" ]]; then
+      print -u2 "_litellm_proxy: compose file missing at $litellm_dir — run 'chezmoi apply'."
+      return 1
+    fi
+    if ! docker info >/dev/null 2>&1; then
+      print -u2 "_litellm_proxy: Docker isn't running — start Docker then retry."
+      return 1
+    fi
+    docker compose -f "$litellm_dir/docker-compose.yml" up -d >/dev/null 2>&1 || {
+      print -u2 "_litellm_proxy: docker compose up -d failed."
+      return 1
+    }
+    local i
+    for i in {1..20}; do
+      curl -fsS -m 2 "$health" >/dev/null 2>&1 && break
+      sleep 1
+    done
+    if ! curl -fsS -m 2 "$health" >/dev/null 2>&1; then
+      print -u2 "_litellm_proxy: proxy still not healthy after 20s."
+      return 1
+    fi
+    print -u2 "_litellm_proxy: proxy is up."
+  else
+    print -u2 "_litellm_proxy: proxy not reachable at ${base}."
+    print -u2 "               Start it on onyx: ssh onyx 'cd ${litellm_dir} && docker compose up -d'"
+    return 1
+  fi
+fi
+
+REPLY="$base"
