@@ -363,7 +363,16 @@ local function switch_repo(dir)
   if M.list_win and vim.api.nvim_win_is_valid(M.list_win) then
     vim.api.nvim_win_set_height(M.list_win, 1)
   end
+  local init_tab = vim.api.nvim_get_current_tabpage()
   vim.cmd("CodeDiff")
+  -- CodeDiff always opens in a new tab (tabnew). Close the pre-CodeDiff tab so
+  -- quit_diff's tab-count check sees 1 tab and calls qall, not tabclose.
+  vim.schedule(function()
+    if vim.api.nvim_tabpage_is_valid(init_tab)
+        and init_tab ~= vim.api.nvim_get_current_tabpage() then
+      pcall(vim.cmd, vim.api.nvim_tabpage_get_number(init_tab) .. "tabclose")
+    end
+  end)
 end
 
 -- Show a cheatsheet of this popup's custom keys in a floating window.
@@ -713,7 +722,14 @@ vim.api.nvim_create_autocmd("VimEnter", {
       return
     end
     if cwd_has_changes() then
+      local init_tab = vim.api.nvim_get_current_tabpage()
       vim.cmd("CodeDiff")
+      vim.schedule(function()
+        if vim.api.nvim_tabpage_is_valid(init_tab)
+            and init_tab ~= vim.api.nvim_get_current_tabpage() then
+          pcall(vim.cmd, vim.api.nvim_tabpage_get_number(init_tab) .. "tabclose")
+        end
+      end)
     else
       M.jump_repo(true)
     end
