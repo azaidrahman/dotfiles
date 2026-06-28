@@ -25,9 +25,11 @@ if [[ -z "$LITELLM_MASTER_KEY" ]]; then
     return 1
   }
   export LITELLM_MASTER_KEY
-  export LITELLM_API_KEY="$LITELLM_MASTER_KEY"   # native var for omp/pi
-  export LITELLM_BASE_URL="${base}/v1"            # native var for omp/pi base URL
 fi
+# Always export aliases so omp/pi pick up the correct host URL even if
+# LITELLM_MASTER_KEY arrived pre-set from an external source.
+export LITELLM_API_KEY="$LITELLM_MASTER_KEY"
+export LITELLM_BASE_URL="${base}/v1"
 
 # Health check + conditional auto-start.
 local health="${base}/health/liveliness"
