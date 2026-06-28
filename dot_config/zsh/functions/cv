@@ -1,52 +1,13 @@
-# cv - Claude Code routed through the LiteLLM proxy on onyx (unified cost tracking).
-#      onyx hosts the proxy (~/projects/gamuda/litellm-tracker, OrbStack compose);
-#      aqua reaches it over Tailscale. Native-Vertex path retired.
+# cv - Claude Code routed through the LiteLLM proxy on onyx (Vertex backend).
 #      See docs/superpowers/specs/2026-06-24-route-cv-through-litellm-design.md
+#      Key fetched lazily from 1Password by _litellm_proxy on first call per session.
 emulate -L zsh
 
-local litellm_dir="$HOME/projects/gamuda/litellm-tracker"
-local base
-if [[ "$(hostname -s)" == onyx* ]]; then
-  base="http://localhost:4000"
-else
-  base="http://onyx.tail5d740c.ts.net:4000"
-fi
-local health="${base}/health/liveliness"
+_litellm_proxy || return $?
 
-if [[ -z "$LITELLM_MASTER_KEY" ]]; then
-  print -u2 "cv: \$LITELLM_MASTER_KEY is not set (expected from ~/.zshenv)."
-  print -u2 "cv: run 'chezmoi apply ~/.zshenv' and start a new shell."
-  return 1
-fi
+[[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
 
-# Proxy guard: ensure the proxy is up; auto-start locally on onyx, SSH-start on aqua.
-if ! curl -fsS -m 3 "$health" >/dev/null 2>&1; then
-  print -u2 "cv: LiteLLM proxy not reachable at ${base} — attempting to start it…"
-  if [[ "$(hostname -s)" == onyx* ]]; then
-    ( cd "$litellm_dir" && docker compose up -d ) || { print -u2 "cv: failed to start proxy locally"; return 1; }
-  else
-    ssh onyx "cd ${litellm_dir} && docker compose up -d" || { print -u2 "cv: failed to start proxy on onyx via ssh"; return 1; }
-  fi
-  local i
-  for i in {1..20}; do
-    curl -fsS -m 2 "$health" >/dev/null 2>&1 && break
-    sleep 1
-  done
-  if ! curl -fsS -m 2 "$health" >/dev/null 2>&1; then
-    print -u2 "cv: proxy still not healthy at ${base}."
-    print -u2 "    Start it on onyx with: (cd ${litellm_dir} && docker compose up -d)"
-    return 1
-  fi
-fi
-
-# Mark this pane as LiteLLM-routed so the prefix+u popup (a fresh shell that
-# can't see these prefix env vars) knows THIS session uses the proxy. Unset on
-# exit so the pane reverts to the plain-subscription view.
-if [[ -n "$TMUX" ]]; then
-  tmux set -p @claude_provider litellm 2>/dev/null
-fi
-
-ANTHROPIC_BASE_URL="$base" \
+ANTHROPIC_BASE_URL="$REPLY" \
 ANTHROPIC_AUTH_TOKEN="$LITELLM_MASTER_KEY" \
 CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
 ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
@@ -55,7 +16,5 @@ ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
 claude --allow-dangerously-skip-permissions "$@"
 local rc=$?
 
-if [[ -n "$TMUX" ]]; then
-  tmux set -pu @claude_provider 2>/dev/null
-fi
+[[ -n "$TMUX" ]] && tmux set -pu @claude_provider 2>/dev/null
 return $rc
