@@ -4,7 +4,7 @@
 providers:
   litellm:
     baseUrl: {{ if hasPrefix "onyx" .chezmoi.hostname }}http://localhost:4000/v1{{ else }}http://onyx:4000/v1{{ end }}
-    apiKey: "!op read 'op://Personal Development/LiteLLM login/API Key'"
+    apiKey: "!op read 'op://Personal Development/LiteLLM login/omp'"
     api: openai-completions
     discovery:
       type: litellm

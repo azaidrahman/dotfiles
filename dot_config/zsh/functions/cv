@@ -1,14 +1,15 @@
 # cv - Claude Code routed through the LiteLLM proxy on onyx (Vertex backend).
 #      See docs/superpowers/specs/2026-06-24-route-cv-through-litellm-design.md
-#      Key fetched lazily from 1Password by _litellm_proxy on first call per session.
+#      Authenticates with the 'claude-code' virtual key (per-harness spend),
+#      fetched lazily from 1Password by _litellm_proxy.
 emulate -L zsh
 
-_litellm_proxy || return $?
+_litellm_proxy claude-code || return $?
 
 [[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
 
 ANTHROPIC_BASE_URL="$REPLY" \
-ANTHROPIC_AUTH_TOKEN="$LITELLM_MASTER_KEY" \
+ANTHROPIC_AUTH_TOKEN="$LITELLM_API_KEY" \
 CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
 ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
 ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \

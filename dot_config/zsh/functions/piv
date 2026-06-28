@@ -1,4 +1,5 @@
 # piv - Pi coding agent on the Vertex backend (Gemini/Claude via LiteLLM).
+#       Authenticates with the 'omp' virtual key (shared with omv — Pi family).
 #       Key and base URL exported by _litellm_proxy; pi reads them natively.
 #
 #   piv [pi-args...]                              Default: gemini-3.5-flash
@@ -8,7 +9,7 @@
 #   `piv` owns the @claude_provider TMUX marker — keep it here, not in `pi`.
 emulate -L zsh
 
-_litellm_proxy || return $?
+_litellm_proxy omp || return $?
 
 local _piv_model="${PI_LITELLM_MODEL:-gemini-3.5-flash}"
 
