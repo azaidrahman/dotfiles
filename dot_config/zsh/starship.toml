@@ -1,14 +1,23 @@
 # ~/.config/starship.toml
 
-format = "$time $directory $git_branch $gcloud \n$character"
+format = "$time $directory $git_branch ${custom.gcloud} ${custom.kube} \n$character"
 
-[gcloud]
-format = 'on [$symbol$account(@$domain)(\($project\))]($style) '
+[custom.gcloud]
+command = "$HOME/.local/bin/gcloud-prompt"
+when = "true"
+format = "on [$output]($style) "
+style = "bold blue"
+
+[custom.kube]
+command = "$HOME/.local/bin/kube-context-prompt"
+when = "true"
+format = "via [☸ $output]($style) "
+style = "bold cyan"
 
 [time]
 disabled = false
 format = "[$time]($style) "
-time_format = "%d-%b-%y %-I:%M%P"
+time_format = "%H:%M"
 
 [directory]
 truncation_length = 3

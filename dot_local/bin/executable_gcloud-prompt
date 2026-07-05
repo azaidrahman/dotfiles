@@ -1,0 +1,13 @@
+#!/bin/sh
+# Starship custom module: gcloud account, masked to the last 5 chars of the
+# local-part, e.g. REDACTED-WORK-EMAIL -> *ssani@gamuda.tech
+# Reads the config file directly instead of shelling out to `gcloud` (slow).
+config_dir="$HOME/.config/gcloud"
+active=$(cat "$config_dir/active_config" 2>/dev/null)
+account=$(awk -F'= ' '/^account = /{print $2}' "$config_dir/configurations/config_${active:-default}" 2>/dev/null)
+[ -z "$account" ] && exit 0
+
+user="${account%%@*}"
+domain="${account#*@}"
+tail5=$(printf '%s' "$user" | tail -c 5)
+printf '*%s@%s' "$tail5" "$domain"
