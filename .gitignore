@@ -3,3 +3,5 @@ Emoji\ Pack/
 /dot_config/private_karabiner/CLAUDE.md
 Brewfile.lock.json
 /.pi
+/docs/
+dot_config/wezterm/*.tmp
