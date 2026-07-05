@@ -27,11 +27,21 @@ else
 	exit 0
 fi
 
-# 2. Resolve the session id/file from the cwd's project dir.
+# 2. Resolve the session id/file.
 if [ "$AGENT" = "claude" ]; then
-	PROJ=$(printf '%s' "$CWD" | tr '/.' '--')
-	NEWEST=$(ls -t "$HOME/.claude/projects/${PROJ}/"*.jsonl 2>/dev/null | head -1 || true)
-	SID=$(basename "${NEWEST:-}" .jsonl)
+	# Prefer the transcript path the SessionStart hook tagged directly onto this
+	# pane (see tag-pane-session.sh) — it names the exact session running here.
+	# Falls back to newest-mtime under the cwd's project dir, which is only a
+	# guess: it breaks when multiple Claude panes share the same project dir,
+	# since typing in ANY of them can make its file look "newest".
+	TRANSCRIPT=$(tmux show-options -pqv -t "$PANE" @claude_transcript 2>/dev/null || true)
+	if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
+		SID=$(basename "$TRANSCRIPT" .jsonl)
+	else
+		PROJ=$(printf '%s' "$CWD" | tr '/.' '--')
+		NEWEST=$(ls -t "$HOME/.claude/projects/${PROJ}/"*.jsonl 2>/dev/null | head -1 || true)
+		SID=$(basename "${NEWEST:-}" .jsonl)
+	fi
 	if [ -z "$SID" ]; then
 		tmux display-message "fork: no Claude session for this dir"
 		exit 0
