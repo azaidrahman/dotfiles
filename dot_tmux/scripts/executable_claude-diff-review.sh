@@ -1,44 +1,29 @@
 #!/usr/bin/env bash
-# prefix+e launcher: open `hunk diff` in a popup to review the working-tree
-# changes of the active pane's repo. Invoked via run-shell so tmux expands the
-# #{...} format into the arg below.
+# prefix+e launcher: open an oil.nvim-style directory browser (dir-picker-hunk.sh)
+# in a popup, rooted at the active pane's cwd, to navigate to a worktree (or any
+# directory) and review its working-tree changes with `hunk diff`. Invoked via
+# run-shell so tmux expands the #{...} format into the args below.
+#
+# Why always the browser, never a straight `hunk diff`: the common setup is a
+# shell sitting at a repo's BASE while an agent edits inside a linked worktree
+# (under .worktrees/). The changes you want to see are in the worktree, not the
+# base — so you need to navigate there first. Opening hunk directly on the base
+# would trap you on the base's diff (and an untracked worktree dir can make the
+# base look "dirty" even when it isn't your work). From the browser, "." on the
+# base itself still gives the base's own diff in one keypress, so nothing is lost.
 #
 # hunk auto-reloads as the working tree changes, so the popup stays live while
-# an agent keeps editing in another pane. Claude drives the same live session
-# via `hunk session ...` (see the bundled hunk-review skill).
+# an agent keeps editing. Claude drives the same live session via
+# `hunk session ...` (see the bundled hunk-review skill).
 #
-# Clean repo, or not a repo: falls back to an oil.nvim-style directory browser
-# (dir-picker-hunk.sh) rooted at the pane's cwd — worktrees if it's a repo with
-# any, else its subdirs — so you can navigate to one and try hunk diff there,
-# instead of opening an empty hunk session.
-#
-# $1 — pane current path (where to look for changes / open hunk / start the browser).
+# $1 — pane current path (where the browser starts).
 # $2 — pane id (where to `cd` once the browser accepts a directory).
 set -euo pipefail
 
 cwd=${1:?pane path required}
 pane_id=${2:?pane id required}
 
-# True when $1 is inside a git work tree that has changes (tracked or untracked).
-has_changes() {
-  git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
-  [[ -n $(git -C "$1" status --porcelain 2>/dev/null) ]]
-}
-
-open_hunk() {
-  tmux display-popup -E -w 96% -h 96% -d "$1" -- hunk diff
-}
-
-# No tty is attached under plain run-shell, so an fzf/select picker needs
-# display-popup to get one (see hold() in pane-md-preview.sh) — that's also
-# what the dir picker below relies on.
-open_dir_picker() {
-  tmux display-popup -E -w 80% -h 80% -d "$1" -T ' cd → hunk diff ' \
-    -- ~/.tmux/scripts/dir-picker-hunk.sh "$2"
-}
-
-if has_changes "$cwd"; then
-  open_hunk "$cwd"
-else
-  open_dir_picker "$cwd" "$pane_id"
-fi
+# No tty is attached under plain run-shell, so the fzf browser needs
+# display-popup to get one (see hold() in pane-md-preview.sh).
+tmux display-popup -E -w 80% -h 80% -d "$cwd" -T ' cd → hunk diff ' \
+  -- ~/.tmux/scripts/dir-picker-hunk.sh "$pane_id"
