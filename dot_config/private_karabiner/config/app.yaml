@@ -11,20 +11,18 @@ app:
   - r | arc | Arc
   - t | ghostty | Ghostty
   - y | sioyek | Sioyek
-  - u | conductor | Conductor
   - i | IINA | IINA
   - I | ytmusic | Youtube Music
   - j | jira | Jira
   - o | orb | Orbstack
-  - p | teams | Microsoft Teams
+  - p | gchat | Google Chat
   - s | slack | Slack
-  - d | t3 code | T3 Code (Alpha)
   - f | cal | Calendar
   - F | alfred | Alfred Preferences
   - g | iPhone | iPhone Mirroring
   - G | safari | Safari
   - k | KM | Keyboard Maestro
-  - l | outlook | Microsoft Outlook
+  - l | gmail | Gmail Gamuda
   - c | switch | !Cgrave_accent_and_tilde
   - v | vivaldi | Vivaldi
   - V | arc | Arc
