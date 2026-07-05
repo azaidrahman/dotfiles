@@ -29,7 +29,7 @@ fish_style_pwd_dir_length = 2
 # 'Users/abdullahzaidas-sani/Downloads' = '📂 Downloads'
 
 [git_branch]
-symbol = "🌱 "
+symbol = ""
 
 [character]
 success_symbol = "[➜](bold green)"
