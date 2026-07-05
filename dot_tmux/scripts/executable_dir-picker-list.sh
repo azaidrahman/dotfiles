@@ -15,9 +15,14 @@ dir=${1:?directory required}
 
 printf '%s\n' "$dir"
 
+wt=""
 toplevel=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)
 if [[ -n "$toplevel" && "$dir" == "$toplevel" ]]; then
-  git -C "$dir" worktree list --porcelain | awk -v skip="$dir" '/^worktree /{ if ($2 != skip) print $2 }'
+  wt=$(git -C "$dir" worktree list --porcelain | awk -v skip="$dir" '/^worktree /{ if ($2 != skip) print $2 }')
+fi
+
+if [[ -n "$wt" ]]; then
+  printf '%s\n' "$wt"
 else
   find "$dir" -mindepth 1 -maxdepth 1 -type d \( -name .git -o -name node_modules \) -prune -o -type d -print 2>/dev/null
 fi
