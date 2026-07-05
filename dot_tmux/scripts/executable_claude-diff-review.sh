@@ -9,8 +9,9 @@
 # (under .worktrees/). The changes you want to see are in the worktree, not the
 # base — so you need to navigate there first. Opening hunk directly on the base
 # would trap you on the base's diff (and an untracked worktree dir can make the
-# base look "dirty" even when it isn't your work). From the browser, "." on the
-# base itself still gives the base's own diff in one keypress, so nothing is lost.
+# base look "dirty" even when it isn't your work). From the browser, Enter on
+# the base itself still gives the base's own diff in one keypress, so nothing
+# is lost.
 #
 # hunk auto-reloads as the working tree changes, so the popup stays live while
 # an agent keeps editing. Claude drives the same live session via
