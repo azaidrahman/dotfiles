@@ -32,6 +32,13 @@ font-family = "MonaspiceNe Nerd Font"
 font-style = "Light"
 font-size = 17
 
+# Without this, Ghostty can't derive a bold variant from the Light style and
+# falls back to a different (mismatched) system font for anything bolded -
+# prompt segments, syntax highlighting, etc. Pinning it to the same Light
+# style means "bold" text never gets heavier, just stays in the same face.
+font-family-bold = "MonaspiceNe Nerd Font"
+font-style-bold = "Light"
+
 # Monaspace ligatures (->, =>, ==, !=, >=, <=, ::, ..., ||, etc.) live behind
 # stylistic sets, not just calt/liga - enable them all to get the full set.
 font-feature = calt
