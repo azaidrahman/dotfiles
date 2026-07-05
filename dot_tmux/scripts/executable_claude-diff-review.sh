@@ -7,12 +7,13 @@
 # an agent keeps editing in another pane. Claude drives the same live session
 # via `hunk session ...` (see the bundled hunk-review skill).
 #
-# Clean repo, or not a repo: falls back to an fzf picker over subdirectories of
-# the pane's cwd (e.g. sibling worktrees under .worktrees/) so you can jump to
-# one and try hunk diff there, instead of opening an empty hunk session.
+# Clean repo, or not a repo: falls back to an oil.nvim-style directory browser
+# (dir-picker-hunk.sh) rooted at the pane's cwd — worktrees if it's a repo with
+# any, else its subdirs — so you can navigate to one and try hunk diff there,
+# instead of opening an empty hunk session.
 #
-# $1 — pane current path (where to look for changes / open hunk / start the picker).
-# $2 — pane id (where to `cd` if the fallback picker picks a directory).
+# $1 — pane current path (where to look for changes / open hunk / start the browser).
+# $2 — pane id (where to `cd` once the browser accepts a directory).
 set -euo pipefail
 
 cwd=${1:?pane path required}
