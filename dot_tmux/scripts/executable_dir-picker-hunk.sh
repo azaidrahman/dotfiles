@@ -3,10 +3,13 @@
 # show: an oil.nvim-style directory browser, rooted at that cwd. Each row is a
 # directory — the repo's worktrees if the current level has any, else its
 # immediate subdirectories (see dir-picker-list.sh). Enter drills into the
-# highlighted row, "-" goes up to the parent and re-lists from there, "."
-# accepts wherever you're currently sitting. Once accepted, the triggering
-# pane is cd'd there and, if that directory has changes, `hunk diff` runs
-# right there in this same popup.
+# highlighted row, "-" goes up to the parent and re-lists from there. "."
+# accepts wherever you're currently sitting: cd's the triggering pane there,
+# and opens `hunk diff` right there in this same popup only if that directory
+# actually has changes (a clean dir just shows a notice). "h" is the explicit
+# override — cd's the pane and opens hunk diff regardless of whether there
+# are changes, for when you want the diff view up anyway (e.g. to browse
+# history/blame) or you know better than the clean/dirty check.
 #
 # Run via `tmux display-popup -d <cwd> -- dir-picker-hunk.sh <pane_id>` — the
 # popup's cwd is already <cwd>, which is where browsing starts.
@@ -19,7 +22,8 @@ list_script=~/.tmux/scripts/dir-picker-list.sh
 
 statefile=$(mktemp)
 resultfile=$(mktemp)
-trap 'rm -f "$statefile" "$resultfile"' EXIT
+forcefile=$(mktemp)
+trap 'rm -f "$statefile" "$resultfile" "$forcefile"' EXIT
 
 pwd >"$statefile"
 
@@ -28,7 +32,15 @@ pwd >"$statefile"
   --bind "enter:execute-silent(echo {} > '$statefile')+reload($list_script \$(cat '$statefile'))" \
   --bind "-:execute-silent(dirname \"\$(cat '$statefile')\" > '$statefile')+reload($list_script \$(cat '$statefile'))" \
   --bind ".:execute-silent(cat '$statefile' > '$resultfile')+abort" \
+  --bind "h:execute-silent(cat '$statefile' > '$forcefile')+abort" \
   >/dev/null || true
+
+if [[ -s "$forcefile" ]]; then
+  sel=$(<"$forcefile")
+  tmux send-keys -t "$pane_id" "cd -- '$sel'" C-m
+  cd "$sel"
+  exec hunk diff
+fi
 
 [[ -s "$resultfile" ]] || exit 0
 sel=$(<"$resultfile")
