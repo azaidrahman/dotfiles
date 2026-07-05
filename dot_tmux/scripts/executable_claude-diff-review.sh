@@ -7,6 +7,9 @@
 # an agent keeps editing in another pane. Claude drives the same live session
 # via `hunk session ...` (see the bundled hunk-review skill).
 #
+# Clean repo, or not a repo: shows a popup notification instead of opening an
+# empty hunk session.
+#
 # $1 — pane current path (where to look for changes / open hunk).
 set -euo pipefail
 
@@ -19,31 +22,19 @@ has_changes() {
 }
 
 open_hunk() {
-  tmux display-popup -E -w 90% -h 90% -d "$1" -- hunk diff
+  tmux display-popup -E -w 96% -h 96% -d "$1" -- hunk diff
 }
 
-# Repo with changes under the cursor: review it directly.
+# No tty is attached under plain run-shell, so an fzf/select picker here would
+# hang silently — display-popup is what actually gets a tty (see hold() in
+# pane-md-preview.sh), so a real notification goes through it too.
+notify_no_changes() {
+  tmux display-popup -E -w 40% -h 20% -T ' diff-review ' \
+    -e "MSG=no changes in $1" 'printf "\n%s\n" "$MSG"; read -rsn1 -p "Press any key to close…"'
+}
+
 if has_changes "$cwd"; then
   open_hunk "$cwd"
-  exit 0
-fi
-
-# Clean repo, or not a repo: fall back to a zoxide frecency picker so prefix+e
-# is never a confusing empty popup or a dead end. Mirrors md-pick.sh's fzf/menu
-# pattern. Cancelling exits cleanly.
-mapfile -t dirs < <(zoxide query --list 2>/dev/null || true)
-(( ${#dirs[@]} == 0 )) && { tmux display-message "diff-review: no changes here, and zoxide has no repos"; exit 0; }
-
-if command -v fzf >/dev/null; then
-  target=$(printf '%s\n' "${dirs[@]}" | fzf --reverse --prompt='review repo > ' \
-    --preview='git -C {} status --short 2>/dev/null || echo "not a git repo"' \
-    --preview-window='right:60%') || exit 0
 else
-  PS3=$'\nPick a repo (number, Ctrl-C to cancel): '
-  select target in "${dirs[@]}"; do
-    [[ -n ${target:-} ]] && break
-  done
+  notify_no_changes "$cwd"
 fi
-[[ -z ${target:-} ]] && exit 0
-
-open_hunk "$target"
