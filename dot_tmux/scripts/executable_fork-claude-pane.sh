@@ -49,8 +49,9 @@ if [ "$AGENT" = "claude" ]; then
 
 	# Command to run in the new pane
 	FORK_CMD="claude --resume $SID --fork-session"
-	TITLE="fork:${SID:0:8}"
-	DISPLAY_NAME="${SID:0:8}"
+	# Last 5 chars, matching the "id:" segment in statusline.sh.
+	TITLE="fork:${SID: -5}"
+	DISPLAY_NAME="${SID: -5}"
 else
 	# For Pi
 	# Clean leading slash/backslash
