@@ -7,12 +7,12 @@
 # an agent keeps editing in another pane. Claude drives the same live session
 # via `hunk session ...` (see the bundled hunk-review skill).
 #
-# Clean repo, or not a repo: falls back to a zoxide fuzzy picker so you can
-# jump the pane to another worktree (or anywhere else in zoxide's history)
-# instead of opening an empty hunk session.
+# Clean repo, or not a repo: falls back to an fzf picker over subdirectories of
+# the pane's cwd (e.g. sibling worktrees under .worktrees/) so you can jump to
+# one and try hunk diff there, instead of opening an empty hunk session.
 #
-# $1 — pane current path (where to look for changes / open hunk).
-# $2 — pane id (where to `cd` if the zoxide fallback picks a directory).
+# $1 — pane current path (where to look for changes / open hunk / start the picker).
+# $2 — pane id (where to `cd` if the fallback picker picks a directory).
 set -euo pipefail
 
 cwd=${1:?pane path required}
@@ -30,16 +30,14 @@ open_hunk() {
 
 # No tty is attached under plain run-shell, so an fzf/select picker needs
 # display-popup to get one (see hold() in pane-md-preview.sh) — that's also
-# what the zoxide picker below relies on.
-open_zoxide_picker() {
-  tmux display-popup -E -w 80% -h 80% -d "$1" -T ' cd (zoxide) ' \
-    -e "TARGET_PANE=$2" \
-    'sel=$(zoxide query -l | fzf --tac --prompt="cd> " --preview "ls -la --color=always {}"); \
-     [[ -n "$sel" ]] && tmux send-keys -t "$TARGET_PANE" "cd -- \"$sel\"" C-m'
+# what the dir picker below relies on.
+open_dir_picker() {
+  tmux display-popup -E -w 80% -h 80% -d "$1" -T ' cd → hunk diff ' \
+    -- ~/.tmux/scripts/dir-picker-hunk.sh "$2"
 }
 
 if has_changes "$cwd"; then
   open_hunk "$cwd"
 else
-  open_zoxide_picker "$cwd" "$pane_id"
+  open_dir_picker "$cwd" "$pane_id"
 fi
