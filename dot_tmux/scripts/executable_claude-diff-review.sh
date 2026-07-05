@@ -7,13 +7,16 @@
 # an agent keeps editing in another pane. Claude drives the same live session
 # via `hunk session ...` (see the bundled hunk-review skill).
 #
-# Clean repo, or not a repo: shows a popup notification instead of opening an
-# empty hunk session.
+# Clean repo, or not a repo: falls back to a zoxide fuzzy picker so you can
+# jump the pane to another worktree (or anywhere else in zoxide's history)
+# instead of opening an empty hunk session.
 #
 # $1 — pane current path (where to look for changes / open hunk).
+# $2 — pane id (where to `cd` if the zoxide fallback picks a directory).
 set -euo pipefail
 
 cwd=${1:?pane path required}
+pane_id=${2:?pane id required}
 
 # True when $1 is inside a git work tree that has changes (tracked or untracked).
 has_changes() {
@@ -25,16 +28,18 @@ open_hunk() {
   tmux display-popup -E -w 96% -h 96% -d "$1" -- hunk diff
 }
 
-# No tty is attached under plain run-shell, so an fzf/select picker here would
-# hang silently — display-popup is what actually gets a tty (see hold() in
-# pane-md-preview.sh), so a real notification goes through it too.
-notify_no_changes() {
-  tmux display-popup -E -w 40% -h 20% -T ' diff-review ' \
-    -e "MSG=no changes in $1" 'printf "\n%s\n" "$MSG"; read -rsn1 -p "Press any key to close…"'
+# No tty is attached under plain run-shell, so an fzf/select picker needs
+# display-popup to get one (see hold() in pane-md-preview.sh) — that's also
+# what the zoxide picker below relies on.
+open_zoxide_picker() {
+  tmux display-popup -E -w 80% -h 80% -d "$1" -T ' cd (zoxide) ' \
+    -e "TARGET_PANE=$2" \
+    'sel=$(zoxide query -l | fzf --tac --prompt="cd> " --preview "ls -la --color=always {}"); \
+     [[ -n "$sel" ]] && tmux send-keys -t "$TARGET_PANE" "cd -- \"$sel\"" C-m'
 }
 
 if has_changes "$cwd"; then
   open_hunk "$cwd"
 else
-  notify_no_changes "$cwd"
+  open_zoxide_picker "$cwd" "$pane_id"
 fi
