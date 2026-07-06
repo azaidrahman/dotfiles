@@ -17,12 +17,11 @@ if gitinfo=$(git -C "$dir" rev-parse --show-toplevel --abbrev-ref HEAD 2>/dev/nu
   br=$(printf '%s' "$gitinfo" | sed -n 2p)
 fi
 
-# Cost segment is three-way: LiteLLM-routed sessions show the proxy's real
-# per-session spend (ledger); Vertex-direct sessions keep Claude Code's own
-# estimate; direct Anthropic API sessions also show Claude Code's estimate.
+# Cost segment: only LiteLLM-routed sessions (cv) show the proxy's real
+# per-session spend (ledger), overwritten below. Everything else shows no cost.
 litellm_routed="false"
 [ -n "${ANTHROPIC_BASE_URL:-}" ] && litellm_routed="true"
-show_cost="true"
+show_cost="false"
 
 # jq pass: emit fields joined by \x01 (non-whitespace) so IFS read preserves empty fields.
 # Tab (\t) collapses consecutive delimiters in bash IFS read; \x01 does not.

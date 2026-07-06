@@ -11,7 +11,7 @@ _litellm_proxy claude-code || return $?
 ANTHROPIC_BASE_URL="$REPLY" \
 ANTHROPIC_AUTH_TOKEN="$LITELLM_API_KEY" \
 CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
-ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-4-6[1m]' \
+ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-5' \
 ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \
 ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
 claude --allow-dangerously-skip-permissions "$@"

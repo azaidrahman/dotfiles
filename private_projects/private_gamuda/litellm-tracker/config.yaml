@@ -31,6 +31,11 @@ model_list:
       vertex_project: "os.environ/GCP_PROJECT_ID"
       vertex_location: "global"
       extra_headers: {"anthropic-beta": "context-1m-2025-08-07"}
+  - model_name: claude-sonnet-5
+    litellm_params:
+      model: vertex_ai/claude-sonnet-5
+      vertex_project: "os.environ/GCP_PROJECT_ID"
+      vertex_location: "global"
   - model_name: "claude-haiku-4-5@20251001"
     litellm_params:
       model: vertex_ai/claude-haiku-4-5
