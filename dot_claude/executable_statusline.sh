@@ -19,11 +19,10 @@ fi
 
 # Cost segment is three-way: LiteLLM-routed sessions show the proxy's real
 # per-session spend (ledger); Vertex-direct sessions keep Claude Code's own
-# estimate; everything else shows no cost.
+# estimate; direct Anthropic API sessions also show Claude Code's estimate.
 litellm_routed="false"
 [ -n "${ANTHROPIC_BASE_URL:-}" ] && litellm_routed="true"
-show_cost="false"
-{ [ "$litellm_routed" = "true" ] || [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; } && show_cost="true"
+show_cost="true"
 
 # jq pass: emit fields joined by \x01 (non-whitespace) so IFS read preserves empty fields.
 # Tab (\t) collapses consecutive delimiters in bash IFS read; \x01 does not.
