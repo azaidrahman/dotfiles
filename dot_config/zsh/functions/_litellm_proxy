@@ -15,7 +15,7 @@
 # Returns: non-zero on any failure.
 emulate -L zsh
 
-local litellm_dir="$HOME/projects/gamuda/litellm-tracker"
+local litellm_dir="$HOME/projects/work/litellm-tracker"
 local op_field="${1:-API Key}"
 local base
 

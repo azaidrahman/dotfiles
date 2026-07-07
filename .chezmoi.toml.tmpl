@@ -5,8 +5,8 @@
 */ -}}
 {{- $personalEmail := promptStringOnce . "personalEmail" "Personal email" -}}
 {{- $workEmail     := promptStringOnce . "workEmail"     "Work email"     -}}
-{{- $workVaultName := promptStringOnce . "workVaultName" "Work 1Password vault name" "Gamuda" -}}
-{{- $workProjectsDir := promptStringOnce . "workProjectsDir" "Work projects dir name (under ~/projects/)" "gamuda" -}}
+{{- $workVaultName := promptStringOnce . "workVaultName" "Work 1Password vault name" -}}
+{{- $workProjectsDir := promptStringOnce . "workProjectsDir" "Work projects dir name (under ~/projects/)" -}}
 
 encryption = "age"
 
