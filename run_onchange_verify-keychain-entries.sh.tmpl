@@ -37,9 +37,9 @@ EOF
 To bootstrap, create a service account in 1Password scoped to the matching
 vault, then add its token to the keychain:
 
-  # Gamuda SA (scoped to Gamuda vault) — used for bitbucket.org
+  # {{ .workVaultName }} SA (scoped to {{ .workVaultName }} vault) — used for bitbucket.org
   security add-generic-password -a "$USER" -s op-service-account-token \
-      -T /usr/bin/security -w <paste-gamuda-sa-token>
+      -T /usr/bin/security -w <paste-{{ .workVaultName }}-sa-token>
 
   # Personal SA (scoped to Personal Development vault) — used for github.com
   security add-generic-password -a "$USER" -s op-service-account-token-personal \
