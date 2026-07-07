@@ -4,7 +4,7 @@
 
 # (entry, vault) pairs — use a flat array to avoid hash-iteration quirks.
 local -a pairs=(
-    "op-service-account-token|Gamuda"
+    "op-service-account-token|{{ .workVaultName }}"
     "op-service-account-token-personal|Personal Development"
 )
 
