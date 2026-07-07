@@ -23,10 +23,10 @@ time_format = "%H:%M"
 truncation_length = 3
 fish_style_pwd_dir_length = 2
 # [directory.substitutions]
-# '/Users/abdullahzaidas-sani/scripts/' = '📂 Scripts'
-# '/Users/abdullahzaidas-sani/projects/gamuda' = '📂 Gamuda'
-# 'Users/abdullahzaidas-sani' = '📂 Home'
-# 'Users/abdullahzaidas-sani/Downloads' = '📂 Downloads'
+# '/Users/you/scripts/' = '📂 Scripts'
+# '/Users/you/projects/work' = '📂 Work'
+# 'Users/you' = '📂 Home'
+# 'Users/you/Downloads' = '📂 Downloads'
 
 [git_branch]
 symbol = ""
