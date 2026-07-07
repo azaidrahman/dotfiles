@@ -36,7 +36,7 @@ case "$blob" in
     op_ref="op://Personal Development/Signing.GH.HOME/private key?ssh-format=openssh" ;;
   AAAAC3NzaC1lZDI1NTE5AAAAIK+RKQKLiD4MzerLtLj*)
     sa_entry="op-service-account-token"
-    op_ref="op://Gamuda/Signing.BB.GD/private key?ssh-format=openssh" ;;
+    op_ref="op://{{ .workVaultName }}/Signing.BB.GD/private key?ssh-format=openssh" ;;
 esac
 
 # If we recognize the key and it isn't in the agent, load it headlessly.
