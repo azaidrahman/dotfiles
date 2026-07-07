@@ -1,6 +1,6 @@
 #!/bin/sh
 # Starship custom module: gcloud account, masked to the last 5 chars of the
-# local-part, e.g. REDACTED-WORK-EMAIL -> *ssani@gamuda.tech
+# local-part, e.g. jane.doe@example.com -> *e.doe@example.com
 # Reads the config file directly instead of shelling out to `gcloud` (slow).
 config_dir="$HOME/.config/gcloud"
 active=$(cat "$config_dir/active_config" 2>/dev/null)
