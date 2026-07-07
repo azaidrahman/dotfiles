@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs once per machine on first `chezmoi apply`. Points the chezmoi source
+# repo's git config at the tracked .githooks/ dir so the PII/secret
+# pre-commit scanner is active without a manual step.
+git -C "{{ .chezmoi.sourceDir }}" config core.hooksPath .githooks
