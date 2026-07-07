@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit — block commits that leak PII/secrets into this public repo.
+# Keyword list lives encrypted at dot_config/private_chezmoi-guard/encrypted_private_patterns.txt.age
+# (decrypted copy: ~/.config/chezmoi-guard/patterns.txt) so the banned words
+# themselves never appear in plaintext in the tracked repo.
+#
+# Bypass: git commit --no-verify (standard git escape hatch, no custom override needed).
+set -euo pipefail
+
+PATTERNS_FILE="$HOME/.config/chezmoi-guard/patterns.txt"
+diff_content=$(git diff --cached -U0 --diff-filter=ACM)
+
+fail=0
+
+if [ -f "$PATTERNS_FILE" ]; then
+  while IFS= read -r kw; do
+    [ -z "$kw" ] && continue
+    if printf '%s' "$diff_content" | grep -qiF "$kw"; then
+      echo "pre-commit: staged diff contains banned keyword '$kw'" >&2
+      fail=1
+    fi
+  done < "$PATTERNS_FILE"
+else
+  echo "pre-commit: warning — $PATTERNS_FILE missing, skipping keyword scan (run 'chezmoi apply' first)" >&2
+fi
+
+# Malaysian phone number pattern — public-safe regex, no identity attached,
+# so it's fine to keep this one directly in the tracked hook.
+if printf '%s' "$diff_content" | grep -qE '\+?60[ -]?1[0-9][ -]?[0-9]{3,4}[ -]?[0-9]{3,4}'; then
+  echo "pre-commit: staged diff contains what looks like a Malaysian phone number" >&2
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "pre-commit: commit blocked. Fix the above, or bypass with 'git commit --no-verify' if it's a false positive." >&2
+  exit 1
+fi
