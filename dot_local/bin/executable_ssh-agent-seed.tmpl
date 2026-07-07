@@ -22,11 +22,11 @@ esac
 
 host=$(scutil --get LocalHostName 2>/dev/null | tr '[:upper:]' '[:lower:]')
 case "$host" in
-  aqua) keys="op://Gamuda/Signing.BB.GD/private key
+  aqua) keys="op://{{ .workVaultName }}/Signing.BB.GD/private key
 op://Personal Development/Auth.onyx/private key" ;;
-  onyx) keys="op://Gamuda/Signing.BB.GD/private key
+  onyx) keys="op://{{ .workVaultName }}/Signing.BB.GD/private key
 op://Personal Development/Auth.aqua/private key" ;;
-  *)    keys="op://Gamuda/Signing.BB.GD/private key" ;;
+  *)    keys="op://{{ .workVaultName }}/Signing.BB.GD/private key" ;;
 esac
 
 [ -e /dev/tty ] && printf 'ssh-agent-seed: loading SSH keys from 1Password (approve once)…\n' >/dev/tty
