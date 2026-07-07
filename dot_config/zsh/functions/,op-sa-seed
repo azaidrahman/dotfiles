@@ -1,0 +1,45 @@
+# ,op-sa-seed - Paste-and-store a 1Password service-account token into the login
+#               keychain. Prompts for hidden input so the token never touches
+#               shell history or a script's argv. Idempotent (-U): safe to
+#               re-run whenever a token is rotated or expires — check with
+#               `,op-sa-health` first to see which entry needs refreshing.
+#
+# Usage: ,op-sa-seed op-service-account-token
+#        ,op-sa-seed op-service-account-token-personal
+
+local entry="$1"
+if [ -z "$entry" ]; then
+  print -u2 "usage: ,op-sa-seed <keychain-entry-name>"
+  print -u2 "  e.g. ,op-sa-seed op-service-account-token"
+  print -u2 "       ,op-sa-seed op-service-account-token-personal"
+  return 1
+fi
+
+local token
+print -n "Paste the 1Password service-account token for '$entry': "
+read -rs token
+print
+
+if [ -z "$token" ]; then
+  print -u2 "no token entered, aborting"
+  return 1
+fi
+
+security add-generic-password \
+  -a "$USER" \
+  -s "$entry" \
+  -w "$token" \
+  -T /usr/bin/security \
+  -T /usr/bin/git \
+  -T /opt/homebrew/bin/gh \
+  -U \
+  "$HOME/Library/Keychains/login.keychain-db"
+local rc=$?
+unset token
+
+if [ $rc -eq 0 ]; then
+  print "✓ $entry stored in keychain"
+else
+  print -u2 "✗ failed to store $entry"
+fi
+return $rc
