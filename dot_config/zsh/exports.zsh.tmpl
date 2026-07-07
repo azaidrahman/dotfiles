@@ -63,10 +63,10 @@ unset _ctx_file
 export HELM_REGISTRY_CONFIG="~/.docker/config.json"
 
 # === Project dirs ===
-export GCP_SCRIPTS="$HOME/projects/gamuda/gtech-atlas/scripts/"
-export INFRA="$HOME/projects/gamuda/gtech-atlas/"
-export GTECH_DOCS="$HOME/projects/gamuda/gtech-docs/apps/docs/platform/"
-export WTREE="$HOME/projects/gamuda/worktrees"
+export GCP_SCRIPTS="$HOME/projects/{{ .workProjectsDir }}/gtech-atlas/scripts/"
+export INFRA="$HOME/projects/{{ .workProjectsDir }}/gtech-atlas/"
+export GTECH_DOCS="$HOME/projects/{{ .workProjectsDir }}/gtech-docs/apps/docs/platform/"
+export WTREE="$HOME/projects/{{ .workProjectsDir }}/worktrees"
 {{- if eq .chezmoi.hostname "aqua" }}
 export VAULT_PATH="$HOME/Documents/Zaid Personal"
 {{- end }}
