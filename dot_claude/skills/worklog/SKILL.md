@@ -21,7 +21,7 @@ or `stop`.
 
 ## Fixed facts
 
-- Vault root: `/Users/abdullahzaidas-sani/vaults/Polaris` (i.e. `~/vaults/Polaris`).
+- Vault root: `~/vaults/Polaris`.
 - Today's entry path: `<vault>/2-Journals/Entry/<ddd, DD-MM-YYYY>.md`. Build the
   filename with `date "+%a, %d-%m-%Y"`, e.g. `Wed, 03-06-2026`.
 - Entry template: `<vault>/98-Templates/Journal Template.md`.
