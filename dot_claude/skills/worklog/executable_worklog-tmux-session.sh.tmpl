@@ -18,7 +18,7 @@
 set -euo pipefail
 
 KEY=${1:-}
-REPO_ARG=${2:-/Users/abdullahzaidas-sani/projects/gamuda/gtech-atlas}
+REPO_ARG=${2:-$HOME/projects/{{ .workProjectsDir }}/gtech-atlas}
 
 [ -n "$KEY" ] || { echo "usage: $0 <KEY> [REPO]" >&2; exit 2; }
 case "$KEY" in
