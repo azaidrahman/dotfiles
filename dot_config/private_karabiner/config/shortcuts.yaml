@@ -17,6 +17,11 @@ l1:
   - l | todoist | Todoist quick add
   - c | claude | Claude quick
   - g | gemini | Gemini quick
+  - 1 | pin-screen
+  - 2 | capture-text
+  - 3 | full-screen
+  - 4 | capture-area
+  - 5 | record
 
 l2:
   - o | 1p | 1Password (alt)
