@@ -16,7 +16,10 @@ src_window=${1:-?}
 src_dir=${2:-$HOME}
 tmp=/tmp/claude-preview.md
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$script_dir/md-popup-size.sh"
+
 pbpaste >"$tmp"
 
-tmux display-popup -E -w 80% -h 80% -d "$src_dir" -T ' Markdown Preview ' \
+tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$src_dir" -T ' Markdown Preview ' \
     "$HOME/.tmux/scripts/md-open.sh '$tmp' '$src_window' '$src_dir'"

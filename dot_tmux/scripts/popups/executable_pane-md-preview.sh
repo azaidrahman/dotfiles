@@ -22,8 +22,11 @@ src_window=${2:-?}
 src_dir=${3:-$HOME}
 list=/tmp/md-pane-list.txt
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$script_dir/md-popup-size.sh"
+
 hold() {
-    tmux display-popup -E -w 80% -h 80% -d "$src_dir" -T ' Markdown Preview ' \
+    tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$src_dir" -T ' Markdown Preview ' \
         -e "MSG=$1" 'printf "\n%s\n" "$MSG"; read -rsn1 -p "Press any key to close…"'
 }
 
@@ -66,5 +69,5 @@ fi
 
 printf '%s\n' "${candidates[@]}" > "$list"
 
-tmux display-popup -EE -w 80% -h 80% -d "$src_dir" -T ' Markdown Preview ' \
+tmux display-popup -EE -w "$POPUP_W" -h "$POPUP_H" -d "$src_dir" -T ' Markdown Preview ' \
     "$HOME/.tmux/scripts/md-pick.sh '$list' '$src_window' '$src_dir'"
