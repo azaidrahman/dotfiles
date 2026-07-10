@@ -2,12 +2,15 @@ app_version: 1.0.0
 behavior_configs:
 - base_move_speed: 20.0
   base_wheel_speed: 30.0
+  default_mouse_action: click
+  free_mode_after_move: false
   free_mode_auto_off_s: 40
   grid_action_level: subgrid
   hide_cursor_on_click: false
   hide_location: bottom_left
   initial_action_location: system_cursor
   initial_overlay_monitor: with_mouse
+  mouse_value_cycle_behavior: once
   move_duration_ms: 100
   move_real_cursor_with_virtual: false
   move_speed_multiplier: 3.0
@@ -22,9 +25,18 @@ behavior_configs:
   wheel_step_size_large: 250.0
 classname: AppConfig
 custom_monitor_assignments: []
+custom_mouse_scaling: 1.0
+custom_mouse_screen_offset_scaling: 1.0
+custom_overlay_scaling: 1.0
 debug_options: {}
 display_input: none
 event_tap_location: hid_head
+excluded_input_devices: []
+general_settings:
+  automatically_check_for_updates: true
+  check_for_preview_releases: true
+  hide_welcome_screen: true
+  ignore_update_to_version: null
 grid_configs:
 - always_show_subgrid: false
   grid_defn:
@@ -271,6 +283,7 @@ keymaps:
     back click: null
     back mouse button: null
     back mouse button (w/o overlay): null
+    clear keyboard state: null
     close UI element: Escape
     cycle click count: null
     cycle font: null
@@ -284,6 +297,7 @@ keymaps:
     execute mouse action: Space
     execute mouse move: OptionLeft tap
     exit free mode: Escape
+    force overlay resize: null
     forward click: null
     forward mouse button: null
     forward mouse button (w/o overlay): null
@@ -291,16 +305,19 @@ keymaps:
     hold for back button: null
     hold for drag: CommandLeft
     hold for forward button: null
+    hold for free mode: null
     hold for middle button: null
     hold for move: OptionLeft
     hold for right button: ShiftLeft
     hold for speed decrease: CmdLeft
     hold for speed increase: CtrlLeft
     increase overlay opacity: ArrowUp
+    invert colors: null
     jump to bottom: null
     jump to left edge: null
     jump to right edge: null
     jump to top: null
+    left click: null
     left mouse button: space
     left mouse button (w/o overlay): null
     middle click: null
@@ -346,8 +363,13 @@ keymaps:
     wheel up: o
     wheel up fast: null
   name: mac
+log_level: info
+mac_hud_window_level: 1001
 monitor_assignment_mode: auto
+mouse_scaling: auto
+mouse_screen_offset_scaling: auto
 name: ''
+overlay_scaling: auto
 style_configs:
 - always_on_subgrid_rgba:
   - 1.0
@@ -358,10 +380,30 @@ style_configs:
   - - 0.9215686274509803
     - 0.7607843137254902
     - 0.4235294117647059
-    - 0.8
+    - 0.65
+  - - 0.55
+    - 0.75
+    - 0.9215686274509803
+    - 0.65
+  bg_color_block_size: 5
+  bg_color_transforms_level_1:
+  - - hsla_add
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  bg_color_transforms_level_2:
+  - - hsla_add
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+  char_anchor: center
+  char_display: all
   char_spacing_cell_width_ratio: 0.5
   char_spacing_font_size_ratio: 0.5
   char_spacing_strategy: cell_width_relative
+  colorParamInput: rgbHex
   cursor_drag_rgba:
   - 0.0
   - 0.5
@@ -391,7 +433,16 @@ style_configs:
   font_family: '[Apple System Font]'
   font_size_multiplier: 0.5
   font_weight: 600
-  grid_line_style: dots
+  free_mode_indicator_offset_x: 20.0
+  free_mode_indicator_offset_y: 20.0
+  free_mode_indicator_rgba:
+  - 0.3
+  - 0.42
+  - 0.58
+  - 0.9
+  free_mode_indicator_size: 10
+  free_mode_status_display: both
+  grid_line_style: lines
   grid_rgba:
   - 1.0
   - 1.0
@@ -399,10 +450,10 @@ style_configs:
   - 0.5
   highlight_animation_ms: 150
   highlight_rgba:
-  - 0.996078431372549
-  - 0.6078431372549019
-  - 0.5764705882352941
-  - 0.6
+  - 0.9215686274509803
+  - 0.2235294117647059
+  - 0.0784313725490196
+  - 0.75
   name: default
   show_initial_highlight: false
   subgrid_font_size_multiplier: 0.75
@@ -415,13 +466,13 @@ style_configs:
   - 0.996078431372549
   - 0.996078431372549
   - 0.996078431372549
-  - 0.8
+  - 0.9
   text_rgba:
   - 0.996078431372549
   - 0.996078431372549
   - 0.996078431372549
   - 1.0
-  text_shadow_blur_radius: 3.0
+  text_shadow_blur_radius: 4.0
   text_shadow_offset:
   - 1.0
   - 1.0
@@ -431,4 +482,6 @@ style_configs:
   - 0.00392156862745098
   - 1.0
   text_y_offset: 0.0
+  toast_opacity: 0.5
+  use_bg_color_transforms: false
   window_opacity: 0.9
