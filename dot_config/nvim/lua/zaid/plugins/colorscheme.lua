@@ -170,6 +170,21 @@ return {
 					hl.NormalFloat = { bg = "#1f2030" }
 					hl.FloatBorder = { bg = "#1f2030", fg = "#54546d" }
 					hl.FloatTitle = { bg = "#1f2030" }
+
+					-- tokyonight derives Neogit's whole-line add/delete bg from
+					-- diff.add/diff.delete, which blend from green2 (a teal, not a
+					-- vivid green) and red1 — reads as blue rather than green/red.
+					-- Pin explicit green/red for both the whole-line and word-level
+					-- (Inline) hunk highlight groups.
+					hl.NeogitDiffAddHighlight = { bg = "#1b3a2b", fg = c.green }
+					hl.NeogitDiffDeleteHighlight = { bg = "#3a1e22", fg = c.red }
+					hl.NeogitDiffAddInline = { bg = "#2d4f3a", fg = c.green, bold = true }
+					hl.NeogitDiffDeleteInline = { bg = "#5a2a30", fg = c.red, bold = true }
+
+					-- Same fix for the raw diff groups diffview.nvim's side-by-side
+					-- split (prefix+t → d) links DiffviewDiffAdd/Delete to.
+					hl.DiffAdd = { bg = "#1b3a2b", fg = c.fg }
+					hl.DiffDelete = { bg = "#3a1e22", fg = c.fg }
 				end,
 				on_colors = function(colors)
 					colors.bg = transparent and colors.none or bg

@@ -24,7 +24,10 @@ set -euo pipefail
 cwd=${1:?pane path required}
 pane_id=${2:?pane id required}
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$script_dir/git-popup-size.sh"
+
 # No tty is attached under plain run-shell, so the fzf browser needs
 # display-popup to get one (see hold() in pane-md-preview.sh).
-tmux display-popup -E -w 80% -h 80% -d "$cwd" -T ' cd → hunk diff ' \
+tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$cwd" -T ' cd → hunk diff ' \
   -- ~/.tmux/scripts/dir-picker-hunk.sh "$pane_id"
