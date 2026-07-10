@@ -62,6 +62,7 @@ compdef _gwtcd gwtcd
 
 # --- lazy tool completions -------------------------------------------------
 
+_lazy_completion argocd       'source <(argocd completion zsh)'
 _lazy_completion bkt       'source <(bkt completion zsh)'
 _lazy_completion jj        'source <(jj util completion zsh)'
 _lazy_completion labctl    'source <(labctl completion zsh)'
