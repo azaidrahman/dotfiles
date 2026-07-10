@@ -125,6 +125,14 @@
    [;; hyper+t → toggle mouse between current position and top of screen
     [:!QWERt [:toggle-topbar]]]}
 
+  {:des "Volume (Left Option layer)"
+   :rules
+   [;; opt+, → vol down, opt+. → vol up (same codes as hw F11/F12 —
+    ;; SoundSource's Super Volume Keys intercepts these on aqua when
+    ;; running; falls through to normal system volume everywhere else)
+    [:!Ocomma  :volume_decrement]
+    [:!Operiod :volume_increment]]}
+
   {:des "CapsLock to Hyper"
    :rules
    [;; caps_lock → hyper (right modifiers), tap → escape
