@@ -4,7 +4,7 @@
 #                   the source diff and prints the commit command so you can
 #                   eyeball changes before committing.
 
-local file="$HOME/Library/Containers/net.sonuscape.mouseless/Data/.mouseless/configs/config.yaml"
+local file="$HOME/Library/Application Support/Mouseless/configs/config.yaml"
 
 if [[ ! -f "$file" ]]; then
     print -u 2 "✗ mouseless config not found at $file"
