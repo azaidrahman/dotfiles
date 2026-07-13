@@ -69,9 +69,7 @@ require("lazy").setup({
 					},
 				},
 			})
-			vim.schedule(function()
-				require("neogit").open()
-			end)
+			require("neogit").open()
 		end,
 	},
 })
