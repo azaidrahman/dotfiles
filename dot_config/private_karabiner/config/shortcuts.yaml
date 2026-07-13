@@ -22,6 +22,7 @@ l1:
   - 3 | full-screen
   - 4 | capture-area
   - 5 | record
+  - , | soundsource
 
 l2:
   - o | 1p | 1Password (alt)
