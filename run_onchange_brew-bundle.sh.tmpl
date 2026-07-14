@@ -12,15 +12,18 @@ trap '' TTIN TTOU
 BREWFILE="${HOME}/.config/homebrew/Brewfile"
 IGNOREFILE="${HOME}/.config/homebrew/brewignore"
 
-# Build skip lists from brewignore (applied to both install and cleanup)
+# Build skip lists from brewignore (applied to check, install, and cleanup)
 CASK_SKIP=""
 BREW_SKIP=""
+TAP_SKIP=""
 if [[ -f "$IGNOREFILE" ]]; then
     while IFS= read -r line; do
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
         [[ -z "${line// }" ]] && continue
         if [[ "$line" =~ ^cask[[:space:]]+(.+) ]]; then
             CASK_SKIP="${CASK_SKIP:+$CASK_SKIP }${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^tap[[:space:]]+(.+) ]]; then
+            TAP_SKIP="${TAP_SKIP:+$TAP_SKIP }${BASH_REMATCH[1]}"
         elif [[ "$line" =~ ^brew[[:space:]]+(.+) ]]; then
             BREW_SKIP="${BREW_SKIP:+$BREW_SKIP }${BASH_REMATCH[1]}"
         fi
@@ -29,21 +32,87 @@ fi
 
 export HOMEBREW_BUNDLE_CASK_SKIP="$CASK_SKIP"
 export HOMEBREW_BUNDLE_BREW_SKIP="$BREW_SKIP"
+export HOMEBREW_BUNDLE_TAP_SKIP="$TAP_SKIP"
 
-# Show what would be installed and ask for confirmation
-install_list=$(brew bundle check --verbose --no-upgrade --file="$BREWFILE" 2>/dev/null | grep -v '^The Brewfile' || true)
+# Parse `brew bundle check --verbose` output into "type<TAB>name" lines,
+# e.g. "→ Cask cursor needs to be installed." -> "cask<TAB>cursor"
+check_output=$(brew bundle check --verbose --no-upgrade --file="$BREWFILE" 2>/dev/null || true)
+missing=()
+while IFS= read -r line; do
+    if [[ "$line" =~ ^→\ Tap\ (.+)\ needs\ to\ be\ tapped\.$ ]]; then
+        missing+=("tap	${BASH_REMATCH[1]}")
+    elif [[ "$line" =~ ^→\ Cask\ (.+)\ needs\ to\ be\ (installed|upgraded)\.$ ]]; then
+        missing+=("cask	${BASH_REMATCH[1]}")
+    elif [[ "$line" =~ ^→\ Formula\ (.+)\ needs\ to\ be\ (installed|upgraded)\.$ ]]; then
+        missing+=("brew	${BASH_REMATCH[1]}")
+    fi
+done <<< "$check_output"
 
-if [[ -n "$install_list" ]]; then
-    echo "The following packages from your Brewfile are missing:"
-    echo "$install_list"
+if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "Missing packages from your Brewfile:"
+    printf '  %s\n' "${missing[@]//$'\t'/ }"
     echo ""
-    printf "Install these packages? [y/N] "
-    read -r answer </dev/tty || answer=""
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo "Running brew bundle install (no-upgrade: skips upgrades to avoid sudo-needy casks hanging apply)..."
-        brew bundle install --no-upgrade --file="$BREWFILE"
-    else
-        echo "Skipping install."
+
+    selected=""
+    if [[ -e /dev/tty ]] && command -v fzf >/dev/null 2>&1; then
+        selected=$(printf '%s\n' "${missing[@]}" | fzf --multi --tac --exact \
+            --delimiter='\t' --with-nth=2 \
+            --header='TAB/Shift-TAB to select what to install now, ENTER to confirm (rest offered to brewignore)' \
+            || true)
+    fi
+
+    to_install=()
+    to_skip=()
+    for entry in "${missing[@]}"; do
+        if [[ -n "$selected" ]] && grep -qxF "$entry" <<< "$selected"; then
+            to_install+=("$entry")
+        else
+            to_skip+=("$entry")
+        fi
+    done
+
+    # Fall back to the old all-or-nothing prompt if fzf/tty wasn't available
+    if [[ -z "$selected" && ! -e /dev/tty ]]; then
+        to_install=()
+        to_skip=("${missing[@]}")
+    elif [[ -z "$selected" ]]; then
+        printf "No packages selected via picker. Install all of the above instead? [y/N] "
+        read -r answer </dev/tty || answer=""
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            to_install=("${missing[@]}")
+            to_skip=()
+        fi
+    fi
+
+    if [[ ${#to_install[@]} -gt 0 ]]; then
+        echo "Installing selected packages..."
+        # Taps first - formulas/casks from a custom tap may depend on it.
+        for entry in "${to_install[@]}"; do
+            [[ "$entry" == tap$'\t'* ]] && brew tap "${entry#tap$'\t'}"
+        done
+        for entry in "${to_install[@]}"; do
+            case "$entry" in
+                tap$'\t'*)  ;; # handled above
+                cask$'\t'*) brew install --cask "${entry#cask$'\t'}" ;;
+                brew$'\t'*) brew install "${entry#brew$'\t'}" ;;
+            esac
+        done
+    fi
+
+    if [[ ${#to_skip[@]} -gt 0 ]]; then
+        echo ""
+        echo "Not installing:"
+        printf '  %s\n' "${to_skip[@]//$'\t'/ }"
+        printf "Add these to brewignore so you're never asked again? [y/N] "
+        read -r answer </dev/tty || answer=""
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            {
+                for entry in "${to_skip[@]}"; do
+                    printf '%s\n' "${entry/$'\t'/ }"
+                done
+            } >> "$IGNOREFILE"
+            echo "Added to $IGNOREFILE"
+        fi
     fi
 else
     echo "All Brewfile packages already installed."
