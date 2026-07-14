@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# chezmoi modify_ script for ~/.claude/settings.json
+#
+# The actual managed settings live in .chezmoitemplates/claude-settings-stable.json
+# (a plain, directly-editable JSON file) - this script is pure merge logic, not
+# the settings themselves.
+#
+# Overlays that stable JSON onto the LIVE file (not a bare template), using jq's
+# `*` merge with current as the base. This preserves:
+#   - effortLevel/model - per-device, changed via /effort and /model, never enforced
+#   - key ORDER for every existing key - Claude Code rewrites this file by
+#     serializing its whole in-memory map, which shuffles unrelated keys
+#     (e.g. tui) to the end. Merging onto current instead of a static
+#     template keeps the live position, so `chezmoi diff` only flags real
+#     content drift, not key reshuffling.
+# effortLevel and model are deliberately absent from the stable template so
+# they pass through from current untouched.
+set -euo pipefail
+
+current=$(cat)
+printf '%s' "$current" | jq -e . >/dev/null 2>&1 || current='{}'
+
+cat <<'JSON' | jq --argjson current "$current" '$current * .'
+{{ template "claude-settings-stable.json" }}
+JSON

@@ -18,6 +18,12 @@ encryption = "age"
   command = "nvim"
   args = ["-d", "{{`{{ .Destination }}`}}", "{{`{{ .Source }}`}}", "{{`{{ .Target }}`}}"]
 
+[diff]
+  # run_once/run_onchange scripts always show their full body in `chezmoi diff`
+  # regardless of whether they'd actually execute (hash-gating happens at apply
+  # time, not diff time) - excluding them removes that repeat noise.
+  exclude = ["scripts"]
+
 [data]
   personalEmail   = {{ $personalEmail   | quote }}
   workEmail       = {{ $workEmail       | quote }}
