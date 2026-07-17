@@ -1,43 +1,92 @@
 # My Dotfiles
 
-This repository contains my personal dotfiles managed with [chezmoi](https://chezmoi.io/).
+Personal dotfiles managed with [chezmoi](https://chezmoi.io/). Primarily macOS,
+with occasional Windows use (nvim + wezterm).
 
-## Setup
+This repo is **public**, so nothing sensitive is ever committed in plaintext.
+Secrets are encrypted with [age](https://age-encryption.org/); live credentials
+are pulled at runtime from 1Password and the macOS Keychain (see below).
 
-Currently configured for macOS, with occasional use on Windows when needed. (nvim && wezterm)
+## Machines
+
+Config is multi-machine and branches on hostname where it matters:
+
+| Host   | Role             |
+| ------ | ---------------- |
+| `aqua` | home server      |
+| `onyx` | work laptop      |
+
+Templates use `{{ .chezmoi.hostname }}` to pick per-machine values (e.g. the
+LiteLLM base URL points at `localhost` on `onyx` and `onyx` over the tailnet
+elsewhere), and 1Password item names are derived from each device's
+`LocalHostName` (e.g. `AQUA.PAT.GH`, `ONYX.PAT.GH`).
+
+## Secret handling
+
+Two independent mechanisms, used deliberately:
+
+- **`encrypted_*` (age).** Files prefixed `encrypted_` are stored as age
+  ciphertext and decrypted on `chezmoi apply`. Used for anything with secret
+  content at rest — e.g. `encrypted_dot_zshrc.age`, the work gitconfig, and the
+  litellm `.env`. The age **private key is never in this repo**; it lives at
+  `~/.config/chezmoi/key.txt` on each machine.
+- **`private_*` (permissions only).** chezmoi's `private_` prefix only sets the
+  target file to `0600` — **these files are still committed in plaintext.**
+  So `private_` is used for "make it user-only on disk," never as a substitute
+  for encryption. Anything secret gets `encrypted_` instead.
+
+Config files that *reference* secrets never embed them — they use indirection:
+
+- `os.environ/VAR` and `${VAR}` placeholders (resolved from an encrypted `.env`)
+- 1Password references (`op read "op://<vault>/<item>/<field>"`)
+- Keychain lookups (`security find-generic-password ...`)
+
+## Credentials at runtime
+
+Git and SSH auth resolve through a layered 1Password → Keychain strategy so it
+works locally, over SSH, and in non-login shells:
+
+- **`git-credential-op`** — git credential helper. Tries the local Keychain
+  cache first (fast, offline, survives 1Password rate limits), then falls back
+  to 1Password via a service-account token, refilling the cache. Handles
+  `github.com` and `bitbucket.org`, with per-device item names.
+- **`git-sign`** — loads the SSH signing key from 1Password into the agent on
+  demand.
+- **SSH** — driven by the 1Password SSH agent (`private_Library/LaunchAgents`).
+
+The age key and the 1Password service-account tokens are the only things you
+must place on a new machine by hand; everything else bootstraps from them.
+
+## `ctx` — active work context
+
+A small shell system for associating a ticket/project/topic with a directory:
+
+- `ctx <name>` switches context (creates `~/ctx/<name>/` if needed, exports `$CTX_DIR`)
+- `ctx` shows the active context; `ctx ls` lists; `ctx cd` jumps into it
+- `~/.config/active-ctx` is the pointer file
 
 ## Structure
-├── dot_config\
-│   ├── aerospace\
-│   ├── borders\
-│   ├── gh\
-│   ├── ghostty\
-│   ├── lazygit\
-│   ├── nvim\
-│   ├── private_karabiner\
-│   ├── tmux\
-│   ├── wezterm\
-│   └── zsh\
-└── dot_zshrc
 
-## Usage
-
-To apply these dotfiles to a new system, first install chezmoi:
-
-```bash
-# On macOS with Homebrew
-brew install chezmoi
-
-# On Windows with winget
-winget install --id=twpayne.chezmoi
+```
+dot_config/     # aerospace, ghostty, wezterm, nvim, tmux, zsh, gh, private_karabiner, ...
+dot_claude/     # Claude Code config, skills, hooks
+dot_tmux/       # tmux config + popup scripts
+private_Library/ # macOS Library bits (LaunchAgents, app support)
+private_projects/ # project-scoped config (incl. work)
 ```
 
-Then init and apply:
-```bash
-chezmoi init https://github.com/azaidrahman/dotfiles.git
-# chezmoi edit ~/[filepath] if you want to configure anything first
-chezmoi apply
+## Setup on a new machine
 
-chezmoi init --apply https://github.com/azaidrahman/dotfiles.git
-# if you know what you're doing
+```bash
+# 1. Install chezmoi
+brew install chezmoi            # macOS
+# winget install --id=twpayne.chezmoi   # Windows
+
+# 2. Place the age key at ~/.config/chezmoi/key.txt (from your password manager)
+
+# 3. Init + apply (prompts once for personal/work email + vault names)
+chezmoi init --apply https://github.com/azaidrahman/zaid-sani-dotfiles.git
 ```
+
+Preview before applying with `chezmoi diff`; edit a source file with
+`chezmoi edit ~/<path>`.
