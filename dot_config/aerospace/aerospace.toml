@@ -84,6 +84,9 @@ run = [
     # 'move-node-to-workspace 9',
     'layout floating',
 ]
+[[on-window-detected]]
+if.app-id = 'ch.protonvpn.mac'
+run = 'layout floating'
 
 # Workspace 1 - Terminal/Apps
 # Workspace 2 - Work Browser/Work Apps
