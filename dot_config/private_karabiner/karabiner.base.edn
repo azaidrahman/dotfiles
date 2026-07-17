@@ -133,6 +133,12 @@
     [:!Ocomma  :volume_decrement]
     [:!Operiod :volume_increment]]}
 
+  {:des "App switcher (Left Option layer)"
+   :rules
+   [;; opt+] → cmd+tab (next app), opt+[ → cmd+shift+tab (prev app)
+    [:!Oclose_bracket :!Ctab]
+    [:!Oopen_bracket  :!CStab]]}
+
   {:des "CapsLock to Hyper"
    :rules
    [;; caps_lock → hyper (right modifiers), tap → escape
