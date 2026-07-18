@@ -1,0 +1,47 @@
+# ~/.config/starship.toml
+
+format = "$time$username$hostname$directory$git_branch${custom.gcloud}${custom.kube}\n$character"
+
+[custom.gcloud]
+command = "$HOME/.local/bin/gcloud-prompt"
+when = 'case "$PWD" in "$HOME"/projects/{{ .workProjectsDir }}*) true;; *) false;; esac'
+format = "on [$output]($style) "
+style = "bold blue"
+
+[custom.kube]
+command = "$HOME/.local/bin/kube-context-prompt"
+when = 'case "$PWD" in "$HOME"/projects/{{ .workProjectsDir }}*) true;; *) false;; esac'
+format = "via [☸ $output]($style) "
+style = "bold cyan"
+
+[time]
+disabled = false
+format = "[$time]($style) "
+time_format = "%H:%M"
+
+[directory]
+truncation_length = 1
+truncate_to_repo = false
+fish_style_pwd_dir_length = 0
+
+[username]
+show_always = true
+format = "[$user]($style)"
+style_user = "bold green"
+
+[hostname]
+ssh_only = false
+format = "@[$hostname]($style) "
+style = "bold green"
+# [directory.substitutions]
+# '/Users/you/scripts/' = '📂 Scripts'
+# '/Users/you/projects/work' = '📂 Work'
+# 'Users/you' = '📂 Home'
+# 'Users/you/Downloads' = '📂 Downloads'
+
+[git_branch]
+symbol = ""
+
+[character]
+success_symbol = "[\\$](bold #8a8a8a)"
+error_symbol = "[\\$](bold red)"
