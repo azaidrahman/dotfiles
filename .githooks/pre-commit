@@ -31,6 +31,20 @@ if printf '%s' "$diff_content" | grep -qE '\+?60[ -]?1[0-9][ -]?[0-9]{3,4}[ -]?[
   fail=1
 fi
 
+# Generic secret scan — gitleaks catches API keys, tokens, private keys, JWTs,
+# high-entropy blobs, etc. that the keyword list above can't know in advance.
+# `git --pre-commit --staged` scans the staged diff only (the modern replacement
+# for the deprecated `protect` subcommand, which no longer reads the index).
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --pre-commit --staged --redact --no-banner . >/dev/null 2>&1; then
+    echo "pre-commit: gitleaks detected a potential secret in the staged diff:" >&2
+    gitleaks git --pre-commit --staged --redact --no-banner . 2>&1 | grep -iE 'finding|secret|rule|file|line|leaks found' >&2 || true
+    fail=1
+  fi
+else
+  echo "pre-commit: warning — gitleaks not installed, skipping secret scan (brew install gitleaks)" >&2
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "pre-commit: commit blocked. Fix the above, or bypass with 'git commit --no-verify' if it's a false positive." >&2
   exit 1
