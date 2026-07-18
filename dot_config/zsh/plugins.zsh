@@ -17,6 +17,15 @@ zinit light jeffreytse/zsh-vi-mode
 zinit snippet OMZ::lib/git.zsh
 zinit snippet OMZP::command-not-found
 zinit snippet OMZP::git
+# `acs <word>` searches your aliases and shows what each shortcut expands to
+zinit snippet OMZP::aliases
+
+# Completion-heavy OMZ plugins — turbo-deferred (wait lucid) to keep startup fast.
+# Their compdefs are queued and applied by `zinit cdreplay` below.
+zinit ice wait lucid
+zinit snippet OMZP::kubectl
+zinit ice wait lucid
+zinit snippet OMZP::gcloud
 
 source <(fzf --zsh)
 # eval "$(zoxide init --cmd cd zsh)"
