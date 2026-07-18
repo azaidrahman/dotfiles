@@ -17,7 +17,13 @@ zinit light jeffreytse/zsh-vi-mode
 zinit snippet OMZ::lib/git.zsh
 zinit snippet OMZP::command-not-found
 zinit snippet OMZP::git
-# `acs <word>` searches your aliases and shows what each shortcut expands to
+# `als [word]` prints your aliases grouped and explained. OMZ ships this as a
+# single file, but the command shells out to a sibling cheatsheet.py (not fetched
+# by a one-file snippet) and needs the python `termcolor` module — so grab both
+# on (re)clone. atclone/atpull run in the snippet dir, where cheatsheet.py belongs.
+zinit ice lucid \
+  atclone'curl -sSfL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/aliases/cheatsheet.py -o cheatsheet.py; python3 -m pip install -q termcolor' \
+  atpull'%atclone'
 zinit snippet OMZP::aliases
 
 # Completion-heavy OMZ plugins — turbo-deferred (wait lucid) to keep startup fast.
