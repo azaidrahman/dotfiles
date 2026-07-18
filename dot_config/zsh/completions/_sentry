@@ -1,0 +1,318 @@
+#compdef sentry
+# zsh completion for sentry
+# Auto-generated from command definitions
+
+_sentry() {
+  local -a commands
+  local curcontext="$curcontext" state line
+  commands=(
+    'alert:Manage Sentry alert rules'
+    'auth:Authenticate with Sentry'
+    'cli:CLI-related commands'
+    'code-mappings:Manage code mappings for stack trace linking'
+    'dart-symbol-map:Work with Dart/Flutter symbol maps'
+    'debug-files:Work with debug information files'
+    'dashboard:Manage Sentry dashboards'
+    'org:Work with Sentry organizations'
+    'project:Work with Sentry projects'
+    'proguard:Work with ProGuard/R8 mapping files'
+    'replay:Search and inspect Session Replays'
+    'release:Work with Sentry releases'
+    'repo:Work with Sentry repositories'
+    'team:Work with Sentry teams'
+    'issue:Manage Sentry issues'
+    'event:View, list, and send Sentry events'
+    'log:View Sentry logs'
+    'monitor:Work with Sentry cron monitors'
+    'sourcemap:Manage sourcemaps'
+    'span:List and view spans in projects or traces'
+    'trace:View distributed traces'
+    'trial:Manage product trials'
+    'local:Sentry for local development'
+    'help:Display help for a command'
+    'explore:Query aggregate event data (Explore)'
+    'init:Initialize Sentry in your project (experimental)'
+    'api:Make an authenticated API request'
+    'schema:Browse the Sentry API schema'
+  )
+
+  local -a alert_commands
+  alert_commands=(
+    'issues:Manage issue alert rules'
+    'metrics:Manage metric alert rules'
+  )
+
+  local -a auth_commands
+  auth_commands=(
+    'login:Authenticate with Sentry'
+    'logout:Log out of Sentry'
+    'refresh:Refresh your authentication token'
+    'status:View authentication status'
+    'token:Print the stored authentication token'
+    'whoami:Show the currently authenticated identity'
+  )
+
+  local -a cli_commands
+  cli_commands=(
+    'defaults:View and manage default settings'
+    'feedback:Send feedback about the CLI'
+    'fix:Diagnose and repair CLI database issues'
+    'import:Import settings from legacy .sentryclirc files'
+    'setup:Configure shell integration'
+    'uninstall:Uninstall Sentry CLI'
+    'upgrade:Update the Sentry CLI to the latest version'
+  )
+
+  local -a code_mappings_commands
+  code_mappings_commands=(
+    'upload:Upload code mappings for stack trace linking'
+  )
+
+  local -a dart_symbol_map_commands
+  dart_symbol_map_commands=(
+    'upload:Upload a Dart/Flutter symbol map to Sentry'
+  )
+
+  local -a debug_files_commands
+  debug_files_commands=(
+    'check:Inspect a debug information file'
+    'bundle-jvm:Create a JVM source bundle for source context'
+    'bundle-sources:Bundle a debug file'\''s source files for source context'
+  )
+
+  local -a dashboard_commands
+  dashboard_commands=(
+    'list:List dashboards'
+    'view:View a dashboard'
+    'create:Create a dashboard'
+    'widget:Manage dashboard widgets'
+    'revisions:List dashboard revisions'
+    'restore:Restore a dashboard revision'
+  )
+
+  local -a org_commands
+  org_commands=(
+    'list:List organizations'
+    'view:View details of an organization'
+  )
+
+  local -a project_commands
+  project_commands=(
+    'create:Create a new project'
+    'delete:Delete a project'
+    'list:List projects'
+    'view:View details of a project'
+  )
+
+  local -a proguard_commands
+  proguard_commands=(
+    'upload:Upload ProGuard/R8 mapping files to Sentry'
+    'uuid:Compute the UUID for a ProGuard mapping file'
+  )
+
+  local -a replay_commands
+  replay_commands=(
+    'list:List recent Session Replays'
+    'view:View a Session Replay'
+  )
+
+  local -a release_commands
+  release_commands=(
+    'list:List releases with adoption and health metrics'
+    'view:View release details with health metrics'
+    'create:Create a release'
+    'finalize:Finalize a release'
+    'delete:Delete a release'
+    'archive:Archive a release'
+    'restore:Restore an archived release'
+    'deploy:Create a deploy for a release'
+    'deploys:List deploys for a release'
+    'set-commits:Set commits for a release'
+    'propose-version:Propose a release version'
+  )
+
+  local -a repo_commands
+  repo_commands=(
+    'list:List repositories'
+  )
+
+  local -a team_commands
+  team_commands=(
+    'list:List teams'
+  )
+
+  local -a issue_commands
+  issue_commands=(
+    'list:List issues in a project'
+    'events:List events for a specific issue'
+    'explain:Analyze an issue'\''s root cause using Seer AI'
+    'plan:Generate a solution plan using Seer AI'
+    'view:View details of a specific issue'
+    'resolve:Mark an issue as resolved'
+    'unresolve:Reopen a resolved issue'
+    'archive:Archive (ignore) an issue'
+    'merge:Merge 2+ issues into a single canonical group'
+  )
+
+  local -a event_commands
+  event_commands=(
+    'view:View details of one or more events'
+    'list:List events for an issue'
+    'send:Send a Sentry event'
+  )
+
+  local -a log_commands
+  log_commands=(
+    'list:List logs from a project'
+    'view:View details of one or more log entries'
+  )
+
+  local -a monitor_commands
+  monitor_commands=(
+    'run:Wrap a command with cron monitor check-ins'
+    'list:List cron monitors'
+  )
+
+  local -a sourcemap_commands
+  sourcemap_commands=(
+    'inject:Inject debug IDs into JavaScript files and sourcemaps'
+    'upload:Upload sourcemaps to Sentry'
+    'resolve:Resolve and report sourcemap linkage for JavaScript files'
+  )
+
+  local -a span_commands
+  span_commands=(
+    'list:List spans in a project or trace'
+    'view:View details of specific spans'
+  )
+
+  local -a trace_commands
+  trace_commands=(
+    'list:List recent traces in a project'
+    'view:View details of a specific trace'
+    'logs:View logs associated with a trace'
+  )
+
+  local -a trial_commands
+  trial_commands=(
+    'list:List product trials'
+    'start:Start a product trial'
+  )
+
+  local -a local_commands
+  local_commands=(
+    'serve:Start the local dev server and tail events'
+    'run:Run a command with the local dev server enabled'
+  )
+
+  _arguments -C \
+    '1: :->command' \
+    '2: :->subcommand' \
+    '*::arg:->args'
+
+  case "$state" in
+    command)
+      _describe -t commands 'command' commands
+      ;;
+    subcommand)
+      case "$line[1]" in
+        alert)
+          _describe -t commands 'alert command' alert_commands
+          ;;
+        auth)
+          _describe -t commands 'auth command' auth_commands
+          ;;
+        cli)
+          _describe -t commands 'cli command' cli_commands
+          ;;
+        code-mappings)
+          _describe -t commands 'code-mappings command' code_mappings_commands
+          ;;
+        dart-symbol-map)
+          _describe -t commands 'dart-symbol-map command' dart_symbol_map_commands
+          ;;
+        debug-files)
+          _describe -t commands 'debug-files command' debug_files_commands
+          ;;
+        dashboard)
+          _describe -t commands 'dashboard command' dashboard_commands
+          ;;
+        org)
+          _describe -t commands 'org command' org_commands
+          ;;
+        project)
+          _describe -t commands 'project command' project_commands
+          ;;
+        proguard)
+          _describe -t commands 'proguard command' proguard_commands
+          ;;
+        replay)
+          _describe -t commands 'replay command' replay_commands
+          ;;
+        release)
+          _describe -t commands 'release command' release_commands
+          ;;
+        repo)
+          _describe -t commands 'repo command' repo_commands
+          ;;
+        team)
+          _describe -t commands 'team command' team_commands
+          ;;
+        issue)
+          _describe -t commands 'issue command' issue_commands
+          ;;
+        event)
+          _describe -t commands 'event command' event_commands
+          ;;
+        log)
+          _describe -t commands 'log command' log_commands
+          ;;
+        monitor)
+          _describe -t commands 'monitor command' monitor_commands
+          ;;
+        sourcemap)
+          _describe -t commands 'sourcemap command' sourcemap_commands
+          ;;
+        span)
+          _describe -t commands 'span command' span_commands
+          ;;
+        trace)
+          _describe -t commands 'trace command' trace_commands
+          ;;
+        trial)
+          _describe -t commands 'trial command' trial_commands
+          ;;
+        local)
+          _describe -t commands 'local command' local_commands
+          ;;
+        *)
+          # Standalone command — delegate to dynamic completion
+          ;;
+      esac
+      ;|
+    args|subcommand)
+      # Dynamic completion for positional args (org slugs, project names)
+      # In the args state, $line[1] and $line[2] hold the parsed command
+      # and subcommand. Pass them to __complete for context detection.
+      local -a completions
+      while IFS=$'\t' read -r value desc; do
+        if [[ -n "$desc" ]]; then
+          completions+=("${value}:${desc}")
+        else
+          completions+=("${value}")
+        fi
+      done < <(
+        if (( ${#words} == 0 )); then
+          sentry __complete "$line[1]" "$line[2]" "" 2>/dev/null
+        else
+          sentry __complete "$line[1]" "$line[2]" "${words[@]}" 2>/dev/null
+        fi
+      )
+      if (( ${#completions} )); then
+        _describe -t values 'value' completions
+      fi
+      ;;
+  esac
+}
+
+_sentry

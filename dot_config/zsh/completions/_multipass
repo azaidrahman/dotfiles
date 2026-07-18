@@ -1,0 +1,48 @@
+#compdef multipass
+
+_multipass() {
+    local context state line
+    typeset -A opt_args
+    
+    _arguments \
+        '1: :->command' \
+        '*: :->args'
+    
+    case $state in
+        command)
+            _values 'multipass command' \
+                'launch[Launch a new instance]' \
+                'list[List all instances]' \
+                'shell[Open a shell on a running instance]' \
+                'exec[Execute a command on an instance]' \
+                'start[Start instances]' \
+                'stop[Stop running instances]' \
+                'suspend[Suspend running instances]' \
+                'restart[Restart instances]' \
+                'delete[Delete instances]' \
+                'purge[Purge deleted instances]' \
+                'recover[Recover deleted instances]' \
+                'info[Display information about instances]' \
+                'mount[Mount a local directory in the instance]' \
+                'umount[Unmount a directory from the instance]' \
+                'transfer[Transfer files between the host and instances]' \
+                'find[Display available images to create instances from]' \
+                'get[Get a configuration setting]' \
+                'set[Set a configuration setting]' \
+                'version[Show version details]' \
+                'help[Display help about a command]'
+            ;;
+        args)
+            case ${line[1]} in
+                shell|exec|start|stop|suspend|restart|delete|recover|info|mount|umount|transfer)
+                    # Get list of instances and complete with them
+                    local instances
+                    instances=(${(f)"$(multipass list --format csv | tail -n +2 | cut -d',' -f1)"})
+                    _describe 'instances' instances
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_multipass "$@"

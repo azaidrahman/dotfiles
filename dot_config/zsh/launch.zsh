@@ -11,6 +11,12 @@ source "$HOME/.local/share/zinit/zinit.git/zinit.zsh"
 unalias zi zini zpl zplg 2>/dev/null
 autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
+
+# Our own static completion files (`_cmd` scripts). Must be on fpath *before*
+# compinit so it discovers them on the first (uncached) rebuild. Keep this
+# distinct from ~/.config/zsh/functions, which is for autoloaded functions.
+fpath=("$HOME/.config/zsh/completions" $fpath)
+
 autoload -Uz compinit
 # Cache compinit: only full rebuild if zcompdump is older than 24h
 if [[ -n ${ZDOTDIR:-$HOME}/.zcompdump(#qN.mh+24) ]] || [[ ! -f ${ZDOTDIR:-$HOME}/.zcompdump ]]; then
