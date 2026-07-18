@@ -20,6 +20,13 @@ parse_gcloud_config() {
   printf 'ACCOUNT %s\nPROJECT %s\n' "$account" "$project"
 }
 
+# parse_kube_context <kubeconfig_text> : extract the full current-context
+# (no shortening/stopword stripping — the popup has room for the whole name).
+parse_kube_context() {
+  local text=$1
+  printf '%s\n' "$text" | awk -F': ' '/^current-context:/{print $2; exit}'
+}
+
 main() {
   echo "not implemented yet"
 }

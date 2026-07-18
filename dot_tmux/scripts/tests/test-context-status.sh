@@ -26,4 +26,11 @@ blob_empty=$(parse_gcloud_config "")
 check "empty ini -> empty account" "" "$(get "$blob_empty" ACCOUNT)"
 check "empty ini -> empty project" "" "$(get "$blob_empty" PROJECT)"
 
+# --- parse_kube_context --------------------------------------------------
+KUBECFG=$'apiVersion: v1\ncurrent-context: gke_myproj_us-central1_gtech-svc-obs-prd\nkind: Config'
+check "full context extracted, no stopword stripping" \
+  "gke_myproj_us-central1_gtech-svc-obs-prd" "$(parse_kube_context "$KUBECFG")"
+
+check "empty kubeconfig -> empty context" "" "$(parse_kube_context "")"
+
 exit $fail
