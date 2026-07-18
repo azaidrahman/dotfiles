@@ -27,6 +27,35 @@ parse_kube_context() {
   printf '%s\n' "$text" | awk -F': ' '/^current-context:/{print $2; exit}'
 }
 
+# render_gcloud <config_name> <parse_gcloud_config output> : gcloud section.
+render_gcloud() {
+  local config_name=$1 blob=$2 account project
+  account=$(printf '%s\n' "$blob" | awk '$1=="ACCOUNT"{ $1=""; sub(/^ /,""); print; exit }')
+  project=$(printf '%s\n' "$blob" | awk '$1=="PROJECT"{ $1=""; sub(/^ /,""); print; exit }')
+  printf '  %sgcloud%s\n' "$c_bold" "$c_reset"
+  if [ -z "$account" ]; then
+    printf '  %snot configured%s\n' "$c_dim" "$c_reset"
+  else
+    printf '  configuration  %s\n' "$config_name"
+    printf '  account        %s\n' "$account"
+    printf '  project        %s\n' "${project:-<none>}"
+  fi
+  echo
+}
+
+# render_kube <context> <kubeconfig_path> : kube section.
+render_kube() {
+  local context=$1 path=$2
+  printf '  %skube%s\n' "$c_bold" "$c_reset"
+  if [ -z "$context" ]; then
+    printf '  %sno current-context%s\n' "$c_dim" "$c_reset"
+  else
+    printf '  context   %s\n' "$context"
+    printf '  path      %s\n' "$path"
+  fi
+  echo
+}
+
 main() {
   echo "not implemented yet"
 }

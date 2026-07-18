@@ -33,4 +33,27 @@ check "full context extracted, no stopword stripping" \
 
 check "empty kubeconfig -> empty context" "" "$(parse_kube_context "")"
 
+# --- render_gcloud --------------------------------------------------------
+strip() { sed $'s/\033\\[[0-9;]*m//g'; }
+
+blob=$(parse_gcloud_config "$INI")
+out=$(render_gcloud "work" "$blob" | strip)
+check "render shows configuration name" "1" "$(printf '%s\n' "$out" | grep -c 'configuration.*work')"
+check "render shows full unmasked account" "1" "$(printf '%s\n' "$out" | grep -c 'jane.doe@example.com')"
+check "render shows project"            "1" "$(printf '%s\n' "$out" | grep -c 'my-project-123')"
+
+out_empty=$(render_gcloud "default" "$(parse_gcloud_config "")" | strip)
+check "render gcloud fallback when not configured" "1" \
+  "$(printf '%s\n' "$out_empty" | grep -c 'not configured')"
+
+# --- render_kube -----------------------------------------------------------
+out=$(render_kube "gke_myproj_us-central1_gtech-svc-obs-prd" "/tmp/fake-kubeconfig" | strip)
+check "render shows full context" "1" \
+  "$(printf '%s\n' "$out" | grep -c 'gke_myproj_us-central1_gtech-svc-obs-prd')"
+check "render shows kubeconfig path" "1" "$(printf '%s\n' "$out" | grep -c '/tmp/fake-kubeconfig')"
+
+out_empty=$(render_kube "" "/tmp/fake-kubeconfig" | strip)
+check "render kube fallback when no context" "1" \
+  "$(printf '%s\n' "$out_empty" | grep -c 'no current-context')"
+
 exit $fail
