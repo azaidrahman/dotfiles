@@ -56,4 +56,33 @@ out_empty=$(render_kube "" "/tmp/fake-kubeconfig" | strip)
 check "render kube fallback when no context" "1" \
   "$(printf '%s\n' "$out_empty" | grep -c 'no current-context')"
 
+# --- main(): end-to-end with fixture config dirs, no real gcloud/kube ------
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+
+mkdir -p "$TMP/gcloud/configurations"
+echo -n "work" > "$TMP/gcloud/active_config"
+cat > "$TMP/gcloud/configurations/config_work" <<'EOF'
+[core]
+account = jane.doe@example.com
+project = my-project-123
+EOF
+
+cat > "$TMP/kubeconfig" <<'EOF'
+apiVersion: v1
+current-context: gke_myproj_us-central1_gtech-svc-obs-prd
+kind: Config
+EOF
+
+out=$(printf 'x' | GCLOUD_CONFIG_DIR="$TMP/gcloud" KUBECONFIG="$TMP/kubeconfig" bash "$SCRIPT" | strip)
+check "main shows gcloud account"  "1" "$(printf '%s\n' "$out" | grep -c 'jane.doe@example.com')"
+check "main shows gcloud project"  "1" "$(printf '%s\n' "$out" | grep -c 'my-project-123')"
+check "main shows kube context"    "1" "$(printf '%s\n' "$out" | grep -c 'gke_myproj_us-central1_gtech-svc-obs-prd')"
+check "main shows close hint"      "1" "$(printf '%s\n' "$out" | grep -c '\[any key to close\]')"
+
+# Missing config dirs -> both fallbacks, no crash
+out=$(printf 'x' | GCLOUD_CONFIG_DIR="$TMP/no-such-dir" KUBECONFIG="$TMP/no-such-kubeconfig" bash "$SCRIPT" | strip)
+check "main gcloud fallback when unconfigured" "1" "$(printf '%s\n' "$out" | grep -c 'not configured')"
+check "main kube fallback when unconfigured"   "1" "$(printf '%s\n' "$out" | grep -c 'no current-context')"
+
 exit $fail

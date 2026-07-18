@@ -57,7 +57,24 @@ render_kube() {
 }
 
 main() {
-  echo "not implemented yet"
+  clear 2>/dev/null
+  echo
+  printf '  %sContext status%s\n\n' "$c_bold" "$c_reset"
+
+  local gconf_dir="${GCLOUD_CONFIG_DIR:-$HOME/.config/gcloud}"
+  local active; active=$(cat "$gconf_dir/active_config" 2>/dev/null); active=${active:-default}
+  local gtext; gtext=$(cat "$gconf_dir/configurations/config_${active}" 2>/dev/null)
+  render_gcloud "$active" "$(parse_gcloud_config "$gtext")"
+
+  local kpath="${KUBECONFIG:-$HOME/.kube/config}"
+  local ktext; ktext=$(cat "$kpath" 2>/dev/null)
+  render_kube "$(parse_kube_context "$ktext")" "$kpath"
+
+  printf '  %s[any key to close]%s' "$c_dim" "$c_reset"
+  local old_stty; old_stty=$(stty -g 2>/dev/null)
+  stty -echo -icanon min 1 time 0 2>/dev/null
+  dd bs=1 count=1 >/dev/null 2>&1
+  [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
 }
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && main "$@"
