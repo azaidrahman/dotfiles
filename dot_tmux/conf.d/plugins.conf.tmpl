@@ -14,6 +14,9 @@ set -g @plugin 'christoomey/vim-tmux-navigator'
 set -g @plugin 'tmux-plugins/tmux-resurrect'
 set -g @plugin 'tmux-plugins/tmux-continuum'
 set -g @continuum-restore 'on'
+# Auto-save every minute (default is 15) so a crash restores a near-current
+# session rather than one up to 15 min stale. Resurrect saves are cheap text.
+set -g @continuum-save-interval '1'
 
 # Tmux-jump to character (https://github.com/schasse/tmux-jump)
 set -g @plugin 'schasse/tmux-jump'
