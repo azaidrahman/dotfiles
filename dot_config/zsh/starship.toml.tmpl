@@ -1,18 +1,6 @@
 # ~/.config/starship.toml
 
-format = "$time$username$hostname$directory$git_branch${custom.gcloud}${custom.kube}\n$character"
-
-[custom.gcloud]
-command = "$HOME/.local/bin/gcloud-prompt"
-when = 'case "$PWD" in "$HOME"/projects/{{ .workProjectsDir }}*) true;; *) false;; esac'
-format = "on [$output]($style) "
-style = "bold blue"
-
-[custom.kube]
-command = "$HOME/.local/bin/kube-context-prompt"
-when = 'case "$PWD" in "$HOME"/projects/{{ .workProjectsDir }}*) true;; *) false;; esac'
-format = "via [☸ $output]($style) "
-style = "bold cyan"
+format = "$time$username$hostname$directory$git_branch\n$character"
 
 [time]
 disabled = false
