@@ -88,7 +88,7 @@ Short baseline explanation.
 
 ## Workflow
 
-1. Locate the vault path from `.env` or the user's request.
+1. Resolve the vault root from `$OBSIDIAN_VAULT` (the Polaris vault). Fall back to the path in the user's request only if that variable is unset.
 2. **Search the vault for the concept first.** Read any related notes before writing anything.
 3. **Creation gate, edit by default.** Default to editing or extending an existing note. Only create a brand-new file when the concept has no home AND would not fit as a section under an existing note. State which you chose and why before acting.
 4. If the concept fits inside an existing note, add it there as a section rather than as a competing file.

@@ -59,6 +59,11 @@ _ctx_file="$HOME/.config/active-ctx"
 [[ -f "$_ctx_file" ]] && export CTX_DIR="$HOME/ctx/$(< "$_ctx_file")"
 unset _ctx_file
 
+# === Obsidian ===
+# Primary Obsidian vault ("Polaris"). Skills (obsidian-note-template, worklog,
+# spaced-recall-tutor) resolve the vault root from this.
+export OBSIDIAN_VAULT="$HOME/vaults/Polaris"
+
 # === HELM REGISTRY ===
 export HELM_REGISTRY_CONFIG="~/.docker/config.json"
 
