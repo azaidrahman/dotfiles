@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# prefix+I : consolidated context-status popup — gcloud account/project,
+# prefix+G : consolidated context-status popup — gcloud account/project,
 # kube current-context. Always shows current state regardless of the
 # triggering pane's cwd (no work-projects-dir gate — this is on-demand).
 #
