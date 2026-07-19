@@ -1,0 +1,2 @@
+.local/bin/gcloud-prompt
+.local/bin/kube-context-prompt
