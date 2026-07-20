@@ -42,8 +42,6 @@ return {
                 end
                 return orig_clear_and_close(...)
             end
-
-            require("showkeys").toggle()
         end,
         opts = {
             -- "top-right" right-aligns the column but (unlike "bottom-*") leaves
