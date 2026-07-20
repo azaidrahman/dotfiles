@@ -1,0 +1,11 @@
+# ,mkcd - Create a directory and cd into it
+#         Able to handle multiple new directories and it will zoxide into the last one
+#         Pass a -c to use cd instead
+
+local nav=z
+if [[ $1 == -c ]]; then
+	nav=cd
+	shift
+fi
+
+mkdir -p -- "$@" && "$nav" -- "${@: -1}"
