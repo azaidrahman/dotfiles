@@ -28,29 +28,20 @@ window-padding-x = 4,2
 # `window-padding-y = 2` will set both paddings to 2.
 window-padding-y = 6,0
 
-font-family = "MonaspiceNe Nerd Font"
-font-style = "Light"
+font-family = "Iosevka Term"
+font-style = "Regular"
 font-size = 17
 
 # Without this, Ghostty can't derive a bold variant from the Light style and
 # falls back to a different (mismatched) system font for anything bolded -
 # prompt segments, syntax highlighting, etc. Pinning it to the same Light
 # style means "bold" text never gets heavier, just stays in the same face.
-font-family-bold = "MonaspiceNe Nerd Font"
-font-style-bold = "Light"
+font-family-bold = "Iosevka Term"
+font-style-bold = "Regular"
 
-# Monaspace ligatures (->, =>, ==, !=, >=, <=, ::, ..., ||, etc.) live behind
-# stylistic sets, not just calt/liga - enable them all to get the full set.
+# Iosevka ligatures (->, =>, ==, !=, >=, <=, etc.).
 font-feature = calt
 font-feature = liga
-font-feature = ss01
-font-feature = ss02
-font-feature = ss03
-font-feature = ss04
-font-feature = ss05
-font-feature = ss06
-font-feature = ss07
-font-feature = ss08
 
 # Toggle between two font sizes
 keybind = cmd+shift+minus=set_font_size:14
