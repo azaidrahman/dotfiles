@@ -64,6 +64,16 @@ return {
 					},
 				},
 				routes = {
+					-- :reg/:marks/:jumps etc. are "list_cmd" messages; without this they
+					-- fall through to messages.view="mini", which auto-dismisses after
+					-- views.mini.timeout (2s) instead of staying open.
+					{
+						filter = {
+							event = "msg_show",
+							kind = "list_cmd",
+						},
+						view = "popup",
+					},
 					{
 						filter = {
 							event = "msg_show",
