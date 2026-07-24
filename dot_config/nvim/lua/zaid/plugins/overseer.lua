@@ -18,10 +18,6 @@ return {
 			direction = "bottom",
 			min_height = 10,
 			max_height = 0.4,
-			bindings = {
-				-- Close the task list window with a plain `q` while focused in it.
-				["q"] = "Close",
-			},
 		},
 	},
 	config = function(_, opts)
