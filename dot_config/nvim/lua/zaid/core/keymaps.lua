@@ -114,6 +114,7 @@ end, { desc = "Toggle LSP diagnostics" })
 
 local makerun = require("zaid.core.makerun")
 vim.keymap.set("n", "<leader>qr", makerun.run, descopts("Pick Makefile target, run in float"))
+-- <leader>qg is now bound by zaid/plugins/overseer.lua (language-agnostic run)
 vim.keymap.set("n", "<leader>qo", makerun.open, descopts("Reopen hidden run float"))
 vim.keymap.set("n", "<leader>o", makerun.promote, descopts("Promote run float to split"))
 
