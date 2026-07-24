@@ -74,6 +74,9 @@ return {
 				"fallback",
 			},
 
+			-- Manually trigger completion menu
+			["<C-x>"] = { "show", "fallback" },
+
 			-- Documentation scrolling
 			["<C-d>"] = { "scroll_documentation_down", "fallback" },
 			["<C-u>"] = { "scroll_documentation_up", "fallback" },
