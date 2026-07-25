@@ -120,6 +120,19 @@ vim.keymap.set("n", "<leader>o", makerun.promote, descopts("Promote run float to
 
 vim.keymap.set("n", "<leader>pq", "<cmd>copen<CR>", descopts("Open quickfix list") )
 
+-- `q` closes the quickfix window from anywhere (e.g. the editor after a
+-- <leader>qg run). Falls through to normal macro recording when no quickfix
+-- window is open, so `q`'s default behaviour is preserved.
+vim.keymap.set("n", "q", function()
+	for _, win in ipairs(vim.fn.getwininfo()) do
+		if win.quickfix == 1 and win.loclist == 0 then
+			vim.cmd("cclose")
+			return
+		end
+	end
+	vim.api.nvim_feedkeys("q", "n", false)
+end, descopts("Close quickfix if open, else record macro"))
+
 vim.keymap.set("n","<leader>gn","<cmd>Neogit<cr>",descopts("Open neogit"))
 
 vim.keymap.set("n", "<leader>hm", "<cmd>Noice history<cr>", descopts("[H]istory of [M]essages (noice)"))
