@@ -43,6 +43,10 @@ vim.opt.backspace = { "start", "eol", "indent" }
 vim.opt.splitright = true --split vertical window to the right
 vim.opt.splitbelow = true --split horizontal window to the bottom
 
+-- prompt to save/discard instead of erroring (E37) when a command would
+-- abandon a modified buffer (e.g. fff.nvim opening a file via :edit)
+vim.opt.confirm = true
+
 vim.opt.isfname:append("@-@")
 vim.opt.updatetime = 50
 
