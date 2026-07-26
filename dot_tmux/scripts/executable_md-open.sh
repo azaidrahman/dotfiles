@@ -9,7 +9,7 @@
 #                 (used when the caller — e.g. the fzf picker — already previewed).
 #
 # <file>       — markdown file to preview/open
-# [src_window] — source window name (the new window is named md:<name>)
+# [src_window] — source window name (the new window is named md-<name>)
 # [src_dir]    — directory to open the new window in
 set -euo pipefail
 
@@ -24,7 +24,8 @@ src_window=${2:-?}
 src_dir=${3:-$HOME}
 
 open_in_nvim() {
-    tmux new-window -c "$src_dir" -n "md:${src_window}" \
+    # tmux 3.7 rejects ':' and '.' in window names — use a dash separator.
+    tmux new-window -c "$src_dir" -n "md-${src_window}" \
         "nvim '+MarkdownPreview' '$file'"
 }
 
