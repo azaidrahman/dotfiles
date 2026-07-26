@@ -305,12 +305,12 @@ keymaps:
     hold for back button: null
     hold for drag: CommandLeft
     hold for forward button: null
-    hold for free mode: null
+    hold for free mode: ctrl+q
     hold for middle button: null
     hold for move: OptionLeft
     hold for right button: ShiftLeft
-    hold for speed decrease: CmdLeft
-    hold for speed increase: CtrlLeft
+    hold for speed decrease: e
+    hold for speed increase: w
     increase overlay opacity: ArrowUp
     invert colors: null
     jump to bottom: null
@@ -332,7 +332,7 @@ keymaps:
     right click: null
     right mouse button: shift+space
     right mouse button (w/o overlay): null
-    show overlay: null
+    show overlay: cmd+ctrl+alt+shift+i
     subgrid nudge down: null
     subgrid nudge left: null
     subgrid nudge right: null
@@ -342,8 +342,8 @@ keymaps:
     toggle app enabled: null
     toggle continuous mode: null
     toggle continuous mode until closed: null
-    toggle free mode: ShiftLeft double tap
-    toggle overlay: CmdLeft double tap
+    toggle free mode: null
+    toggle overlay: null
     toggle overlay lock: null
     undo last key: Backspace
     wheel down: i
