@@ -6,7 +6,9 @@ from .pool import slot_to_combo, get_or_assign, POOL_SIZE
 # layer -> (from_modifier, condition_var, description)
 LAYERS = {
     'l1': ('!S', 'shortcut-l1', 'Shortcut Layer 1 (Shift+RightOpt)'),
-    'l2': ('!T', 'shortcut-l2', 'Shortcut Layer 2 (Ctrl+RightOpt)'),
+    # #O = left_option optional, so l2 keys fire from either trigger:
+    # LeftCtrl+RightOpt or LeftCtrl+LeftOpt (see karabiner.base.edn).
+    'l2': ('!T#O', 'shortcut-l2', 'Shortcut Layer 2 (Ctrl+Opt)'),
     'l3': ('!C', 'shortcut-l3', 'Shortcut Layer 3 (Cmd+RightOpt)'),
 }
 

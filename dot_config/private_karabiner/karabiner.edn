@@ -70,6 +70,8 @@
     [:!Sright_option [["shortcut-l1" 1]] nil {:afterup [["shortcut-l1" 0]]}]
     ;; Layer 2 trigger: Left Control + Right Option
     [:!Tright_option [["shortcut-l2" 1]] nil {:afterup [["shortcut-l2" 0]]}]
+    ;; Layer 2 alt trigger: Left Control + Left Option (same layer, either hand)
+    [:!Tleft_option [["shortcut-l2" 1]] nil {:afterup [["shortcut-l2" 0]]}]
     ;; Layer 3 trigger: Left Command + Right Option
     [:!Cright_option [["shortcut-l3" 1]] nil {:afterup [["shortcut-l3" 0]]}]
 
@@ -84,13 +86,13 @@
     ;; / = show help overlay (hold to view, release to dismiss)
     [:slash :show-app-help :app-launch {:afterup :clear-app-help}]
     [:!Sslash :show-l1-help :shortcut-l1 {:afterup :clear-l1-help}]
-    [:!Tslash :show-l2-help :shortcut-l2 {:afterup :clear-l2-help}]
+    [:!T#Oslash :show-l2-help :shortcut-l2 {:afterup :clear-l2-help}]
     [:!Cslash :show-l3-help :shortcut-l3 {:afterup :clear-l3-help}]
     [:!Oslash :show-ws-help nil {:afterup :clear-ws-help}]
 
 ;; BEGIN SHORTCUT-DIRECT (auto-generated from config/shortcuts.yaml)
-    [:!Tc      [:open "Claude"]    :shortcut-l2]   ;; l2+c → open:Claude
-    [:!Tg      [:open "Gemini"]    :shortcut-l2]   ;; l2+g → open:Gemini
+    [:!T#Oc    [:open "Claude"]    :shortcut-l2]   ;; l2+c → open:Claude
+    [:!T#Og    [:open "Gemini"]    :shortcut-l2]   ;; l2+g → open:Gemini
 ;; END SHORTCUT-DIRECT
 
 ;; BEGIN APP-RULES (auto-generated from config/app.yaml)
@@ -355,67 +357,67 @@
   ;; ── Shortcut Layer 2 (Left Ctrl + Right Option + key) ─────────────
   ;; !T in from consumes the held left_control.
   ;; Outputs mirror Layer 1 but with shift added.
-  {:des "Shortcut Layer 2 (Ctrl+RightOpt)"
+  {:des "Shortcut Layer 2 (Ctrl+Opt, either side)"
    :rules
    [;; ─── F13 ───
-    [:!Ta   :!Sf13         :shortcut-l2]   ;; a → shift+F13
-    [:!Tb   :!TSf13        :shortcut-l2]   ;; b → ctrl+shift+F13
-    [:!Tc   :!CSf13        :shortcut-l2]   ;; c → cmd+shift+F13
-    [:!Td   :!OSf13        :shortcut-l2]   ;; d → opt+shift+F13
-    [:!Te   :!CTSf13       :shortcut-l2]   ;; e → ctrl+cmd+shift+F13
-    [:!Tf   :!TOSf13       :shortcut-l2]   ;; f → ctrl+opt+shift+F13
-    [:!Tg   :!COSf13       :shortcut-l2]   ;; g → cmd+opt+shift+F13
-    [:!Th   :!CTOSf13      :shortcut-l2]   ;; h → ctrl+cmd+opt+shift+F13
+    [:!T#Oa   :!Sf13         :shortcut-l2]   ;; a → shift+F13
+    [:!T#Ob   :!TSf13        :shortcut-l2]   ;; b → ctrl+shift+F13
+    [:!T#Oc   :!CSf13        :shortcut-l2]   ;; c → cmd+shift+F13
+    [:!T#Od   :!OSf13        :shortcut-l2]   ;; d → opt+shift+F13
+    [:!T#Oe   :!CTSf13       :shortcut-l2]   ;; e → ctrl+cmd+shift+F13
+    [:!T#Of   :!TOSf13       :shortcut-l2]   ;; f → ctrl+opt+shift+F13
+    [:!T#Og   :!COSf13       :shortcut-l2]   ;; g → cmd+opt+shift+F13
+    [:!T#Oh   :!CTOSf13      :shortcut-l2]   ;; h → ctrl+cmd+opt+shift+F13
 
     ;; ─── F16 ───
-    [:!Ti   :!Sf16         :shortcut-l2]   ;; i → shift+F16
-    [:!Tj   :!TSf16        :shortcut-l2]   ;; j → ctrl+shift+F16
-    [:!Tk   :!CSf16        :shortcut-l2]   ;; k → cmd+shift+F16
-    [:!Tl   :!OSf16        :shortcut-l2]   ;; l → opt+shift+F16
-    [:!Tm   :!CTSf16       :shortcut-l2]   ;; m → ctrl+cmd+shift+F16
-    [:!Tn   :!TOSf16       :shortcut-l2]   ;; n → ctrl+opt+shift+F16
-    [:!To   :!COSf16       :shortcut-l2]   ;; o → cmd+opt+shift+F16
-    [:!Tp   :!CTOSf16      :shortcut-l2]   ;; p → ctrl+cmd+opt+shift+F16
+    [:!T#Oi   :!Sf16         :shortcut-l2]   ;; i → shift+F16
+    [:!T#Oj   :!TSf16        :shortcut-l2]   ;; j → ctrl+shift+F16
+    [:!T#Ok   :!CSf16        :shortcut-l2]   ;; k → cmd+shift+F16
+    [:!T#Ol   :!OSf16        :shortcut-l2]   ;; l → opt+shift+F16
+    [:!T#Om   :!CTSf16       :shortcut-l2]   ;; m → ctrl+cmd+shift+F16
+    [:!T#On   :!TOSf16       :shortcut-l2]   ;; n → ctrl+opt+shift+F16
+    [:!T#Oo   :!COSf16       :shortcut-l2]   ;; o → cmd+opt+shift+F16
+    [:!T#Op   :!CTOSf16      :shortcut-l2]   ;; p → ctrl+cmd+opt+shift+F16
 
     ;; ─── F17 ───
-    [:!Tq   :!Sf17         :shortcut-l2]   ;; q → shift+F17
-    [:!Tr   :!TSf17        :shortcut-l2]   ;; r → ctrl+shift+F17
-    [:!Ts   :!CSf17        :shortcut-l2]   ;; s → cmd+shift+F17
-    [:!Tt   :!OSf17        :shortcut-l2]   ;; t → opt+shift+F17
-    [:!Tu   :!CTSf17       :shortcut-l2]   ;; u → ctrl+cmd+shift+F17
-    [:!Tv   :!TOSf17       :shortcut-l2]   ;; v → ctrl+opt+shift+F17
-    [:!Tw   :!COSf17       :shortcut-l2]   ;; w → cmd+opt+shift+F17
-    [:!Tx   :!CTOSf17      :shortcut-l2]   ;; x → ctrl+cmd+opt+shift+F17
+    [:!T#Oq   :!Sf17         :shortcut-l2]   ;; q → shift+F17
+    [:!T#Or   :!TSf17        :shortcut-l2]   ;; r → ctrl+shift+F17
+    [:!T#Os   :!CSf17        :shortcut-l2]   ;; s → cmd+shift+F17
+    [:!T#Ot   :!OSf17        :shortcut-l2]   ;; t → opt+shift+F17
+    [:!T#Ou   :!CTSf17       :shortcut-l2]   ;; u → ctrl+cmd+shift+F17
+    [:!T#Ov   :!TOSf17       :shortcut-l2]   ;; v → ctrl+opt+shift+F17
+    [:!T#Ow   :!COSf17       :shortcut-l2]   ;; w → cmd+opt+shift+F17
+    [:!T#Ox   :!CTOSf17      :shortcut-l2]   ;; x → ctrl+cmd+opt+shift+F17
 
     ;; ─── F18 ───
-    [:!Ty   :!Sf18         :shortcut-l2]   ;; y → shift+F18
-    [:!Tz   :!TSf18        :shortcut-l2]   ;; z → ctrl+shift+F18
-    [:!T1   :!CSf18        :shortcut-l2]   ;; 1 → cmd+shift+F18
-    [:!T2   :!OSf18        :shortcut-l2]   ;; 2 → opt+shift+F18
-    [:!T3   :!CTSf18       :shortcut-l2]   ;; 3 → ctrl+cmd+shift+F18
-    [:!T4   :!TOSf18       :shortcut-l2]   ;; 4 → ctrl+opt+shift+F18
-    [:!T5   :!COSf18       :shortcut-l2]   ;; 5 → cmd+opt+shift+F18
-    [:!T6   :!CTOSf18      :shortcut-l2]   ;; 6 → ctrl+cmd+opt+shift+F18
+    [:!T#Oy   :!Sf18         :shortcut-l2]   ;; y → shift+F18
+    [:!T#Oz   :!TSf18        :shortcut-l2]   ;; z → ctrl+shift+F18
+    [:!T#O1   :!CSf18        :shortcut-l2]   ;; 1 → cmd+shift+F18
+    [:!T#O2   :!OSf18        :shortcut-l2]   ;; 2 → opt+shift+F18
+    [:!T#O3   :!CTSf18       :shortcut-l2]   ;; 3 → ctrl+cmd+shift+F18
+    [:!T#O4   :!TOSf18       :shortcut-l2]   ;; 4 → ctrl+opt+shift+F18
+    [:!T#O5   :!COSf18       :shortcut-l2]   ;; 5 → cmd+opt+shift+F18
+    [:!T#O6   :!CTOSf18      :shortcut-l2]   ;; 6 → ctrl+cmd+opt+shift+F18
 
     ;; ─── F19 ───
-    [:!T7                   :!Sf19         :shortcut-l2]   ;; 7 → shift+F19
-    [:!T8                   :!TSf19        :shortcut-l2]   ;; 8 → ctrl+shift+F19
-    [:!T9                   :!CSf19        :shortcut-l2]   ;; 9 → cmd+shift+F19
-    [:!T0                   :!OSf19        :shortcut-l2]   ;; 0 → opt+shift+F19
-    [:!Thyphen              :!CTSf19       :shortcut-l2]   ;; - → ctrl+cmd+shift+F19
-    [:!Tequal_sign          :!TOSf19       :shortcut-l2]   ;; = → ctrl+opt+shift+F19
-    [:!Topen_bracket        :!COSf19       :shortcut-l2]   ;; [ → cmd+opt+shift+F19
-    [:!Tclose_bracket       :!CTOSf19      :shortcut-l2]   ;; ] → ctrl+cmd+opt+shift+F19
+    [:!T#O7                   :!Sf19         :shortcut-l2]   ;; 7 → shift+F19
+    [:!T#O8                   :!TSf19        :shortcut-l2]   ;; 8 → ctrl+shift+F19
+    [:!T#O9                   :!CSf19        :shortcut-l2]   ;; 9 → cmd+shift+F19
+    [:!T#O0                   :!OSf19        :shortcut-l2]   ;; 0 → opt+shift+F19
+    [:!T#Ohyphen              :!CTSf19       :shortcut-l2]   ;; - → ctrl+cmd+shift+F19
+    [:!T#Oequal_sign          :!TOSf19       :shortcut-l2]   ;; = → ctrl+opt+shift+F19
+    [:!T#Oopen_bracket        :!COSf19       :shortcut-l2]   ;; [ → cmd+opt+shift+F19
+    [:!T#Oclose_bracket       :!CTOSf19      :shortcut-l2]   ;; ] → ctrl+cmd+opt+shift+F19
 
     ;; ─── F20 ───
-    [:!Tsemicolon                   :!Sf20         :shortcut-l2]   ;; ; → shift+F20
-    [:!Tquote                       :!TSf20        :shortcut-l2]   ;; ' → ctrl+shift+F20
-    [:!Tcomma                       :!CSf20        :shortcut-l2]   ;; , → cmd+shift+F20
-    [:!Tperiod                      :!OSf20        :shortcut-l2]   ;; . → opt+shift+F20
-    [:!Tslash                       :!CTSf20       :shortcut-l2]   ;; / → ctrl+cmd+shift+F20
-    [:!Tbackslash                   :!TOSf20       :shortcut-l2]   ;; \ → ctrl+opt+shift+F20
-    [:!Tgrave_accent_and_tilde      :!COSf20       :shortcut-l2]   ;; ` → cmd+opt+shift+F20
-    [:!Tspacebar                    :!CTOSf20      :shortcut-l2]   ;; space → ctrl+cmd+opt+shift+F20
+    [:!T#Osemicolon                   :!Sf20         :shortcut-l2]   ;; ; → shift+F20
+    [:!T#Oquote                       :!TSf20        :shortcut-l2]   ;; ' → ctrl+shift+F20
+    [:!T#Ocomma                       :!CSf20        :shortcut-l2]   ;; , → cmd+shift+F20
+    [:!T#Operiod                      :!OSf20        :shortcut-l2]   ;; . → opt+shift+F20
+    [:!T#Oslash                       :!CTSf20       :shortcut-l2]   ;; / → ctrl+cmd+shift+F20
+    [:!T#Obackslash                   :!TOSf20       :shortcut-l2]   ;; \ → ctrl+opt+shift+F20
+    [:!T#Ograve_accent_and_tilde      :!COSf20       :shortcut-l2]   ;; ` → cmd+opt+shift+F20
+    [:!T#Ospacebar                    :!CTOSf20      :shortcut-l2]   ;; space → ctrl+cmd+opt+shift+F20
    ]}
 
 ;; BEGIN SHORTCUT-LAYER-3 (auto-generated from config/shortcuts.yaml)
