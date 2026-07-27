@@ -1,0 +1,12 @@
+#!/bin/bash
+# Macros hash: {{ range (glob (joinPath .chezmoi.sourceDir "dot_config/keyboardmaestro/macros/*.kmmacros")) }}{{ include . | sha256sum }}{{ end }}
+# km-apply hash: {{ include (joinPath .chezmoi.sourceDir "dot_config/keyboardmaestro/bin/kmlib.py") | sha256sum }}{{ include (joinPath .chezmoi.sourceDir "dot_config/keyboardmaestro/bin/executable_km-apply") | sha256sum }}
+
+set -euo pipefail
+
+if ! pgrep -xq "Keyboard Maestro Engine"; then
+  echo "km-apply: Keyboard Maestro not running, skipping macro import" >&2
+  exit 0
+fi
+
+"$HOME/.config/keyboardmaestro/bin/km-apply"
