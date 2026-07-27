@@ -14,7 +14,7 @@
 			<key>Subtitle</key>
 			<string></string>
 			<key>Text</key>
-			<string>Managed by chezmoi</string>
+			<string>Round trip works</string>
 			<key>Title</key>
 			<string>Hello Chezmoi</string>
 		</dict>
