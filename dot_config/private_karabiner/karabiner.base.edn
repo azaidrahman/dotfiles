@@ -62,8 +62,6 @@
     [:!Sright_option [["shortcut-l1" 1]] nil {:afterup [["shortcut-l1" 0]]}]
     ;; Layer 2 trigger: Left Control + Right Option
     [:!Tright_option [["shortcut-l2" 1]] nil {:afterup [["shortcut-l2" 0]]}]
-    ;; Layer 2 alt trigger: Left Control + Left Option (same layer, either hand)
-    [:!Tleft_option [["shortcut-l2" 1]] nil {:afterup [["shortcut-l2" 0]]}]
     ;; Layer 3 trigger: Left Command + Right Option
     [:!Cright_option [["shortcut-l3" 1]] nil {:afterup [["shortcut-l3" 0]]}]
 

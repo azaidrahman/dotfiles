@@ -7,7 +7,7 @@
 #
 # Layer triggers (defined in karabiner.edn):
 #   l1: Left Shift  + Right Option
-#   l2: Left Ctrl   + Right Option  (or Left Ctrl + Left Option)
+#   l2: Left Ctrl   + Right Option
 #   l3: Left Command + Right Option
 
 l1:
