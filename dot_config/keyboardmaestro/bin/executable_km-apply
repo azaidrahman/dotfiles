@@ -16,8 +16,12 @@ def main() -> int:
     for path in files:
         try:
             d = kmlib.read_macro_file(path)
+        except OSError as e:
+            print(f"SKIP {path.name}: cannot read file: {e}", file=sys.stderr)
+            rc = 1
+            continue
         except Exception as e:
-            print(f"SKIP {path.name}: {e}", file=sys.stderr)
+            print(f"SKIP {path.name}: malformed macro file: {e}", file=sys.stderr)
             rc = 1
             continue
         file_uids.add(d["UID"])
@@ -27,26 +31,34 @@ def main() -> int:
 
     # Delete-then-import each managed macro (import with an existing UID
     # silently creates a duplicate under a new UID, so delete first).
-    for fname, d in macro_dicts:
-        uid = d["UID"]
-        if uid in live:
+    try:
+        for fname, d in macro_dicts:
+            uid = d["UID"]
+            if uid in live:
+                kmlib.osascript(
+                    f'tell application "Keyboard Maestro" to deleteMacro "{uid}"'
+                )
+            xml = kmlib.wrap_in_group([d]).decode()
+            esc = xml.replace("\\", "\\\\").replace('"', '\\"')
             kmlib.osascript(
-                f'tell application "Keyboard Maestro" to deleteMacro "{uid}"'
+                f'tell application "Keyboard Maestro" to importMacros "{esc}"'
             )
-        xml = kmlib.wrap_in_group([d]).decode()
-        esc = xml.replace("\\", "\\\\").replace('"', '\\"')
-        kmlib.osascript(
-            f'tell application "Keyboard Maestro" to importMacros "{esc}"'
-        )
-        print(f"applied {fname} -> {d.get('Name', uid)}")
+            print(f"applied {fname} -> {d.get('Name', uid)}")
+    except RuntimeError as e:
+        print(f"error: Keyboard Maestro apply failed: {e}", file=sys.stderr)
+        return 1
 
     # Strays: live macros with no repo file get disabled, never deleted.
-    for uid, name in live.items():
-        if uid not in file_uids:
-            kmlib.osascript(
-                f'tell application "Keyboard Maestro" to setMacroEnable "{uid}" enable false'
-            )
-            print(f"WARN: disabled stray macro '{name}' ({uid}) — no repo file", file=sys.stderr)
+    try:
+        for uid, name in live.items():
+            if uid not in file_uids:
+                kmlib.osascript(
+                    f'tell application "Keyboard Maestro" to setMacroEnable "{uid}" enable false'
+                )
+                print(f"WARN: disabled stray macro '{name}' ({uid}) — no repo file", file=sys.stderr)
+    except RuntimeError as e:
+        print(f"error: Keyboard Maestro stray-disable failed: {e}", file=sys.stderr)
+        return 1
 
     return rc
 
