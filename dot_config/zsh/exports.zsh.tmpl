@@ -27,7 +27,7 @@ export GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn"
 # 'command pyenv rehash' stripped from cache (it blocks on stale locks) and run
 # in the background instead. Regenerate: rm ~/.cache/pyenv-init.zsh
 _pyenv_cache="${XDG_CACHE_HOME:-$HOME/.cache}/pyenv-init.zsh"
-if [[ ! -f "$_pyenv_cache" ]] || [[ "$(realpath "$(command -v pyenv)")" -nt "$_pyenv_cache" ]]; then
+if [[ ! -f "$_pyenv_cache" ]] || [[ "${commands[pyenv]:A}" -nt "$_pyenv_cache" ]]; then
     mkdir -p "${_pyenv_cache:h}"
     pyenv init - zsh | grep -v 'command pyenv rehash' > "$_pyenv_cache"
 fi
@@ -42,8 +42,13 @@ unset _pyenv_cache
 # *after* /opt/homebrew/bin, letting brew's leftover node shadow mise's. So we
 # just set JAVA_HOME (single global java) here; mirrors the pyenv block, which
 # also leaves PATH to .zshenv and only adds shell niceties.
-if command -v mise >/dev/null 2>&1; then
-    export JAVA_HOME="$(mise where java 2>/dev/null)"
+if (( ${+commands[mise]} )); then
+    # `mise where java` costs ~100ms; serve JAVA_HOME from cache and refresh
+    # it in the background so version bumps land on the next shell.
+    _java_cache="${XDG_CACHE_HOME:-$HOME/.cache}/mise-java-home"
+    [[ -f "$_java_cache" ]] && export JAVA_HOME="$(<$_java_cache)"
+    { mise where java 2>/dev/null > "$_java_cache" } &!
+    unset _java_cache
 fi
 
 # === Git over SSH ===

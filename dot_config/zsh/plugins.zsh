@@ -33,9 +33,20 @@ zinit snippet OMZP::kubectl
 zinit ice wait lucid
 zinit snippet OMZP::gcloud
 
-source <(fzf --zsh)
-# eval "$(zoxide init --cmd cd zsh)"
-eval "$(zoxide init zsh)"
+# fzf + zoxide init scripts cached (each subprocess costs ~15-20ms);
+# rebuilt when the binary is newer than its cache.
+_init_cached() {  # _init_cached <cmd> <cache-name> <gen-cmd...>
+  local cache="${XDG_CACHE_HOME:-$HOME/.cache}/$2"
+  if [[ ! -f "$cache" ]] || [[ "${commands[$1]:A}" -nt "$cache" ]]; then
+    mkdir -p "${cache:h}"
+    "${@:3}" > "$cache"
+  fi
+  source "$cache"
+}
+_init_cached fzf fzf-init.zsh fzf --zsh
+# zoxide: --cmd cd variant deliberately not used (see git history)
+_init_cached zoxide zoxide-init.zsh zoxide init zsh
+unfunction _init_cached
 
 # Google cloud completion (hardcoded brew prefix to avoid slow brew --prefix call)
 source "/opt/homebrew/share/google-cloud-sdk/completion.zsh.inc"
