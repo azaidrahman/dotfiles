@@ -96,7 +96,7 @@ hyper:
     -: "!CTOSe" # alfred open windows
 
   i:
-    -: "!CTOSi" # alfred jira
+    -: "!CTOSi" # mouseless overlay
 
   "0":
     -: "!QWER0" # ice bar
