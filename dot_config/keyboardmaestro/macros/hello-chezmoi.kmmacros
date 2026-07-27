@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>ActionUID</key>
-			<integer>1</integer>
+			<integer>3217</integer>
 			<key>MacroActionType</key>
 			<string>Notification</string>
 			<key>SoundName</key>
