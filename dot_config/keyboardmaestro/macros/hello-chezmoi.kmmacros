@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Actions</key>
+	<array>
+		<dict>
+			<key>ActionUID</key>
+			<integer>1</integer>
+			<key>MacroActionType</key>
+			<string>Notification</string>
+			<key>SoundName</key>
+			<string></string>
+			<key>Subtitle</key>
+			<string></string>
+			<key>Text</key>
+			<string>Managed by chezmoi</string>
+			<key>Title</key>
+			<string>Hello Chezmoi</string>
+		</dict>
+	</array>
+	<key>Name</key>
+	<string>Hello Chezmoi</string>
+	<key>Triggers</key>
+	<array/>
+	<key>UID</key>
+	<string>A0000000-0000-4000-8000-CHEZMOI00001</string>
+</dict>
+</plist>

@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""km-apply: import repo macro files into Keyboard Maestro (repo is truth)."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import kmlib
+
+
+def main() -> int:
+    kmlib.check_km_running()
+    rc = 0
+    files = sorted(kmlib.MACROS_DIR.glob("*.kmmacros"))
+    file_uids = set()
+    macro_dicts = []
+    for path in files:
+        try:
+            d = kmlib.read_macro_file(path)
+        except Exception as e:
+            print(f"SKIP {path.name}: {e}", file=sys.stderr)
+            rc = 1
+            continue
+        file_uids.add(d["UID"])
+        macro_dicts.append((path.name, d))
+
+    live = kmlib.live_macros()
+
+    # Delete-then-import each managed macro (import with an existing UID
+    # silently creates a duplicate under a new UID, so delete first).
+    for fname, d in macro_dicts:
+        uid = d["UID"]
+        if uid in live:
+            kmlib.osascript(
+                f'tell application "Keyboard Maestro" to deleteMacro "{uid}"'
+            )
+        xml = kmlib.wrap_in_group([d]).decode()
+        esc = xml.replace("\\", "\\\\").replace('"', '\\"')
+        kmlib.osascript(
+            f'tell application "Keyboard Maestro" to importMacros "{esc}"'
+        )
+        print(f"applied {fname} -> {d.get('Name', uid)}")
+
+    # Strays: live macros with no repo file get disabled, never deleted.
+    for uid, name in live.items():
+        if uid not in file_uids:
+            kmlib.osascript(
+                f'tell application "Keyboard Maestro" to setMacroEnable "{uid}" enable false'
+            )
+            print(f"WARN: disabled stray macro '{name}' ({uid}) — no repo file", file=sys.stderr)
+
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())
