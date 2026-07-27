@@ -36,6 +36,29 @@ fi
   }
   ' "$CONF"
   echo
+  echo "== NO-PREFIX KEYS (work without $PREFIX) =="
+  echo
+  awk '
+  function fmtkey(line,   n, arr, i, tok, key, repeat) {
+    sub(/^bind(-key)?[ \t]+/, "", line)
+    n = split(line, arr, /[ \t]+/); repeat=""; i=1
+    while (i <= n) {
+      tok = arr[i]
+      if (tok == "-r") { repeat = " (hold)"; i++; continue }
+      if (tok == "-n") { i++; continue }
+      break
+    }
+    key = arr[i]; gsub(/"/, "", key); return key repeat
+  }
+  /^#/   { sub(/^#+[ \t]*/, ""); desc = $0; next }
+  /^$/   { desc = ""; next }
+  /^unbind/ { next }
+  /^bind/ {
+    if ($0 !~ /-n[ \t]/) { desc = ""; next }
+    printf "  %-8s  %s\n", fmtkey($0), desc; desc = ""
+  }
+  ' "$CONF"
+  echo
   echo "== ALL KEYS (tmux list-keys) =="
   echo
   tmux list-keys
