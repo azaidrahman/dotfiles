@@ -10,7 +10,13 @@
 # state, and HOME points at a temp dir so alert_tmux finds no log-alert.sh to run.
 set -u
 
-HOOK="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/hooks/executable_notify-tmux.sh"
+# Resolve the hook from either tree: the chezmoi source keeps the `executable_` prefix,
+# the applied target does not. Without both names this only runs from the source dir.
+BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+for cand in "$BASE/hooks/executable_notify-tmux.sh" "$BASE/hooks/notify-tmux.sh"; do
+  [ -f "$cand" ] && { HOOK="$cand"; break; }
+done
+HOOK="${HOOK:-$BASE/hooks/notify-tmux.sh}"
 fail=0
 check() { # label expected actual
   if [ "$2" = "$3" ]; then printf 'ok   - %s\n' "$1"
