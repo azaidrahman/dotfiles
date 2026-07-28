@@ -16,7 +16,7 @@ Keyboard Maestro macros in the **Chezmoi-Managed** group are file-managed, one m
 - **Edit here (chezmoi source):** `dot_config/keyboardmaestro/macros/*.kmmacros`
 - **Deployed:** `~/.config/keyboardmaestro/macros/*.kmmacros`
 - Each file is a single macro as a plist `dict`. The filename is a cosmetic kebab-case slug for humans — renaming the file does nothing to Keyboard Maestro. The `UID` key inside the plist is what actually identifies the macro.
-- Macro group: **"Chezmoi-Managed"**, UID `5B7A1F9C-CHEZMOI-TOPBAR-GROUP-00000001`. Only macros in this group are file-managed; macros elsewhere are untouched by any of this tooling.
+- Macro group: **"Chezmoi-Managed"**. Only macros in this group are file-managed; macros elsewhere are untouched by any of this tooling. The group's UID differs per machine — `km-apply` looks it up by name at runtime (`kmlib.group_uid()`) rather than hardcoding one, and creates the group automatically on a machine where it doesn't exist yet.
 
 ## Edit flow (chezmoi source → live)
 
@@ -80,3 +80,4 @@ For the full scriptable surface, see the sdefs:
 | Assumed the run_onchange hook always ran `km-apply` | It skips (exit 0) when KM Engine isn't running — run `km-apply` manually after starting KM |
 | A macro shows disabled instead of gone after a sync | Stray macros in the group get **disabled**, not deleted — this is expected, not a bug |
 | Touched `~/.config/keyboardmaestro/Keyboard Maestro Macros.kmsync` | That's Keyboard Maestro's own binary sync file — never edit or touch it |
+| `error: macro group "Chezmoi-Managed" not found` on a new machine | Shouldn't happen anymore — `km-apply` auto-creates the group. If it does, KM's `make new macro group` may have failed silently; check KM is actually running and retry |

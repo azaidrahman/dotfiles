@@ -9,10 +9,10 @@ import plistlib
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 GROUP_NAME = "Chezmoi-Managed"
-GROUP_UID = "5B7A1F9C-CHEZMOI-TOPBAR-GROUP-00000001"
 MACROS_DIR = Path.home() / ".config/keyboardmaestro/macros"
 
 
@@ -29,8 +29,25 @@ def check_km_running() -> None:
         ok = osascript(probe)
     except RuntimeError as e:
         sys.exit(f"error: cannot talk to Keyboard Maestro editor: {e}")
-    if ok != "true":
-        sys.exit(f'error: macro group "{GROUP_NAME}" not found in Keyboard Maestro')
+    if ok == "true":
+        return
+    # New machine: the group doesn't exist yet. Its UID can't be chosen (KM
+    # assigns one on creation), so group_uid() looks it up dynamically —
+    # every machine gets its own real UID, and that's fine.
+    try:
+        osascript(
+            f'tell application "Keyboard Maestro" to make new macro group '
+            f'with properties {{name:"{GROUP_NAME}"}}'
+        )
+        time.sleep(2)  # KM's AppleScript layer lags briefly after mutations
+    except RuntimeError as e:
+        sys.exit(f'error: macro group "{GROUP_NAME}" not found and could not be created: {e}')
+    if osascript(probe) != "true":
+        sys.exit(f'error: macro group "{GROUP_NAME}" still not found after creating it')
+
+
+def group_uid() -> str:
+    return osascript(f'tell application "Keyboard Maestro" to id of macro group "{GROUP_NAME}"')
 
 
 def read_macro_file(path: Path) -> dict:
@@ -45,7 +62,7 @@ def wrap_in_group(macro_dicts: list) -> bytes:
     group = {
         "Activate": "Normal",
         "Name": GROUP_NAME,
-        "UID": GROUP_UID,
+        "UID": group_uid(),
         "Macros": macro_dicts,
     }
     return plistlib.dumps([group], fmt=plistlib.FMT_XML)
