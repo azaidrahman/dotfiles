@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Actions</key>
+	<array>
+		<dict>
+			<key>ActionUID</key>
+			<integer>2427</integer>
+			<key>MacroActionType</key>
+			<string>Semaphore</string>
+			<key>SemaphoreAction</key>
+			<string>Lock</string>
+			<key>SemaphoreName</key>
+			<string>Todoist Semaphore</string>
+			<key>TimeOutAbortsMacro</key>
+			<true/>
+			<key>TimeOutPeriod</key>
+			<real>0.01</real>
+		</dict>
+		<dict>
+			<key>ActionUID</key>
+			<integer>1234</integer>
+			<key>DisplayKind</key>
+			<string>Variable</string>
+			<key>HonourFailureSettings</key>
+			<true/>
+			<key>IncludeStdErr</key>
+			<false/>
+			<key>IncludedVariables</key>
+			<array>
+				<string>9999</string>
+			</array>
+			<key>MacroActionType</key>
+			<string>ExecuteShellScript</string>
+			<key>Path</key>
+			<string></string>
+			<key>Source</key>
+			<string>Nothing</string>
+			<key>Text</key>
+			<string>#!/usr/bin/env bash
+
+THRESHOLD=10800  # 3 hours in seconds
+
+# ====TEST====== #
+# THRESHOLD=5
+# ====TEST====== #
+
+LOCATION=~/scripts/km_cache/km_todoist_last_seen.txt
+
+NOW=$(date +%s)
+
+# Get last Todoist seen time
+if [ -f "$LOCATION" ]; then
+    TODOIST_TIME=$(cat "$LOCATION")
+else
+    TODOIST_TIME=0
+fi
+
+ELAPSED=$(( NOW - TODOIST_TIME ))
+
+if [ "$ELAPSED" -ge "$THRESHOLD" ]; then
+    echo "1"
+else
+    echo "0"
+fi</string>
+			<key>TimeOutAbortsMacro</key>
+			<true/>
+			<key>TrimResults</key>
+			<true/>
+			<key>TrimResultsNew</key>
+			<true/>
+			<key>UseText</key>
+			<true/>
+			<key>Variable</key>
+			<string>thresholdExceeded</string>
+		</dict>
+		<dict>
+			<key>ActionUID</key>
+			<integer>1235</integer>
+			<key>Conditions</key>
+			<dict>
+				<key>ConditionList</key>
+				<array>
+					<dict>
+						<key>ConditionType</key>
+						<string>Variable</string>
+						<key>Variable</key>
+						<string>thresholdExceeded</string>
+						<key>VariableConditionType</key>
+						<string>Is</string>
+						<key>VariableValue</key>
+						<string>1</string>
+					</dict>
+				</array>
+				<key>ConditionListMatch</key>
+				<string>All</string>
+			</dict>
+			<key>ElseActions</key>
+			<array>
+				<dict>
+					<key>Action</key>
+					<string>CancelThisMacro</string>
+					<key>ActionUID</key>
+					<integer>1256</integer>
+					<key>MacroActionType</key>
+					<string>Cancel</string>
+				</dict>
+			</array>
+			<key>MacroActionType</key>
+			<string>IfThenElse</string>
+			<key>ThenActions</key>
+			<array>
+				<dict>
+					<key>ActionUID</key>
+					<integer>3211</integer>
+					<key>DisplayKind</key>
+					<string>Variable</string>
+					<key>HonourFailureSettings</key>
+					<true/>
+					<key>IncludeStdErr</key>
+					<false/>
+					<key>IncludedVariables</key>
+					<array>
+						<string>9999</string>
+					</array>
+					<key>MacroActionType</key>
+					<string>ExecuteShellScript</string>
+					<key>Path</key>
+					<string></string>
+					<key>Source</key>
+					<string>Nothing</string>
+					<key>Text</key>
+					<string>#!/usr/bin/env bash
+
+# THRESHOLD=10800  # 3 hours in seconds
+
+# ====TEST====== #
+# THRESHOLD=5
+# ====TEST====== #
+
+LOCATION=~/scripts/km_cache/km_todoist_last_seen.txt
+
+NOW=$(date +%s)
+
+# Get last Todoist seen time
+if [ -f "$LOCATION" ]; then
+    TODOIST_TIME=$(cat "$LOCATION")
+else
+    TODOIST_TIME=0
+fi
+
+ELAPSED=$(( NOW - TODOIST_TIME ))
+ELAPSED_HOURS=$(( ELAPSED / 60 / 60 ))
+ELAPSED_MINUTES=$(( ( ELAPSED / 60 )  % 60 ))
+# echo "$ELAPSED_MINUTES"
+# printf "ELAPSED: %s\n" "$ELAPSED"
+
+printf "%02d hours %02s minutes" "$ELAPSED_HOURS" "$ELAPSED_MINUTES"
+
+# if [ "$ELAPSED" -ge "$THRESHOLD" ]; then
+# else
+#     return
+# fi</string>
+					<key>TimeOutAbortsMacro</key>
+					<true/>
+					<key>TrimResults</key>
+					<true/>
+					<key>TrimResultsNew</key>
+					<true/>
+					<key>UseText</key>
+					<true/>
+					<key>Variable</key>
+					<string>timeSinceOpenedTodoist</string>
+				</dict>
+				<dict>
+					<key>ActionUID</key>
+					<integer>1236</integer>
+					<key>Buttons</key>
+					<array>
+						<dict>
+							<key>Button</key>
+							<string>Open</string>
+							<key>Cancel</key>
+							<false/>
+						</dict>
+						<dict>
+							<key>Button</key>
+							<string>Snooze</string>
+							<key>Cancel</key>
+							<true/>
+						</dict>
+					</array>
+					<key>MacroActionType</key>
+					<string>PromptForUserInput</string>
+					<key>Prompt</key>
+					<string>%Variable%timeSinceOpenedTodoist% since last opened Todoist. Open it now?</string>
+					<key>TimeOutAbortsMacro</key>
+					<true/>
+					<key>Title</key>
+					<string>Todoist Reopen</string>
+					<key>Variables</key>
+					<array/>
+				</dict>
+				<dict>
+					<key>ActionUID</key>
+					<integer>2428</integer>
+					<key>MacroActionType</key>
+					<string>Semaphore</string>
+					<key>SemaphoreAction</key>
+					<string>Unlock</string>
+					<key>SemaphoreName</key>
+					<string>Todoist Semaphore</string>
+				</dict>
+				<dict>
+					<key>ActionUID</key>
+					<integer>1255</integer>
+					<key>DisplayKind</key>
+					<string>Window</string>
+					<key>HonourFailureSettings</key>
+					<true/>
+					<key>IncludeStdErr</key>
+					<false/>
+					<key>IncludedVariables</key>
+					<array>
+						<string>9999</string>
+					</array>
+					<key>MacroActionType</key>
+					<string>ExecuteShellScript</string>
+					<key>Path</key>
+					<string></string>
+					<key>Source</key>
+					<string>Nothing</string>
+					<key>Text</key>
+					<string>open -a Todoist</string>
+					<key>TimeOutAbortsMacro</key>
+					<true/>
+					<key>TrimResults</key>
+					<true/>
+					<key>TrimResultsNew</key>
+					<true/>
+					<key>UseText</key>
+					<true/>
+				</dict>
+			</array>
+			<key>TimeOutAbortsMacro</key>
+			<true/>
+		</dict>
+	</array>
+	<key>Name</key>
+	<string>Period Launch Todoist</string>
+	<key>Triggers</key>
+	<array>
+		<dict>
+			<key>ExecuteType</key>
+			<string>While</string>
+			<key>MacroTriggerType</key>
+			<string>Time</string>
+			<key>RepeatTime</key>
+			<integer>300</integer>
+			<key>TimeFinishHour</key>
+			<integer>8</integer>
+			<key>TimeFinishMinutes</key>
+			<integer>1</integer>
+			<key>TimeHour</key>
+			<integer>8</integer>
+			<key>TimeMinutes</key>
+			<integer>0</integer>
+			<key>WhichDays</key>
+			<integer>62</integer>
+		</dict>
+		<dict>
+			<key>ExecuteType</key>
+			<string>While</string>
+			<key>MacroTriggerType</key>
+			<string>Time</string>
+			<key>RepeatTime</key>
+			<integer>300</integer>
+			<key>TimeFinishHour</key>
+			<integer>15</integer>
+			<key>TimeFinishMinutes</key>
+			<integer>1</integer>
+			<key>TimeHour</key>
+			<integer>15</integer>
+			<key>TimeMinutes</key>
+			<integer>0</integer>
+			<key>WhichDays</key>
+			<integer>62</integer>
+		</dict>
+		<dict>
+			<key>ExecuteType</key>
+			<string>While</string>
+			<key>MacroTriggerType</key>
+			<string>Time</string>
+			<key>RepeatTime</key>
+			<integer>300</integer>
+			<key>TimeFinishHour</key>
+			<integer>20</integer>
+			<key>TimeFinishMinutes</key>
+			<integer>1</integer>
+			<key>TimeHour</key>
+			<integer>20</integer>
+			<key>TimeMinutes</key>
+			<integer>0</integer>
+			<key>WhichDays</key>
+			<integer>62</integer>
+		</dict>
+	</array>
+	<key>UID</key>
+	<string>3D092829-F2AE-41C5-BAA0-D9795F242B1A</string>
+</dict>
+</plist>
