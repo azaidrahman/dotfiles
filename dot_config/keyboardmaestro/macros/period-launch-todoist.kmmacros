@@ -267,7 +267,7 @@ printf "%02d hours %02s minutes" "$ELAPSED_HOURS" "$ELAPSED_MINUTES"
 			<key>TimeMinutes</key>
 			<integer>0</integer>
 			<key>WhichDays</key>
-			<integer>62</integer>
+			<integer>31</integer>
 		</dict>
 		<dict>
 			<key>ExecuteType</key>
@@ -285,7 +285,7 @@ printf "%02d hours %02s minutes" "$ELAPSED_HOURS" "$ELAPSED_MINUTES"
 			<key>TimeMinutes</key>
 			<integer>0</integer>
 			<key>WhichDays</key>
-			<integer>62</integer>
+			<integer>31</integer>
 		</dict>
 		<dict>
 			<key>ExecuteType</key>
@@ -303,7 +303,7 @@ printf "%02d hours %02s minutes" "$ELAPSED_HOURS" "$ELAPSED_MINUTES"
 			<key>TimeMinutes</key>
 			<integer>0</integer>
 			<key>WhichDays</key>
-			<integer>62</integer>
+			<integer>31</integer>
 		</dict>
 	</array>
 	<key>UID</key>
