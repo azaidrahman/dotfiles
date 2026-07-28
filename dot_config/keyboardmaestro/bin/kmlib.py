@@ -68,6 +68,11 @@ def live_macros() -> dict:
     return result
 
 
+def as_literal(s: str) -> str:
+    """Escape a string for safe interpolation into an AppleScript string literal."""
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def slugify(name: str) -> str:
     s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return s or "macro"

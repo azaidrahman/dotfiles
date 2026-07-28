@@ -19,12 +19,16 @@ def is_dirty(repo: Path, path: Path) -> bool:
         ["git", "-C", str(repo), "status", "--porcelain", "--", str(path)],
         capture_output=True, text=True,
     )
+    if r.returncode != 0:
+        print(f"WARN: git status failed ({r.stderr.strip()}); treating {path.name} as dirty", file=sys.stderr)
+        return True
     return bool(r.stdout.strip())
 
 
 def macro_xml(uid: str) -> str:
+    lit_uid = kmlib.as_literal(uid)
     xml = kmlib.osascript(
-        f'tell application "Keyboard Maestro" to xml of macro id "{uid}"'
+        f'tell application "Keyboard Maestro" to xml of macro id "{lit_uid}"'
     )
     # KM stamps a fresh ModificationDate (and sometimes CreationDate) on every
     # export even when nothing meaningful changed, which would make every
@@ -48,8 +52,10 @@ def main() -> int:
     for p in sorted(out_dir.glob("*.kmmacros")):
         try:
             by_uid[kmlib.read_macro_file(p)["UID"]] = p
-        except ValueError as e:
-            print(f"WARN: {e}", file=sys.stderr)
+        except OSError as e:
+            print(f"WARN: {p.name}: cannot read file: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"WARN: {p.name}: malformed macro file: {e}", file=sys.stderr)
 
     rc = 0
     for uid, name in kmlib.live_macros().items():

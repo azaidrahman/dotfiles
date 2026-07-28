@@ -5,3 +5,4 @@ Brewfile.lock.json
 /.pi
 /docs/
 dot_config/wezterm/*.tmp
+__pycache__/
