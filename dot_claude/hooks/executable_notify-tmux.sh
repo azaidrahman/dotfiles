@@ -24,6 +24,14 @@ WIN_ID=$(tq '#{window_id}')
 WNAME=$(tq '#{window_name}'); WNAME=${WNAME:-claude}
 LOGO="$HOME/.claude/claude-logo.png"
 LOG_ALERT="$HOME/.tmux/scripts/log-alert.sh"
+FOCUS_DB="$HOME/Library/DoNotDisturb/DB/Assertions.json"
+
+# Focus modes in which an audible cue is unwelcome regardless of how blocked the
+# session is. Everything else (Work, Personal, Do Not Disturb, Reduce Interruptions)
+# still gets the attention sound — the point is to reach you while you're working,
+# not while you're asleep. Override with a space-separated list of mode identifiers;
+# `tmux` is irrelevant here, these are macOS Focus identifiers from ModeConfigurations.
+SILENT_MODES="${CLAUDE_NOTIFY_SILENT_MODES:-com.apple.sleep.sleep-mode com.apple.donotdisturb.mode.paintpalettefill}"
 
 # Debug trace: export CLAUDE_TMUX_DEBUG=1 to log every event + autoname decision
 # to ~/.claude/notify-tmux-debug.log, or set it to an explicit path. Off by
@@ -203,8 +211,62 @@ clear_pane_state() {
     recompute_window_state
 }
 
+# notify <tier> <message> — tier is `attn` (Claude needs you) or `done` (turn
+# finished). The tier decides three things:
+#
+#   sound  — both tiers chime, but with deliberately dissimilar samples so the two
+#            are tellable apart without looking at the screen: a fanfare means come
+#            here, a short click means it's just finished. Overridable per tier via
+#            $CLAUDE_NOTIFY_SOUND / $CLAUDE_NOTIFY_SOUND_DONE.
+#   group  — notification group keys are per-tier, not per-session. terminal-notifier
+#            REPLACES an existing notification sharing a group, so a single
+#            "claude-$SESSION" key meant a permission prompt followed by a stop left
+#            only the stop on screen — the one asking for input silently vanished.
+#   title  — says which tier up front, so it reads without parsing the subtitle.
+#   Focus  — who plays the sound decides whether Focus can suppress it. `attn` plays
+#            its own via play_sound/afplay, which Focus does not gate, so a blocked
+#            session still reaches you while Work/Personal/DND is on. `done` passes
+#            -sound to terminal-notifier and is therefore governed by macOS, so Focus
+#            silences it — intended, not a defect. Do NOT "fix" that by moving `done`
+#            onto play_sound. Note -ignoreDnD is absent from both tiers on purpose:
+#            it is a dead pre-Focus private API on macOS 12+ and does nothing.
+# Identifier of the currently active macOS Focus mode, empty when Focus is off.
+active_focus_mode() {
+    [ -f "$FOCUS_DB" ] || return 0
+    jq -r '.data[0].storeAssertionRecords[]?.assertionDetails.assertionDetailsModeIdentifier // empty' \
+        "$FOCUS_DB" 2>/dev/null | head -n 1
+}
+
+# Play an alert sound ourselves instead of asking terminal-notifier to do it.
+#
+# This exists because a Focus mode suppresses notification *presentation* — banner and
+# sound both — while still filing the notification into Notification Center. On
+# macOS 15 every Focus mode here is an allow-list containing zero apps, so nothing
+# gets through. terminal-notifier's -ignoreDnD cannot help: it sets a private
+# NSUserNotification flag from the pre-Focus DND era that macOS 12+ ignores outright,
+# and real breakthrough needs Time Sensitive / Critical Alert entitlements only Apple
+# grants to signed apps.
+#
+# afplay is not a notification, just audio playback, so Focus does not gate it. That
+# makes it the only entitlement-free way an attention cue survives Focus. Backgrounded
+# and fully detached so the hook never blocks on ~1s of audio.
+play_sound() {
+    local name="$1" f="/System/Library/Sounds/$1.aiff" mode m
+    [ -f "$f" ] || { dlog "play_sound: no such sound [$name]"; return 0; }
+    command -v afplay >/dev/null || return 0
+    mode=$(active_focus_mode)
+    if [ -n "$mode" ]; then
+        for m in $SILENT_MODES; do
+            [ "$mode" = "$m" ] && { dlog "play_sound: [$name] suppressed by focus mode $mode"; return 0; }
+        done
+        dlog "play_sound: [$name] through focus mode $mode"
+    fi
+    ( afplay "$f" >/dev/null 2>&1 & ) >/dev/null 2>&1
+}
+
 notify() {
     command -v terminal-notifier >/dev/null || return 0
+    local tier="$1" msg="$2"
     # Subtitle = session + the window's topic, so concurrent sessions are easy to
     # tell apart. Prefer @claude_base (the clean auto-named topic, no status glyph);
     # fall back to the window name with any leading glyph/spaces stripped.
@@ -213,13 +275,36 @@ notify() {
     [ -z "$label" ] && label=$(printf '%s' "$WNAME" | sed -E 's/^[^[:alnum:]]+[[:space:]]*//')
     sub="$SESSION"
     [ -n "$label" ] && sub="$SESSION · $label"
-    terminal-notifier \
-        -title 'Claude Code' \
+
+    local title sound via_afplay
+    case "$tier" in
+        # Hero is the loudest sound macOS ships (peak -5.4 dB / RMS -24.4 dB, 1.06s),
+        # which matters because alert volume is already maxed — quieter samples like
+        # Sosumi (-13.7/-33.2) cannot be turned up any further.
+        attn) title='Claude Code · needs you'; sound="${CLAUDE_NOTIFY_SOUND:-Hero}";      via_afplay=1 ;;
+        # Tink for `done`: a 0.56s click, the shortest sound available and tonally
+        # nothing like Hero's fanfare, so the tiers stay distinguishable by ear. Still
+        # audible (peak -8.8 dB) rather than one of the near-inaudible ones.
+        *)    title='Claude Code';             sound="${CLAUDE_NOTIFY_SOUND_DONE:-Tink}"; via_afplay='' ;;
+    esac
+
+    set -- \
+        -title "$title" \
         -subtitle "$sub" \
-        -message "$1" \
+        -message "$msg" \
         -contentImage "$LOGO" \
-        -sound Glass \
-        -group "claude-$SESSION" >/dev/null 2>&1 || true
+        -group "claude-$SESSION-$tier"
+
+    if [ -n "$via_afplay" ]; then
+        # attn: play the cue ourselves so Focus cannot swallow it, and leave -sound off
+        # the notification so a Focus-free moment does not chime twice.
+        play_sound "$sound"
+    else
+        # done: hand the sound to macOS, which is precisely what makes Focus suppress
+        # it. A finished turn has no right to interrupt; only a blocked one does.
+        set -- "$@" -sound "$sound"
+    fi
+    terminal-notifier "$@" >/dev/null 2>&1 || true
 }
 
 alert_tmux() {
@@ -259,22 +344,26 @@ case "$EVENT" in
         ;;
     permission_prompt)
         MSG=$(read_message)
-        notify "${MSG:-Permission requested}"
+        notify attn "${MSG:-Permission requested}"
         window_status permission
         ;;
     idle_prompt)
         MSG=$(read_message)
-        notify "${MSG:-Claude is idle}"
+        notify attn "${MSG:-Claude is idle}"
         window_status idle
         alert_tmux
         ;;
     stop)
-        notify 'Claude finished'
+        # autoname_capture first: it sets @claude_base, which notify reads for the
+        # subtitle. Notifying before capture left the very first notification of a
+        # session with no topic label.
         autoname_capture
         if ends_with_question; then
             dlog "stop: turn ended with a question -> question state"
+            notify attn 'Claude asked you a question'
             window_status question
         else
+            notify done 'Claude finished'
             window_status done
         fi
         alert_tmux
