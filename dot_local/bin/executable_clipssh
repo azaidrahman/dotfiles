@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+#
+# clipssh - Send clipboard screenshot to remote SSH host
+# https://github.com/samuellawrentz/clipssh
+#
+# Vendored (not installed via install.sh) so chezmoi owns ~/.local/bin/clipssh.
+# Upstream v1.0.0, sha256 52485dc7f81ecae5b7115aef9709b6d97ffc1a1abae51d0b00bde81e646eab20.
+# Local patches, both marked "chezmoi patch" below:
+#   1. resolve_alias falls through to ssh_config instead of erroring on an
+#      unknown bare name, so `clipssh onyx` uses ~/.ssh/config's Host onyx.
+#   2. mkdir -p the remote dir, so a custom CLIPSSH_REMOTE_DIR isn't a silent
+#      upload failure.
+#
+
+set -e
+
+VERSION="1.0.0"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+ALIAS_DIR="$HOME/.clipssh"
+ALIAS_FILE="$ALIAS_DIR/aliases"
+
+usage() {
+    echo "Usage: clipssh [user@host|alias] [options]"
+    echo "       clipssh alias add <name> <user@host>"
+    echo "       clipssh alias remove <name>"
+    echo "       clipssh alias list"
+    echo ""
+    echo "Send clipboard screenshot to remote SSH host and copy path to clipboard."
+    echo ""
+    echo "Arguments:"
+    echo "  user@host    Remote host (default: \$CLIPSSH_HOST)"
+    echo "  alias        Saved alias name (resolved from ~/.clipssh/aliases)"
+    echo ""
+    echo "Subcommands:"
+    echo "  alias add <name> <user@host>  Save a host under a short name"
+    echo "  alias remove <name>           Delete a saved alias"
+    echo "  alias list                    Show all saved aliases"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help     Show this help"
+    echo "  -v, --version  Show version"
+    echo ""
+    echo "Environment:"
+    echo "  CLIPSSH_HOST         Default remote host"
+    echo "  CLIPSSH_REMOTE_DIR   Remote directory for uploads (default: /tmp)"
+    echo ""
+    echo "Example:"
+    echo "  clipssh alias add myserver user@myserver.com"
+    echo "  clipssh myserver"
+    echo "  clipssh user@myserver"
+    echo "  CLIPSSH_HOST=user@server clipssh"
+}
+
+error() {
+    echo -e "${RED}Error:${NC} $1" >&2
+    exit 1
+}
+
+success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+ensure_alias_file() {
+    mkdir -p "$ALIAS_DIR"
+    [[ -f "$ALIAS_FILE" ]] || touch "$ALIAS_FILE"
+}
+
+alias_add() {
+    local name="$1"
+    local target="$2"
+    [[ -z "$name" || -z "$target" ]] && error "Usage: clipssh alias add <name> <user@host>"
+    [[ "$name" == *"="* || "$name" == *" "* ]] && error "Invalid alias name: $name"
+    [[ "$target" != *"@"* ]] && error "Target must be in user@host form: $target"
+    ensure_alias_file
+    local tmp
+    tmp=$(mktemp)
+    grep -v "^${name}=" "$ALIAS_FILE" > "$tmp" 2>/dev/null || true
+    mv "$tmp" "$ALIAS_FILE"
+    echo "${name}=${target}" >> "$ALIAS_FILE"
+    success "Saved alias: ${name} -> ${target}"
+}
+
+alias_remove() {
+    local name="$1"
+    [[ -z "$name" ]] && error "Usage: clipssh alias remove <name>"
+    ensure_alias_file
+    if ! grep -q "^${name}=" "$ALIAS_FILE" 2>/dev/null; then
+        error "Alias not found: $name"
+    fi
+    local tmp
+    tmp=$(mktemp)
+    grep -v "^${name}=" "$ALIAS_FILE" > "$tmp" || true
+    mv "$tmp" "$ALIAS_FILE"
+    success "Removed alias: $name"
+}
+
+alias_list() {
+    ensure_alias_file
+    if [[ ! -s "$ALIAS_FILE" ]]; then
+        echo "No aliases saved. Add one with: clipssh alias add <name> <user@host>"
+        return
+    fi
+    cat "$ALIAS_FILE"
+}
+
+resolve_alias() {
+    local name="$1"
+    local match
+    # chezmoi patch: no clipssh alias is not an error - fall through and let ssh
+    # resolve the name from ~/.ssh/config (Host onyx, Host aqua, ...) instead of
+    # duplicating those aliases in ~/.clipssh/aliases.
+    if [[ -f "$ALIAS_FILE" ]]; then
+        match=$(grep "^${name}=" "$ALIAS_FILE" | head -n1 || true)
+        [[ -n "$match" ]] && { echo "${match#*=}"; return; }
+    fi
+    echo "$name"
+}
+
+# Handle alias subcommand
+if [[ "$1" == "alias" ]]; then
+    shift
+    sub="${1:-}"
+    case "$sub" in
+        add)    shift; alias_add "$@"; exit 0 ;;
+        remove) shift; alias_remove "$@"; exit 0 ;;
+        list)   alias_list; exit 0 ;;
+        "")     error "Usage: clipssh alias <add|remove|list> ..." ;;
+        *)      error "Unknown alias subcommand: $sub" ;;
+    esac
+fi
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "clipssh $VERSION"
+            exit 0
+            ;;
+        -*)
+            error "Unknown option: $1"
+            ;;
+        *)
+            HOST="$1"
+            shift
+            ;;
+    esac
+done
+
+# Determine host
+HOST="${HOST:-$CLIPSSH_HOST}"
+if [[ -z "$HOST" ]]; then
+    error "No host specified. Use: clipssh user@host or set CLIPSSH_HOST"
+fi
+
+# Resolve alias if HOST is a bare name (no user@)
+if [[ "$HOST" != *"@"* ]]; then
+    HOST=$(resolve_alias "$HOST")
+fi
+
+# Check OS and clipboard tool
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    if ! command -v pngpaste &> /dev/null; then
+        error "pngpaste not found. Install with: brew install pngpaste"
+    fi
+    PASTE_CMD="pngpaste"
+elif [[ "$OSTYPE" == "linux"* ]]; then
+    if [[ -n "$WAYLAND_DISPLAY" ]] && command -v wl-paste &> /dev/null; then
+        PASTE_CMD="wl-paste --type image/png"
+    elif command -v xclip &> /dev/null; then
+        PASTE_CMD="xclip -selection clipboard -target image/png -o"
+    else
+        error "No clipboard tool found. Install xclip or wl-clipboard"
+    fi
+else
+    error "Unsupported OS: $OSTYPE"
+fi
+
+# Create temp file
+TEMP_FILE=$(mktemp).png
+trap "rm -f $TEMP_FILE" EXIT
+
+# Extract image from clipboard
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    if ! pngpaste "$TEMP_FILE" 2>/dev/null; then
+        error "No image in clipboard. Take a screenshot first (Cmd+Shift+Ctrl+4)"
+    fi
+else
+    if ! $PASTE_CMD > "$TEMP_FILE" 2>/dev/null; then
+        error "No image in clipboard. Take a screenshot first"
+    fi
+fi
+
+# Verify file has content
+if [[ ! -s "$TEMP_FILE" ]]; then
+    error "Clipboard image is empty"
+fi
+
+# Generate remote path
+REMOTE_DIR="${CLIPSSH_REMOTE_DIR:-/tmp}"
+REMOTE_PATH="$REMOTE_DIR/clipboard-$(date +%s).png"
+
+# Upload via SSH. umask 077 keeps the remote file at mode 0600 so screenshots
+# aren't world-readable on multi-user hosts (default /tmp is shared).
+# chezmoi patch: mkdir -p the target dir, otherwise a custom CLIPSSH_REMOTE_DIR
+# that does not exist yet fails with a bare "Failed to upload".
+if ! cat "$TEMP_FILE" | ssh "$HOST" "umask 077 && mkdir -p $REMOTE_DIR && cat > $REMOTE_PATH" 2>/dev/null; then
+    error "Failed to upload to $HOST"
+fi
+
+# Copy path to clipboard
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo -n "$REMOTE_PATH" | pbcopy
+elif [[ -n "$WAYLAND_DISPLAY" ]] && command -v wl-copy &> /dev/null; then
+    echo -n "$REMOTE_PATH" | wl-copy
+elif command -v xclip &> /dev/null; then
+    echo -n "$REMOTE_PATH" | xclip -selection clipboard
+fi
+
+success "Uploaded: $REMOTE_PATH"
+echo "Path copied to clipboard - paste it directly"
