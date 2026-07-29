@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
-# prefix+e launcher: review the active pane's working-tree changes with `hunk`.
-# Invoked via run-shell so tmux expands the #{...} format into the args below.
+# prefix+e launcher: review a git worktree's working-tree changes with `tuicr`.
+# Invoked via run-shell so tmux expands the #{...} formats into the args below.
 #
-# If the pane's own cwd has uncommitted changes, open `hunk diff` on it
-# directly — no detour. Otherwise (clean tree, or not a repo) fall back to an
-# oil.nvim-style directory browser (dir-picker-hunk.sh) to find where the
-# changes actually are — the common case being a shell sitting at a repo's
-# BASE while an agent edits inside a linked worktree (under .worktrees/): the
-# base looks clean, so we browse to the worktree instead of trapping you on an
-# empty diff.
+# This is a gate, and it owns every message the user sees:
 #
-# hunk auto-reloads as the working tree changes, so the popup stays live while
-# an agent keeps editing. Claude drives the same live session via
-# `hunk session ...` (see the bundled hunk-review skill).
+#   not a git work tree          -> tmux status message, no popup
+#   more than one worktree       -> popup: worktree-picker.sh (dirty or clean)
+#   single worktree, dirty       -> popup: tuicr -w on the pane's cwd
+#   single worktree, clean       -> tmux status message, no popup
 #
-# $1 — pane current path (where the check/browser starts).
-# $2 — pane id (where to `cd` once the browser accepts a directory).
+# The picker appears whenever the repo has linked worktrees, because that is
+# exactly when "where are the changes I want to review?" is ambiguous. It used to
+# appear only when the cwd was CLEAN, which meant a base worktree with your own
+# edits could never reach it — the case the picker was built for. See
+# docs/superpowers/specs/2026-07-30-prefix-e-worktree-picker-design.md.
+#
+# Never route to tuicr with nothing to review: tuicr exits 1 on "No changes to
+# review" / "Not a repository", display-popup -E closes the moment its command
+# exits, so the message would flash and tmux would report `... returned 1`.
+# The status-message branches exist to keep that from happening.
+#
+# `-w/--working-tree` skips tuicr's commit selector and reviews uncommitted
+# changes directly. tuicr persists comments to its session store, so they survive
+# quitting and Claude can read them back with `tuicr review comments`.
+#
+# $1 — pane current path (where the git checks run).
+# $2 — pane id (passed through for the picker's conditional `cd`).
 set -euo pipefail
 
 cwd=${1:?pane path required}
@@ -24,13 +34,28 @@ pane_id=${2:?pane id required}
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$script_dir/git-popup-size.sh"
 
-# No tty is attached under plain run-shell, so both hunk and the fzf browser
-# need display-popup to get one (see hold() in pane-md-preview.sh).
-if git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1 \
-  && [[ -n "$(git -C "$cwd" status --porcelain 2>/dev/null)" ]]; then
-  tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$cwd" -T ' hunk diff ' \
-    -- hunk diff
-else
-  tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$cwd" -T ' cd → hunk diff ' \
-    -- ~/.tmux/scripts/dir-picker-hunk.sh "$pane_id"
+if ! git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  tmux display-message "prefix+e: not a git repo"
+  exit 0
 fi
+
+# `grep -c` exits 1 on a zero count, which set -o pipefail would turn into an
+# abort — hence `|| true`. Counting via porcelain works from inside any of the
+# repo's worktrees, not just the main one.
+worktrees=$(git -C "$cwd" worktree list --porcelain | grep -c '^worktree ' || true)
+
+# No tty is attached under plain run-shell, so anything interactive needs
+# display-popup to get one.
+if [[ "${worktrees:-0}" -gt 1 ]]; then
+  tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$cwd" -T ' worktree → tuicr ' \
+    -- ~/.tmux/scripts/worktree-picker.sh "$pane_id"
+  exit 0
+fi
+
+if [[ -n "$(git -C "$cwd" status --porcelain 2>/dev/null)" ]]; then
+  tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$cwd" -T ' tuicr ' \
+    -- tuicr -w
+  exit 0
+fi
+
+tmux display-message "prefix+e: no changes in $(basename "$cwd")"
