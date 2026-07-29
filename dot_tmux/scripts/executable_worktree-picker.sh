@@ -8,9 +8,11 @@
 # way the dir-picker it replaced did; if you want a different directory, cd there
 # and press prefix+e again.
 #
-# Rows are `<marker><branch>\t<short path>\t<abs path>`. fzf shows fields 1-2 and
-# returns field 3 (--with-nth / --accept-nth), so the absolute path never has to
-# be parsed back out of the display text — paths with spaces survive intact.
+# Rows are `<marker><branch>\t<short path>\t<abs path>`. fzf shows fields 1-2
+# (--with-nth) and prints the whole selected row, which `cut -f3` then reduces
+# to the absolute path — so it never has to be parsed back out of the display
+# text, and paths with spaces survive intact. (Not --accept-nth: that needs
+# fzf >= 0.62, and this box's fzf predates it.)
 # The current worktree sorts first and is marked ●, so prefix+e then Enter still
 # reviews where you are: the old muscle memory, one keystroke longer.
 #
@@ -66,14 +68,21 @@ pane_id=${1:?pane id required}
 rows=$(build_rows)
 [[ -n "$rows" ]] || { tmux display-message "prefix+e: no worktrees found"; exit 0; }
 
-# --accept-nth=3 prints the absolute path only. Cancelling (Esc/Ctrl-C) yields an
-# empty selection and a non-zero fzf status; both mean "user changed their mind",
-# so exit cleanly rather than letting set -e surface it as a tmux error.
+# `cut -f3` reduces fzf's selected row to the absolute path (see the header
+# comment on why not --accept-nth). Cancelling (Esc/Ctrl-C) yields an empty
+# selection and a non-zero fzf status; both mean "user changed their mind", so
+# exit cleanly rather than letting set -e surface it as a tmux error. The
+# `|| true` guards the WHOLE pipeline (fzf | cut -f3), so pipefail's rule of
+# reporting the rightmost non-zero exit still lands on `true`, not on a
+# cancelled fzf.
 sel=$(printf '%s\n' "$rows" \
-  | fzf --delimiter='\t' --with-nth=1,2 --accept-nth=3 \
+  | fzf --delimiter='\t' --with-nth=1,2 \
         --prompt 'worktree> ' --header-lines=0 --no-multi \
+  | cut -f3 \
   || true)
 [[ -n "$sel" ]] || exit 0
+
+[[ -d "$sel" ]] || { tmux display-message "prefix+e: worktree is gone (run: git worktree prune)"; exit 0; }
 
 # Only type `cd` into the triggering pane when a real shell owns it — sending
 # keystrokes to a running Claude or vim pastes literal text instead of executing.

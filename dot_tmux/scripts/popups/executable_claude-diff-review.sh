@@ -47,14 +47,23 @@ worktrees=$(git -C "$cwd" worktree list --porcelain | grep -c '^worktree ' || tr
 # No tty is attached under plain run-shell, so anything interactive needs
 # display-popup to get one.
 if [[ "${worktrees:-0}" -gt 1 ]]; then
+  # display-popup -E blocks and PROPAGATES the inner command's exit status, so
+  # under set -e a non-zero exit here (picker cancel, tuicr crash inside it)
+  # would abort this script before reaching `exit 0` and tmux's run-shell would
+  # print a `returned 1` banner. This gate must never hand run-shell a non-zero
+  # status, so every popup call is unconditionally `|| true`.
   tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$cwd" -T ' worktree → tuicr ' \
-    -- ~/.tmux/scripts/worktree-picker.sh "$pane_id"
+    -- ~/.tmux/scripts/worktree-picker.sh "$pane_id" || true
   exit 0
 fi
 
 if [[ -n "$(git -C "$cwd" status --porcelain 2>/dev/null)" ]]; then
+  # Same reasoning as above: the tree can go clean between the status check
+  # just above and the popup opening (an agent commits in that window), or
+  # tuicr can exit non-zero on a config/crash — either way this gate must
+  # still hand run-shell a zero status.
   tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -d "$cwd" -T ' tuicr ' \
-    -- tuicr -w
+    -- tuicr -w || true
   exit 0
 fi
 
