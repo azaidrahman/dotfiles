@@ -51,8 +51,12 @@ works locally, over SSH, and in non-login shells:
   to 1Password via a service-account token, refilling the cache. Handles
   `github.com` and `bitbucket.org`, with per-device item names.
 - **`git-sign`** — loads the SSH signing key from 1Password into the agent on
-  demand.
-- **SSH** — driven by the 1Password SSH agent (`private_Library/LaunchAgents`).
+  demand, standing up a throwaway agent if the session one is unreachable.
+  `~/.local/bin/ssh-keygen` symlinks to it (and `~/.local/bin` is kept ahead of
+  `/usr/bin` in `.zshrc`) so harnesses that force `gpg.ssh.program=ssh-keygen`
+  — Claude Code injects exactly that via `GIT_CONFIG_*` — still hit the shim.
+- **SSH** — driven by the 1Password SSH agent (`private_Library/LaunchAgents`);
+  `run_after_ensure-ssh-agent.sh` keeps `com.zaid.ssh-agent` loaded.
 
 The age key and the 1Password service-account tokens are the only things you
 must place on a new machine by hand; everything else bootstraps from them.

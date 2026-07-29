@@ -2,9 +2,20 @@
 # git-sign — SSH commit-signing shim. Signs with the key already in the session
 # ssh-agent (zero prompts). If the key isn't loaded, it's pulled HEADLESSLY from
 # 1Password via the matching service-account token (no Touch ID) and added with a
-# 12h lifetime, then ssh-keygen signs against the agent. If the key can't be
-# loaded (offline / no token), falls back to 1Password's op-ssh-sign so a commit
-# never fails. Verification and any non-sign calls pass straight to ssh-keygen.
+# 12h lifetime, then ssh-keygen signs against the agent. If the session agent is
+# unreachable (stale SSH_AUTH_SOCK from a dead login — the classic "Couldn't get
+# agent socket") a private throwaway agent is started for this one signature. If
+# the key can't be loaded at all (offline / no token), falls back to 1Password's
+# op-ssh-sign so a commit never fails. Verification and any non-sign calls pass
+# straight through to the real ssh-keygen.
+#
+# Reached two ways, and both must keep working:
+#   1. gpg.ssh.program in ~/.gitconfig points here directly.
+#   2. ~/.local/bin/ssh-keygen symlinks here, so agents/harnesses that override
+#      gpg.ssh.program back to plain "ssh-keygen" (Claude Code injects
+#      GIT_CONFIG_KEY_0=gpg.ssh.program GIT_CONFIG_VALUE_0=ssh-keygen) still land
+#      on the shim. That is why every pass-through below calls $REAL_SSH_KEYGEN
+#      by absolute path — calling "ssh-keygen" would re-enter this script.
 #
 # git hands the signing public key via `-f <keyfile>`; we route by that key:
 #   …IM03J8…  personal → op-service-account-token-personal · Signing.GH.HOME (GitHub)
@@ -12,11 +23,12 @@
 
 set -u
 OP_SIGN="/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+REAL_SSH_KEYGEN="/usr/bin/ssh-keygen"
 
-# Only intervene on a sign request; verify/find-principals/etc. pass through.
+# Only intervene on a sign request; verify/find-principals/keygen/etc. pass through.
 case " $* " in
   *" -Y sign "*) ;;
-  *) exec ssh-keygen "$@" ;;
+  *) exec "$REAL_SSH_KEYGEN" "$@" ;;
 esac
 
 # Locate the -f <keyfile> git passed and read its public-key blob (base64 field).
@@ -39,6 +51,20 @@ case "$blob" in
     op_ref="op://{{ .workVaultName }}/Signing.BB.GD/private key?ssh-format=openssh" ;;
 esac
 
+# If the configured agent can't be reached at all (ssh-add exit 2), stand up a
+# private one for this signature only. Keys go in with a short ttl and the agent
+# dies with this process, so nothing leaks into the session.
+TMP_AGENT=""
+cleanup() { [ -n "$TMP_AGENT" ] && kill "$TMP_AGENT" 2>/dev/null; }
+trap cleanup EXIT HUP INT TERM
+ssh-add -l >/dev/null 2>&1
+if [ $? -eq 2 ] && [ -n "$sa_entry" ]; then
+  if agent_env=$(ssh-agent -s 2>/dev/null); then
+    eval "$agent_env" >/dev/null 2>&1
+    TMP_AGENT="${SSH_AGENT_PID:-}"
+  fi
+fi
+
 # If we recognize the key and it isn't in the agent, load it headlessly.
 if [ -n "$blob" ] && [ -n "$sa_entry" ] && ! ssh-add -L 2>/dev/null | grep -qF "$blob"; then
   sa=$(security find-generic-password -a "$USER" -s "$sa_entry" -w 2>/dev/null)
@@ -48,8 +74,11 @@ if [ -n "$blob" ] && [ -n "$sa_entry" ] && ! ssh-add -L 2>/dev/null | grep -qF "
 fi
 
 # Sign via the agent if the key is present; otherwise fall back to 1Password.
+# No exec while a throwaway agent is running — the EXIT trap has to reap it.
 if [ -n "$blob" ] && ssh-add -L 2>/dev/null | grep -qF "$blob"; then
-  exec ssh-keygen "$@"
+  "$REAL_SSH_KEYGEN" "$@"
+  exit $?
 fi
+cleanup; TMP_AGENT=""
 [ -x "$OP_SIGN" ] && exec "$OP_SIGN" "$@"
-exec ssh-keygen "$@"
+exec "$REAL_SSH_KEYGEN" "$@"
