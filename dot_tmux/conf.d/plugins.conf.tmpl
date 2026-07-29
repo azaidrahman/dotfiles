@@ -4,8 +4,19 @@
 {{- $minimal := has .chezmoi.hostname $headless -}}
 # Plugins + TPM. The theme plugin is skipped on headless/minimal hosts.
 
-# PATH so TPM and plugin scripts find homebrew + system binaries
-set-environment -g PATH '/opt/homebrew/bin:/bin:/usr/bin'
+# PATH so TPM and plugin scripts find homebrew + system binaries.
+# This REPLACES the server's whole PATH (the TPM-recommended fix for the minimal
+# env tmux inherits when launched from a GUI) and it is sourced after
+# options.conf/keys.conf — so it is the single authoritative PATH for everything
+# tmux spawns: run-shell, display-popup, and every popup script. Extending PATH
+# anywhere earlier in the load order silently gets overwritten here.
+#
+# ~/.local/bin is appended, not prepended, so Homebrew keeps winning exactly as
+# it does in the interactive shell. Binaries installed outside Homebrew live
+# there and would otherwise be invisible to popups while resolving fine in a
+# normal shell — prefix+e's `tuicr` is one (a local fork build symlinked into
+# ~/.local/bin, with the Homebrew formula unlinked).
+set-environment -g PATH '/opt/homebrew/bin:/bin:/usr/bin:{{ .chezmoi.homeDir }}/.local/bin'
 
 # --- Functional plugins (always loaded) ---
 set -g @plugin 'tmux-plugins/tpm'

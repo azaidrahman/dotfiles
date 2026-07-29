@@ -6,3 +6,4 @@ Brewfile.lock.json
 /docs/
 dot_config/wezterm/*.tmp
 __pycache__/
+/.superpowers/

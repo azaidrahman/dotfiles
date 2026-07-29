@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Opens a display-popup for a git tool (Neogit, Lazygit) sized from the
-# shared git-popup-size.sh, so prefix+t/T and the prefix+e hunk-review
+# shared git-popup-size.sh, so prefix+t/T and the prefix+e tuicr-review
 # popup all stay in sync from one place.
 #
 # $1 — popup title

@@ -1,0 +1,34 @@
+# tuicr — terminal code-review TUI. https://github.com/agavra/tuicr
+
+# Pin the appearance instead of letting tuicr auto-detect it.
+#
+# tuicr defaults to appearance = "system", which resolves by querying the
+# terminal's background colour (OSC 11) and falling back to the OS setting.
+# Inside a tmux display-popup — which is how prefix+e opens it — the OSC query
+# goes unanswered, so it falls back; and because macOS only sets
+# AppleInterfaceStyle when dark mode is ON, a light-mode Mac makes tuicr choose
+# its Light theme and render white-on-white against a dark terminal.
+#
+# Pinning this makes every context (pane, popup, ssh) look the same. Change to
+# "light" or set `theme = "<name>"` for a specific palette; `tuicr --theme` lists
+# the bundled ones.
+appearance = "dark"
+{{ if eq .chezmoi.hostname "aqua" }}
+# --- aqua only: local fork build ---
+#
+# tuicr here is a LOCAL FORK build, not the Homebrew release:
+#   ~/.local/bin/tuicr -> ~/projects/not-mine/tuicr/target/release/tuicr
+# with the Homebrew formula deliberately unlinked (`brew unlink tuicr`). The
+# fork carries a Bitbucket Cloud forge backend (src/forge/bitbucket/, driving
+# the `bkt` CLI) that upstream does not have yet — see issue #498.
+#
+# no_update_check is REQUIRED for that setup. tuicr classifies any binary
+# outside Cellar/cargo/nix as a "direct binary" install, so `tuicr update` would
+# fetch an upstream GitHub release and overwrite the fork build, silently
+# dropping Bitbucket support. Never run `tuicr update` on this host — rebuild:
+#   cd ~/projects/not-mine/tuicr && cargo build --release
+# The symlink picks up the new binary automatically.
+#
+# Once Bitbucket support lands upstream, drop this block and `brew link tuicr`.
+no_update_check = true
+{{ end -}}
