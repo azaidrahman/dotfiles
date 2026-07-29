@@ -13,14 +13,17 @@
 # "light" or set `theme = "<name>"` for a specific palette; `tuicr --theme` lists
 # the bundled ones.
 appearance = "dark"
-{{ if eq .chezmoi.hostname "aqua" }}
-# --- aqua only: local fork build ---
+{{ if has .chezmoi.hostname (list "aqua" "onyx") }}
+# --- fork-build hosts only ---
 #
 # tuicr here is a LOCAL FORK build, not the Homebrew release:
 #   ~/.local/bin/tuicr -> ~/projects/not-mine/tuicr/target/release/tuicr
 # with the Homebrew formula deliberately unlinked (`brew unlink tuicr`). The
 # fork carries a Bitbucket Cloud forge backend (src/forge/bitbucket/, driving
 # the `bkt` CLI) that upstream does not have yet — see issue #498.
+#
+# Add a hostname to the list above when you set the fork build up on a new box;
+# a host NOT in the list keeps its Homebrew tuicr and its update checks.
 #
 # no_update_check is REQUIRED for that setup. tuicr classifies any binary
 # outside Cellar/cargo/nix as a "direct binary" install, so `tuicr update` would
