@@ -1,10 +1,30 @@
 # Claude Code plugins to install via chezmoi
-# One plugin per line (plugin@marketplace format)
+# One plugin per line: plugin@marketplace [disabled]
+#   - marketplaces are registered first, from marketplaces.txt
+#   - append "disabled" to keep a plugin installed but not loaded
+#     (installed-and-off is a real state; without this a fresh device
+#      would come up with it enabled and diverge from the others)
+
+# --- official ---
+atlassian@claude-plugins-official
 code-review@claude-plugins-official
 commit-commands@claude-plugins-official
 context7@claude-plugins-official
+frontend-design@claude-plugins-official disabled
 hookify@claude-plugins-official
+mattpocock-skills@claude-plugins-official
 pyright-lsp@claude-plugins-official
 security-guidance@claude-plugins-official
 superpowers@claude-plugins-official
 swift-lsp@claude-plugins-official
+
+# --- gtech (Bitbucket: get-rnd/gtech-skills) ---
+general@gtech-skills
+meta@gtech-skills
+platform@gtech-skills
+
+# --- third-party ---
+# bkt: the CLI itself comes from Brew; this plugin's skill is superseded
+# by gtech general/bitbucket-pr, so it stays installed but off.
+bkt@avivsinai-marketplace disabled
+revdiff@revdiff disabled

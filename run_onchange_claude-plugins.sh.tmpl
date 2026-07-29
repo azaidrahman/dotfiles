@@ -1,4 +1,5 @@
 #!/bin/bash
+# Marketplace list hash: {{ include (joinPath .chezmoi.sourceDir "dot_claude/marketplaces.txt") | sha256sum }}
 # Plugin list hash: {{ include (joinPath .chezmoi.sourceDir "dot_claude/plugins.txt") | sha256sum }}
 
 set -euo pipefail
@@ -8,8 +9,34 @@ if ! command -v claude &>/dev/null; then
   exit 0
 fi
 
+MARKETPLACE_FILE="${HOME}/.claude/marketplaces.txt"
 PLUGIN_FILE="${HOME}/.claude/plugins.txt"
 
+# --- Marketplaces -----------------------------------------------------------
+# Must run before plugin installs: `claude plugins install foo@bar` fails if
+# marketplace "bar" was never registered on this device.
+if [[ -f "$MARKETPLACE_FILE" ]]; then
+  echo "Syncing Claude Code marketplaces..."
+  registered=$(claude plugin marketplace list 2>/dev/null | sed -n 's/.*❯ \([^ ]*\).*/\1/p')
+
+  while IFS= read -r line; do
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    name=$(awk '{print $1}' <<<"$line")
+    source=$(awk '{print $2}' <<<"$line")
+    [[ -z "$name" || -z "$source" ]] && continue
+
+    if grep -qxF "$name" <<<"$registered"; then
+      echo "  ✓ $name (already registered)"
+    else
+      echo "  ↓ Adding marketplace $name ($source)..."
+      claude plugin marketplace add "$source" --scope user || {
+        echo "  ! failed to add $name — plugins from it will be skipped" >&2
+      }
+    fi
+  done < "$MARKETPLACE_FILE"
+fi
+
+# --- Plugins ---------------------------------------------------------------
 if [[ ! -f "$PLUGIN_FILE" ]]; then
   echo "No plugins.txt found, skipping"
   exit 0
@@ -17,17 +44,40 @@ fi
 
 echo "Syncing Claude Code plugins..."
 
-# Get currently installed plugins
-installed=$(claude plugins list 2>/dev/null | sed -n 's/.*❯ \([^ ]*\).*/\1/p')
+# Name and enabled/disabled state of everything currently installed
+listing=$(claude plugins list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g')
+installed=$(sed -n 's/.*❯ \([^ ]*\).*/\1/p' <<<"$listing")
+disabled_now=$(awk '/❯/{n=$2} /Status:/ && /disabled/{print n}' <<<"$listing")
 
-# Install each desired plugin if not already present
-while IFS= read -r plugin; do
-  [[ -z "$plugin" || "$plugin" =~ ^# ]] && continue
-  if echo "$installed" | grep -qF "$plugin"; then
+while IFS= read -r line; do
+  [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+  plugin=$(awk '{print $1}' <<<"$line")
+  want_state=$(awk '{print $2}' <<<"$line")
+  [[ -z "$plugin" ]] && continue
+
+  if grep -qxF "$plugin" <<<"$installed"; then
     echo "  ✓ $plugin (already installed)"
   else
     echo "  ↓ Installing $plugin..."
-    claude plugins install "$plugin" --scope user
+    claude plugins install "$plugin" --scope user || {
+      echo "  ! failed to install $plugin" >&2
+      continue
+    }
+  fi
+
+  # Reconcile enabled/disabled with what the manifest asks for
+  if grep -qxF "$plugin" <<<"$disabled_now"; then
+    is_disabled=yes
+  else
+    is_disabled=no
+  fi
+
+  if [[ "$want_state" == "disabled" && "$is_disabled" == "no" ]]; then
+    echo "    → disabling $plugin"
+    claude plugin disable "$plugin" --scope user || true
+  elif [[ "$want_state" != "disabled" && "$is_disabled" == "yes" ]]; then
+    echo "    → enabling $plugin"
+    claude plugin enable "$plugin" --scope user || true
   fi
 done < "$PLUGIN_FILE"
 

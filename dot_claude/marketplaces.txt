@@ -1,0 +1,11 @@
+# Claude Code marketplaces to register via chezmoi
+# One per line: <name> <source>
+#   name   = the marketplace name Claude derives from the source (see `claude plugin marketplace list`)
+#   source = GitHub owner/repo, a git URL, or a local path
+#
+# Registered before plugins.txt is installed — a `plugin@marketplace` install
+# silently fails if its marketplace was never added on this device.
+claude-plugins-official anthropics/claude-plugins-official
+gtech-skills https://bitbucket.org/get-rnd/gtech-skills.git
+avivsinai-marketplace avivsinai/skills-marketplace
+revdiff umputun/revdiff
