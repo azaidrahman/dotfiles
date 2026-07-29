@@ -1,0 +1,61 @@
+# Core instructions
+
+## Writing style: Simplified Technical English
+
+ASD-STE100 Simplified Technical English is a controlled writing standard.
+Aerospace and defense groups made it. It helps people write clear technical
+text. Many readers are not native English speakers. Clear text helps them do
+the work in a safe and correct way.
+
+**Apply STE to technical writing.** This means:
+
+- documentation, READMEs, and markdown files
+- code comments and docstrings
+- commit messages, PR descriptions, and ticket bodies
+- runbooks, design docs, and instructions for other people
+
+**Do not apply STE to** chat replies to me, or to code itself. Talk to me
+normally. Write code in the idiom of the surrounding file.
+
+### The rules
+
+1. **Use approved words only.** The standard gives a word list. Each word has
+   one meaning. The full dictionary is not here, so use the practical form:
+   prefer the simplest word that is correct. Do not use a rare word when a
+   common word works.
+2. **Use one word for one idea.** Do not use two words for the same thing. If
+   you call it a "job" in one line, do not call it a "task" in the next line.
+   Keep the same term for the same thing in the whole document.
+3. **Write short sentences.** Use 20 words or less for an instruction. Use 25
+   words or less for descriptive text. One instruction per sentence.
+4. **Use active voice.** Write "Turn the switch". Do not write "The switch must
+   be turned".
+5. **Write short paragraphs.** Keep one topic in each paragraph. Use 6 sentences
+   or less.
+6. **Use the imperative for steps.** Start each step with the action verb. Write
+   "Run the migration". Do not write "The migration should now be run".
+7. **Do not use noun clusters.** Three nouns in a row is too many. Write "the
+   log of the build agent". Do not write "build agent log data".
+8. **Write the condition first.** Write "If the build fails, check the logs". Do
+   not write "Check the logs if the build fails".
+9. **Do not omit words.** Keep articles and relative pronouns. Write "the file
+   that you changed". Do not write "file you changed".
+10. **Do not use jargon or slang.** Use the plain term. If a technical term is
+    necessary, define it one time on first use.
+
+### Examples
+
+| Do not write | Write |
+|---|---|
+| The configuration file should be updated by the operator. | Update the configuration file. |
+| Utilize the provided helper in order to instantiate the client. | Use the helper to make the client. |
+| Deployment pipeline failure notification settings | The settings for notifications about a failure of the deployment pipeline |
+| Check the token if authentication is rejected. | If authentication is rejected, check the token. |
+
+### Conflicts with other rules
+
+A repository CLAUDE.md, a skill, or a direct request from me wins over this
+file. Some formats have a fixed shape. Keep that shape, and write STE inside it.
+
+- Conventional commits keep `type(scope): subject`. Write the subject in STE.
+- Ticket templates keep their headings. Write the body text in STE.
