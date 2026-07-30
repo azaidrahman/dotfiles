@@ -58,8 +58,14 @@ return {
 					if ok then
 						-- start() enables treesitter syntax highlighting for this buffer
 						vim.treesitter.start()
-						-- indentexpr enables treesitter-based auto-indentation
-						vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+						-- Only hand indentation to treesitter if the language actually ships
+						-- an indents.scm query. Some parsers (e.g. helm, gotmpl) have none,
+						-- and nvim-treesitter's indentexpr silently returns 0 for every line
+						-- in that case, which stomps on 'autoindent'/'smartindent' and makes
+						-- <CR> snap back to column 0 instead of continuing the indent.
+						if vim.treesitter.query.get(lang, "indents") then
+							vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+						end
 					end
 				end,
 			})
