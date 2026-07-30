@@ -27,11 +27,11 @@ return {
 				"css",
 				"python",
 				"http",
-				"prisma",
+				-- "prisma",
 				"markdown",
 				"markdown_inline",
-				"svelte",
-				"graphql",
+				-- "svelte",
+				-- "graphql",
 				"bash",
 				"lua",
 				"vim",
@@ -40,8 +40,9 @@ return {
 				"query",
 				"vimdoc",
 				"c",
-				"java",
-				"rust",
+				-- "java",
+				-- "rust",
+				"helm",
 			})
 
 			-- Enable treesitter highlighting + indentation for every filetype that has a parser

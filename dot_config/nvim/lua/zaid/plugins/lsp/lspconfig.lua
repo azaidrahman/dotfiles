@@ -151,6 +151,7 @@ return {
 			basedpyright = {},
 			terraformls = {},
 			groovyls = {},
+			helm_ls = {},
 		}
 
 		------------------------------------------------------------

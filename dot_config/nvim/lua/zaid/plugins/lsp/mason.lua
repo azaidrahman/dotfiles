@@ -35,6 +35,7 @@ return {
 				"tflint", -- tflint (Terraform linting LSP)
 				"bash-language-server", -- bashls
 				"groovy-language-server", -- groovyls
+				"helm-ls", -- helm_ls
 
 				-- Formatters
 				"prettier",
