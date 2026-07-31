@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #
-# git-pr-conflicts - Show and resolve the merge conflicts of a Bitbucket Cloud
-#                    pull request, locally.
+# git-pr-conflicts - Show and resolve a Bitbucket PR's merge conflicts locally
+#
+# The one-line summary above is the cheatsheet entry: prefix+? lists every
+# script in ~/.local/bin that starts with a "# <name> - <summary>" line.
 #
 # Bitbucket Cloud has no conflict view in the web UI and no API that reports
 # conflicts. The only way to know what conflicts is to compute the merge. This
