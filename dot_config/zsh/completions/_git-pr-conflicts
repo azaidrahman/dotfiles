@@ -1,0 +1,138 @@
+#compdef git-pr-conflicts
+#description show and resolve a Bitbucket PR's merge conflicts
+
+# Completion for git-pr-conflicts.
+#
+# Two things make this work, both handled by zsh's own _git:
+#
+#   * The FILENAME registers the subcommand. _git globs ${^fpath}/_git-* and
+#     adds each match to its command list, so `git pr-<TAB>` offers
+#     pr-conflicts without any zstyle user-commands entry.
+#   * LINE 2 of this file is the description shown next to it. _git reads
+#     exactly the second line and wants the literal '#description ' prefix.
+#     Do not insert a blank line above it.
+#
+# Both caches below exist because tab completion must feel instant. A `bkt`
+# call is a network round trip and merge-tree walks the whole tree; neither is
+# acceptable on every keypress. Staleness is harmless here - a completion
+# candidate that no longer applies costs a re-run, not a wrong answer.
+
+_git-pr-conflicts_cachedir() {
+  local dir=${XDG_CACHE_HOME:-$HOME/.cache}/git-pr-conflicts
+  [[ -d $dir ]] || mkdir -p $dir 2>/dev/null
+  print -r -- $dir
+}
+
+# Key caches on the repo, not the cwd: completing in a subdirectory must hit
+# the same cache as completing at the root.
+_git-pr-conflicts_repokey() {
+  local root
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+  print -r -- ${root:t}-${${root:h}:t}
+}
+
+# Open PRs, as "id:title" pairs. Cached 5 minutes.
+_git-pr-conflicts_prs() {
+  local key cache
+  key=$(_git-pr-conflicts_repokey) || return 1
+  cache=$(_git-pr-conflicts_cachedir)/prs-$key
+
+  if [[ -z ${cache}(#qN.mm-5) ]]; then
+    # stderr is dropped: bkt's zsh completion shim writes compdef warnings
+    # there, and anything on stderr during completion corrupts the display.
+    bkt pr list --state OPEN --json 2>/dev/null \
+      | jq -r '(.pull_requests // .values // .)[]
+               | "\(.id):\(.title // "" | gsub("[:\\n]"; " "))"' \
+        > $cache.$$ 2>/dev/null
+    if [[ -s $cache.$$ ]]; then
+      mv -f $cache.$$ $cache 2>/dev/null
+    else
+      rm -f $cache.$$ 2>/dev/null
+    fi
+  fi
+
+  [[ -r $cache ]] || return 1
+  local -a prs
+  prs=("${(@f)$(<$cache)}")
+  _describe -t prs 'open pull request' prs
+}
+
+# Conflicted files for the PR id already typed on the line. Restricting --show
+# and --diff to these is the point: any other path is a guaranteed no-op, and
+# offering every file in the repo hides the two or three that matter.
+_git-pr-conflicts_conflicted() {
+  local id=$1 key cache
+  [[ $id == <-> ]] || { _files; return; }
+  key=$(_git-pr-conflicts_repokey) || { _files; return; }
+  cache=$(_git-pr-conflicts_cachedir)/files-$key-$id
+
+  if [[ -z ${cache}(#qN.mm-5) ]]; then
+    # --no-fetch keeps this offline and therefore fast enough to run on TAB;
+    # the refs were fetched by the last real invocation.
+    git pr-conflicts $id --no-fetch --plain 2>/dev/null \
+      | awk '/^  [^ ]/ && NF >= 2 { print $1 }' > $cache.$$ 2>/dev/null
+    if [[ -s $cache.$$ ]]; then
+      mv -f $cache.$$ $cache 2>/dev/null
+    else
+      rm -f $cache.$$ 2>/dev/null
+    fi
+  fi
+
+  if [[ -r $cache && -s $cache ]]; then
+    local -a files
+    files=("${(@f)$(<$cache)}")
+    _describe -t conflicted 'conflicted file' files
+  else
+    _files
+  fi
+}
+
+# The PR id is positional and may appear before or after flags, so find it by
+# scanning the line rather than assuming $words[2].
+_git-pr-conflicts_id_on_line() {
+  local w
+  for w in ${words[2,-1]}; do
+    [[ $w == <-> ]] && { print -r -- $w; return 0 }
+    [[ $w == *pull-requests/<->* ]] && { print -r -- ${${w##*pull-requests/}%%[^0-9]*}; return 0 }
+  done
+  return 1
+}
+
+_git-pr-conflicts() {
+  local curcontext=$curcontext state line ret=1
+  typeset -A opt_args
+
+  _arguments -C -s \
+    '(--full)*--show=-[print conflicted regions of a file]:conflicted file:->conflicted' \
+    '*--diff=-[show base->ours and base->theirs as diffs]:conflicted file:->conflicted' \
+    '--full[print whole files rather than just conflicted regions]' \
+    '(-U --context)'{-U,--context}'[context lines around each conflict]:lines:(3 6 10 20)' \
+    '(--cleanup)--resolve[create a worktree with the merge in progress]' \
+    '(--resolve)--cleanup[remove the worktree and branch made by --resolve]' \
+    '--worktree[where --resolve puts the worktree]:directory:_directories' \
+    '--no-fetch[skip fetching; use the refs already local]' \
+    '--plain[no pager, no colour, no highlighting]' \
+    '--repo[repository slug override]:slug:' \
+    '--workspace[workspace override]:workspace:' \
+    '(- *)'{-h,--help}'[show usage]' \
+    '1:pull request:->prs' \
+    && ret=0
+
+  case $state in
+    prs)
+      _git-pr-conflicts_prs && ret=0
+      ;;
+    conflicted)
+      local id
+      if id=$(_git-pr-conflicts_id_on_line); then
+        _git-pr-conflicts_conflicted $id && ret=0
+      else
+        _files && ret=0
+      fi
+      ;;
+  esac
+
+  return ret
+}
+
+_git-pr-conflicts "$@"

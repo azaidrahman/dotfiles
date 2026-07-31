@@ -1,0 +1,529 @@
+#!/usr/bin/env bash
+#
+# git-pr-conflicts - Show and resolve the merge conflicts of a Bitbucket Cloud
+#                    pull request, locally.
+#
+# Bitbucket Cloud has no conflict view in the web UI and no API that reports
+# conflicts. The only way to know what conflicts is to compute the merge. This
+# script does that with `git merge-tree`, which merges two commits IN MEMORY and
+# writes the result to the object database without touching HEAD, the index, or
+# the working tree. That is what makes triage safe on a dirty repo.
+#
+# Design decisions worth knowing before you edit this:
+#
+#   * TRIAGE IS READ-ONLY AND IS THE DEFAULT. Listing and reading conflicts
+#     never mutates the repository state you can see. Only `--resolve` writes,
+#     and it writes into a separate worktree, never your current checkout.
+#   * The merged tree from `merge-tree` contains the conflicted blobs WITH
+#     markers already in them. `git show <tree>:<path>` reads a hunk without a
+#     checkout, a merge, or a stash. This is the whole trick; everything else
+#     here is argument parsing and presentation.
+#   * Conflict markers are NOT a diff, so delta cannot colorize them - it passes
+#     non-diff input through untouched. Marker display therefore uses bat
+#     (syntax highlighting by file extension). delta is used only in --diff
+#     mode, where the input really is a diff.
+#   * Branch names are resolved from the PR via `bkt`, not guessed. A PR's
+#     destination is frequently not the repo default branch (release trains,
+#     env branches), and merging against the wrong base invents conflicts that
+#     do not exist or hides ones that do.
+#   * The merge is computed as DEST <- SOURCE, matching what Bitbucket will do
+#     on merge. The argument order to merge-tree is significant: it decides
+#     which side is labelled "ours" in the markers.
+#   * conflictStyle is forced to zdiff3 for the merge-tree call rather than
+#     inherited. The base section is the single most useful part of a conflict
+#     and a machine-readable tool should not depend on the user's config for
+#     whether it appears.
+#
+# Requires: git >= 2.38 (merge-tree --write-tree), bkt, jq. bat optional.
+
+set -uo pipefail
+
+PROG=${0##*/}
+
+# ---------------------------------------------------------------------------
+# output helpers
+# ---------------------------------------------------------------------------
+
+if [[ -t 1 ]]; then
+  C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
+  C_RED=$'\033[31m';  C_GRN=$'\033[32m'; C_YEL=$'\033[33m'
+  C_BLU=$'\033[34m';  C_CYN=$'\033[36m'
+else
+  C_RESET=; C_BOLD=; C_DIM=; C_RED=; C_GRN=; C_YEL=; C_BLU=; C_CYN=
+fi
+
+die()  { printf '%s%s:%s %s\n' "$C_RED" "$PROG" "$C_RESET" "$*" >&2; exit 1; }
+warn() { printf '%s%s:%s %s\n' "$C_YEL" "$PROG" "$C_RESET" "$*" >&2; }
+info() { printf '%s%s%s\n' "$C_DIM" "$*" "$C_RESET" >&2; }
+
+usage() {
+  cat <<'EOF'
+git pr-conflicts - show and resolve a Bitbucket PR's merge conflicts locally
+
+USAGE
+  git pr-conflicts <pr-id|url> [options]
+
+  Default is read-only: it reports which files conflict and how, without
+  touching your working tree, index, or HEAD.
+
+OPTIONS
+  --show [<path>]     Print the conflicted regions, with line numbers and
+                      surrounding context. Omit <path> for every conflicted
+                      file. Repeatable.
+  --full              With --show, print whole files instead of just the
+                      conflicted regions.
+  -U, --context <n>   Context lines around each conflict. Default 6.
+  --diff [<path>]     Show base->ours and base->theirs as two real diffs,
+                      piped through delta. Often clearer than markers when
+                      both sides rewrote the same region.
+  --resolve           Create a throwaway worktree, start the merge, and leave
+                      you in the conflicts. Your current checkout is untouched.
+  --worktree <dir>    Where --resolve puts the worktree.
+                      Default: ../<repo>-pr<id>
+  --cleanup           Remove the worktree and branch created by --resolve.
+  --no-fetch          Skip fetching. Use only if you just fetched.
+  --plain             No pager, no syntax highlighting. For piping.
+  --repo <slug>       Repository override, passed to bkt.
+  --workspace <ws>    Workspace override, passed to bkt.
+  -h, --help          This.
+
+EXAMPLES
+  git pr-conflicts 500
+  git pr-conflicts https://bitbucket.org/get-rnd/spatial-q/pull-requests/500
+  git pr-conflicts 500 --show docker-compose.prod.yml
+  git pr-conflicts 500 --diff backend/Dockerfile
+  git pr-conflicts 500 --resolve
+  git pr-conflicts 500 --cleanup
+
+EXIT STATUS
+  0  merges cleanly
+  1  conflicts found (this is a normal, expected result, not an error)
+  2  usage or environment error
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# argument parsing
+# ---------------------------------------------------------------------------
+
+PR_ARG=""
+DO_RESOLVE=0
+DO_CLEANUP=0
+DO_FETCH=1
+PLAIN=0
+WORKTREE_DIR=""
+REPO_OVERRIDE=""
+WS_OVERRIDE=""
+SHOW_ALL=0
+DIFF_ALL=0
+FULL_FILE=0
+CONTEXT=6
+declare -a SHOW_PATHS=()
+declare -a DIFF_PATHS=()
+
+# A path argument to --show/--diff is optional. Treat the next token as a path
+# only if it is not another flag, so `--show --resolve` means "show everything,
+# then resolve" rather than swallowing --resolve as a filename.
+next_is_value() { [[ $# -gt 0 && -n ${1:-} && ${1:-} != -* ]]; }
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help) usage; exit 0 ;;
+    --show)
+      shift
+      if next_is_value "${1:-}"; then SHOW_PATHS+=("$1"); shift; else SHOW_ALL=1; fi ;;
+    --diff)
+      shift
+      if next_is_value "${1:-}"; then DIFF_PATHS+=("$1"); shift; else DIFF_ALL=1; fi ;;
+    --full)       FULL_FILE=1; shift ;;
+    -U|--context) CONTEXT=${2:?--context needs a number}; shift 2 ;;
+    --resolve)    DO_RESOLVE=1; shift ;;
+    --cleanup)    DO_CLEANUP=1; shift ;;
+    --no-fetch)   DO_FETCH=0; shift ;;
+    --plain)      PLAIN=1; shift ;;
+    --worktree)   WORKTREE_DIR=${2:?--worktree needs a directory}; shift 2 ;;
+    --repo)       REPO_OVERRIDE=${2:?--repo needs a slug}; shift 2 ;;
+    --workspace)  WS_OVERRIDE=${2:?--workspace needs a workspace}; shift 2 ;;
+    --) shift; break ;;
+    -*) usage >&2; die "unknown option: $1" ;;
+    *)
+      [[ -n $PR_ARG ]] && die "unexpected extra argument: $1"
+      PR_ARG=$1; shift ;;
+  esac
+done
+
+[[ -n $PR_ARG ]] || { usage >&2; exit 2; }
+
+for bin in git bkt jq; do
+  command -v "$bin" >/dev/null || die "missing required command: $bin"
+done
+
+# merge-tree --write-tree landed in 2.38. Older git has a completely different,
+# incompatible merge-tree, so fail loudly rather than producing nonsense.
+git_ver=$(git --version | awk '{print $3}')
+if [[ $(printf '%s\n2.38.0\n' "$git_ver" | sort -V | head -1) != "2.38.0" ]]; then
+  die "git >= 2.38 required for 'merge-tree --write-tree' (found $git_ver)"
+fi
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) \
+  || die "not inside a git repository"
+cd "$REPO_ROOT" || die "cannot cd to $REPO_ROOT"
+
+# ---------------------------------------------------------------------------
+# resolve the PR reference
+# ---------------------------------------------------------------------------
+
+PR_ID=""; URL_WS=""; URL_REPO=""
+
+URL_RE='bitbucket\.org/([^/]+)/([^/]+)/pull-requests/([0-9]+)'
+if [[ $PR_ARG =~ ^[0-9]+$ ]]; then
+  PR_ID=$PR_ARG
+elif [[ $PR_ARG =~ $URL_RE ]]; then
+  URL_WS=${BASH_REMATCH[1]}
+  URL_REPO=${BASH_REMATCH[2]}
+  PR_ID=${BASH_REMATCH[3]}
+else
+  die "cannot parse '$PR_ARG' as a PR id or Bitbucket pull-request URL"
+fi
+
+# If the URL names a repo, make sure it is the one we are standing in. Computing
+# a merge in the wrong repository would silently report the wrong conflicts,
+# which is worse than refusing.
+if [[ -n $URL_REPO ]]; then
+  origin_url=$(git remote get-url origin 2>/dev/null || echo "")
+  if [[ -n $origin_url && $origin_url != *"$URL_WS/$URL_REPO"* ]]; then
+    die "PR is in $URL_WS/$URL_REPO but this repo's origin is:
+    $origin_url
+  cd to the right clone, or pass --workspace/--repo if you know better."
+  fi
+fi
+
+declare -a BKT_ARGS=()
+[[ -n $REPO_OVERRIDE ]] && BKT_ARGS+=(--repo "$REPO_OVERRIDE")
+[[ -n $WS_OVERRIDE   ]] && BKT_ARGS+=(--workspace "$WS_OVERRIDE")
+[[ -z $REPO_OVERRIDE && -n $URL_REPO ]] && BKT_ARGS+=(--repo "$URL_REPO")
+[[ -z $WS_OVERRIDE   && -n $URL_WS   ]] && BKT_ARGS+=(--workspace "$URL_WS")
+
+info "fetching PR #$PR_ID metadata..."
+# stderr is discarded: the zsh completion shim bkt installs writes compdef noise
+# there, which would otherwise corrupt nothing but confuse everything.
+pr_json=$(bkt pr view "$PR_ID" "${BKT_ARGS[@]}" --json 2>/dev/null) \
+  || die "bkt could not read PR #$PR_ID (auth? wrong repo? does it exist?)"
+
+# bkt nests Cloud responses under .pull_request; Data Center returns them flat.
+read -r PR_TITLE PR_STATE PR_AUTHOR SRC_BRANCH DST_BRANCH < <(
+  printf '%s' "$pr_json" | jq -r '
+    (.pull_request // .) as $p |
+    [ ($p.title       // "?")                                      | gsub("\\s+";"\u00a0"),
+      ($p.state       // "?"),
+      (($p.author.display_name // $p.author.user.displayName // "?")| gsub("\\s+";"\u00a0")),
+      ($p.source.branch.name      // $p.fromRef.displayId // ""),
+      ($p.destination.branch.name // $p.toRef.displayId   // "")
+    ] | @tsv' | tr '\t' ' '
+)
+PR_TITLE=${PR_TITLE//$'\u00a0'/ }
+PR_AUTHOR=${PR_AUTHOR//$'\u00a0'/ }
+
+[[ -n $SRC_BRANCH && -n $DST_BRANCH ]] \
+  || die "could not determine source/destination branches for PR #$PR_ID"
+
+# Pick the remote that actually points at this repo, rather than assuming origin.
+REMOTE=origin
+if [[ -n $URL_REPO ]]; then
+  while read -r name url _; do
+    [[ $url == *"$URL_WS/$URL_REPO"* ]] && { REMOTE=$name; break; }
+  done < <(git remote -v | grep '(fetch)$')
+fi
+
+[[ $PR_STATE == OPEN ]] || warn "PR #$PR_ID is $PR_STATE, not OPEN - the result below describes the branches as they are now, which may no longer be what the PR was about."
+
+if (( DO_FETCH )); then
+  # Check the branches still exist before fetching. A stale PR whose branches
+  # were renamed or deleted is common enough that the raw "couldn't find remote
+  # ref" from git is worth translating into an actionable message.
+  remote_heads=$(git ls-remote --heads "$REMOTE" 2>/dev/null) \
+    || die "cannot reach remote $REMOTE"
+  for br in "$SRC_BRANCH" "$DST_BRANCH"; do
+    grep -qE "refs/heads/${br}\$" <<<"$remote_heads" && continue
+    die "branch '$br' no longer exists on $REMOTE.
+  PR #$PR_ID is stale - its branches were renamed or deleted after it was opened.
+  Nothing to merge; the PR needs retargeting or declining on Bitbucket."
+  done
+
+  info "fetching $REMOTE $DST_BRANCH $SRC_BRANCH..."
+  # Explicit refspecs so the remote-tracking refs are guaranteed updated even if
+  # the remote is configured with a narrow or unusual default fetch refspec.
+  git fetch --quiet "$REMOTE" \
+    "+refs/heads/$SRC_BRANCH:refs/remotes/$REMOTE/$SRC_BRANCH" \
+    "+refs/heads/$DST_BRANCH:refs/remotes/$REMOTE/$DST_BRANCH" \
+    || die "fetch failed for $REMOTE"
+fi
+
+SRC_REF="refs/remotes/$REMOTE/$SRC_BRANCH"
+DST_REF="refs/remotes/$REMOTE/$DST_BRANCH"
+git rev-parse --verify --quiet "$SRC_REF" >/dev/null || die "no such ref: $SRC_REF"
+git rev-parse --verify --quiet "$DST_REF" >/dev/null || die "no such ref: $DST_REF"
+
+# ---------------------------------------------------------------------------
+# compute the merge in memory
+# ---------------------------------------------------------------------------
+
+# DEST first: it becomes "ours" in the markers, matching Bitbucket's merge.
+mt_out=$(git -c merge.conflictStyle=zdiff3 \
+  merge-tree --write-tree --name-only "$DST_REF" "$SRC_REF" 2>&1)
+mt_rc=$?
+
+# 0 = clean, 1 = conflicts, anything else = git could not do the merge at all
+# (unrelated histories, bad object). Only the third case is an error.
+if (( mt_rc > 1 )); then
+  printf '%s\n' "$mt_out" >&2
+  die "merge-tree failed (exit $mt_rc)"
+fi
+
+TREE=$(printf '%s\n' "$mt_out" | head -1)
+
+# Output shape: <tree-oid> / conflicted paths / blank line / informational
+# messages. Split on the first blank line.
+declare -a FILES=()
+declare -a MESSAGES=()
+in_messages=0
+while IFS= read -r line; do
+  if (( in_messages )); then
+    MESSAGES+=("$line")
+  elif [[ -z $line ]]; then
+    in_messages=1
+  else
+    FILES+=("$line")
+  fi
+done < <(printf '%s\n' "$mt_out" | tail -n +2)
+
+# Conflict type per path, best-effort, from the message block. Messages vary by
+# conflict kind ("Merge conflict in <path>" vs "<path> deleted in ..."), so
+# match on substring rather than a single rigid pattern.
+conflict_type_for() {
+  local path=$1 msg
+  # Regex held in a variable: bash 3.2 (still the /bin/bash on macOS) mis-parses
+  # escaped parentheses written inline in a [[ =~ ]] pattern.
+  local re='CONFLICT \(([^)]+)\)'
+  for msg in "${MESSAGES[@]}"; do
+    [[ $msg == CONFLICT* && $msg == *"$path"* ]] || continue
+    [[ $msg =~ $re ]] && { printf '%s' "${BASH_REMATCH[1]}"; return; }
+  done
+  printf 'conflict'
+}
+
+path_is_conflicted() {
+  local needle=$1 f
+  for f in "${FILES[@]}"; do [[ $f == "$needle" ]] && return 0; done
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# report
+# ---------------------------------------------------------------------------
+
+printf '\n%sPR #%s%s  %s\n' "$C_BOLD" "$PR_ID" "$C_RESET" "$PR_TITLE"
+printf '%s%s%s -> %s%s%s   %s   %s%s%s\n\n' \
+  "$C_CYN" "$SRC_BRANCH" "$C_RESET" "$C_CYN" "$DST_BRANCH" "$C_RESET" \
+  "$PR_STATE" "$C_DIM" "$PR_AUTHOR" "$C_RESET"
+
+if (( mt_rc == 0 )); then
+  printf '%sNo conflicts.%s This PR merges cleanly.\n\n' "$C_GRN" "$C_RESET"
+  exit 0
+fi
+
+printf '%s%d conflict%s:%s\n\n' "$C_RED" "${#FILES[@]}" \
+  "$([[ ${#FILES[@]} -eq 1 ]] || echo s)" "$C_RESET"
+for f in "${FILES[@]}"; do
+  printf '  %-52s %s%s%s\n' "$f" "$C_DIM" "$(conflict_type_for "$f")" "$C_RESET"
+done
+printf '\n'
+
+# ---------------------------------------------------------------------------
+# --show : conflict markers straight out of the in-memory merge
+# ---------------------------------------------------------------------------
+
+render_markers() {
+  local path=$1
+  printf '\n%s%s=== %s ===%s\n' "$C_BOLD" "$C_YEL" "$path" "$C_RESET"
+
+  local -a src=(git show "$TREE:$path")
+
+  if (( FULL_FILE )); then
+    if (( PLAIN )) || ! command -v bat >/dev/null; then
+      "${src[@]}"
+    else
+      # --file-name gives bat the extension it needs to pick a syntax. Markers
+      # will look like syntax errors to the highlighter; that is expected and
+      # harmless, and the surrounding code still reads correctly.
+      "${src[@]}" | bat --style=numbers --paging=never --file-name "$path" --color=always
+    fi
+    return
+  fi
+
+  # Default: only the conflicted regions. Dumping a whole file to show a
+  # 12-line disagreement buries the thing you opened the tool to see, and the
+  # files that conflict are usually the long ones.
+  #
+  # Two passes so that line numbers are real file line numbers: pass 1 marks
+  # which lines to keep (conflict bodies plus CONTEXT lines either side),
+  # pass 2 prints them with a gap indicator between disjoint regions.
+  "${src[@]}" | awk -v ctx="$CONTEXT" -v gap="  $C_DIM...$C_RESET" '
+    { line[NR] = $0 }
+    /^<<<<<<< / { start = NR }
+    /^>>>>>>> / {
+      lo = start - ctx; if (lo < 1) lo = 1
+      hi = NR + ctx
+      for (i = lo; i <= hi; i++) keep[i] = 1
+      n++
+    }
+    END {
+      if (n == 0) { for (i = 1; i <= NR; i++) print line[i]; exit }
+      prev = 0
+      for (i = 1; i <= NR; i++) {
+        if (!keep[i] || i > NR) continue
+        if (prev && i > prev + 1) print gap
+        printf "%6d  %s\n", i, line[i]
+        prev = i
+      }
+    }' | colorize_markers
+}
+
+# Marker lines get colour here rather than from a highlighter: bat/delta both
+# treat them as ordinary text, and the marker is the one thing that must be
+# unmissable when skimming.
+colorize_markers() {
+  # merge-tree labels each side with the rev it was given, so the markers read
+  # "refs/remotes/origin/develop". Shorten to the branch name; the ref path is
+  # noise once you know which two branches are being merged.
+  sed -e "s|refs/remotes/$REMOTE/||g" | _colorize_markers_inner
+}
+
+_colorize_markers_inner() {
+  if (( PLAIN )); then cat; return; fi
+  sed -E \
+    -e "s/^([[:space:]]*[0-9]*[[:space:]]*)(<<<<<<<.*)$/\1${C_RED}${C_BOLD}\2${C_RESET}/" \
+    -e "s/^([[:space:]]*[0-9]*[[:space:]]*)(\|\|\|\|\|\|\|.*)$/\1${C_DIM}\2${C_RESET}/" \
+    -e "s/^([[:space:]]*[0-9]*[[:space:]]*)(=======)$/\1${C_DIM}\2${C_RESET}/" \
+    -e "s/^([[:space:]]*[0-9]*[[:space:]]*)(>>>>>>>.*)$/\1${C_GRN}${C_BOLD}\2${C_RESET}/"
+}
+
+# ---------------------------------------------------------------------------
+# --diff : the two sides as real diffs against the merge base
+# ---------------------------------------------------------------------------
+
+render_diff() {
+  local path=$1
+  local base
+  base=$(git merge-base "$DST_REF" "$SRC_REF") || { warn "no merge base"; return; }
+
+  local pager=(cat)
+  if (( ! PLAIN )) && command -v delta >/dev/null; then
+    pager=(delta --paging=never)
+  fi
+
+  printf '\n%s%s=== %s : base -> %s (ours) ===%s\n' \
+    "$C_BOLD" "$C_BLU" "$path" "$DST_BRANCH" "$C_RESET"
+  git diff "$base" "$DST_REF" -- "$path" | "${pager[@]}"
+
+  printf '\n%s%s=== %s : base -> %s (theirs) ===%s\n' \
+    "$C_BOLD" "$C_GRN" "$path" "$SRC_BRANCH" "$C_RESET"
+  git diff "$base" "$SRC_REF" -- "$path" | "${pager[@]}"
+}
+
+emit() {
+  local mode=$1 all=$2; shift 2
+  local -a targets=()
+  if (( all )); then
+    targets=("${FILES[@]}")
+  else
+    local p
+    for p in "$@"; do
+      if path_is_conflicted "$p"; then
+        targets+=("$p")
+      else
+        warn "$p is not conflicted in this merge; skipping"
+      fi
+    done
+  fi
+  (( ${#targets[@]} )) || return 0
+
+  local out
+  out=$(for p in "${targets[@]}"; do "render_$mode" "$p"; done)
+  if (( PLAIN )) || [[ ! -t 1 ]]; then
+    printf '%s\n' "$out"
+  else
+    printf '%s\n' "$out" | ${PAGER:-less} -R
+  fi
+}
+
+(( SHOW_ALL )) || (( ${#SHOW_PATHS[@]} )) && emit markers "$SHOW_ALL" "${SHOW_PATHS[@]+"${SHOW_PATHS[@]}"}"
+(( DIFF_ALL )) || (( ${#DIFF_PATHS[@]} )) && emit diff    "$DIFF_ALL" "${DIFF_PATHS[@]+"${DIFF_PATHS[@]}"}"
+
+# ---------------------------------------------------------------------------
+# --resolve / --cleanup
+# ---------------------------------------------------------------------------
+
+repo_name=${REPO_ROOT##*/}
+[[ -n $WORKTREE_DIR ]] || WORKTREE_DIR="$(dirname "$REPO_ROOT")/${repo_name}-pr${PR_ID}"
+MERGE_BRANCH="merge/pr-$PR_ID"
+
+if (( DO_CLEANUP )); then
+  if [[ -d $WORKTREE_DIR ]]; then
+    info "removing worktree $WORKTREE_DIR"
+    git worktree remove --force "$WORKTREE_DIR" || die "could not remove worktree"
+  else
+    warn "no worktree at $WORKTREE_DIR"
+  fi
+  git branch -D "$MERGE_BRANCH" 2>/dev/null && info "deleted branch $MERGE_BRANCH"
+  git worktree prune
+  exit 1
+fi
+
+if (( DO_RESOLVE )); then
+  [[ -e $WORKTREE_DIR ]] && die "$WORKTREE_DIR already exists (use --cleanup, or --worktree <dir>)"
+
+  # Branch from SOURCE and merge DEST into it - the opposite order from the
+  # triage merge above, deliberately.
+  #
+  # Triage answers "what will Bitbucket do when it merges this PR", so it
+  # computes DEST <- SOURCE and labels DEST as "ours", matching Bitbucket.
+  # Resolution has a different goal: make the PR mergeable. You do that by
+  # bringing DEST into the SOURCE branch and pushing the SOURCE branch, so the
+  # PR itself updates and goes green. Branching from DEST instead would produce
+  # a commit that is not an ancestor of the PR's source branch, and pushing it
+  # would do nothing for the PR.
+  #
+  # Consequence worth knowing: in this worktree "ours" is SOURCE, the reverse
+  # of the triage view above. Same conflicts, sides swapped.
+  info "creating worktree $WORKTREE_DIR on $MERGE_BRANCH (from $SRC_BRANCH)"
+  git worktree add --quiet -b "$MERGE_BRANCH" "$WORKTREE_DIR" "$SRC_REF" \
+    || die "could not create worktree"
+
+  # This merge is EXPECTED to fail. Its failure is the deliverable: it leaves
+  # the conflicts in the worktree's index for you to resolve.
+  git -C "$WORKTREE_DIR" -c merge.conflictStyle=zdiff3 \
+    merge --no-ff --no-edit "$DST_REF" >/dev/null 2>&1
+
+  cat <<EOF
+
+${C_BOLD}Worktree ready.${C_RESET} Your original checkout was not touched.
+Branched from ${C_CYN}$SRC_BRANCH${C_RESET} with ${C_CYN}$DST_BRANCH${C_RESET} merged in, so
+"ours" here is $SRC_BRANCH - the reverse of the triage view above.
+
+  cd $WORKTREE_DIR
+  git diff --name-only --diff-filter=U      # what is left to resolve
+  git mergetool                             # or edit the markers directly
+  git add -A && git merge --continue
+
+Then push onto the PR's own source branch, which clears the conflict on
+PR #$PR_ID without any force-push (it is a fast-forward):
+
+  git push $REMOTE $MERGE_BRANCH:$SRC_BRANCH
+
+Tear down with:  git pr-conflicts $PR_ID --cleanup
+
+EOF
+fi
+
+exit 1
