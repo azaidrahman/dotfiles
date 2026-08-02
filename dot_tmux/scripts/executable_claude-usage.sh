@@ -21,8 +21,8 @@ color_for() { # pct -> green/yellow/red
   fi
 }
 
-to_countdown() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "in 2h 15m" (empty on parse failure)
-  local s=$1 raw mday t yr epoch now diff d h m
+to_epoch() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> epoch seconds (empty on parse failure)
+  local s=$1 raw mday t yr epoch now
   raw=${s%% (*}        # drop trailing " (tz)"
   raw=${raw/ at / }    # "Jun 22 4pm"
   mday=${raw% *}       # "Jun 22"
@@ -33,6 +33,48 @@ to_countdown() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "in 2h 15m" (empty on 
   [ -z "$epoch" ] && return
   now=$(date +%s)
   (( epoch < now - 86400 )) && epoch=$(date -j -f "%b %d %Y %I:%M%p" "$mday $((yr+1)) $t" +%s 2>/dev/null)  # year wrap
+  printf '%s' "$epoch"
+}
+
+# window_len <label> : the full length of a limit window, in seconds. The API
+# reports only the reset time, so the length comes from the label: a session
+# window is 5 hours, a weekly window is 7 days. Empty for an unknown label.
+window_len() {
+  local l; l=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$l" in
+    *session*) printf '18000'  ;;   # 5h
+    *week*)    printf '604800' ;;   # 7d
+  esac
+}
+
+# window_noun <label> : the word for the window, used in the elapsed-time note.
+window_noun() {
+  local l; l=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$l" in
+    *session*) printf 'session' ;;
+    *week*)    printf 'week'    ;;
+    *)         printf 'window'  ;;
+  esac
+}
+
+# elapsed_pct <label> <reset-string> : how much of the window is gone, 0-100.
+# Empty if the label or the reset time cannot be parsed.
+elapsed_pct() {
+  local len epoch now left p
+  len=$(window_len "$1"); [ -n "$len" ] || return
+  epoch=$(to_epoch "$2"); [ -n "$epoch" ] || return
+  now=$(date +%s)
+  left=$(( epoch - now ))
+  (( left < 0 )) && left=0
+  (( left > len )) && left=$len
+  p=$(( (len - left) * 100 / len ))
+  printf '%s' "$p"
+}
+
+to_countdown() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "in 2h 15m" (empty on parse failure)
+  local s=$1 epoch now diff d h m
+  epoch=$(to_epoch "$s"); [ -n "$epoch" ] || return
+  now=$(date +%s)
   diff=$(( epoch - now ))
   (( diff <= 0 )) && { printf 'now'; return; }
   d=$(( diff / 86400 )); h=$(( (diff % 86400) / 3600 )); m=$(( (diff % 3600) / 60 ))
@@ -192,26 +234,61 @@ provider_tag() {
   fi
 }
 
+LABEL_W=26   # width of the label column; the marker note aligns against it
+
 bar() { # label pct reset
   local label=$1 pct=$2 reset=$3
   (( pct > 100 )) && pct=100
   local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-  local bar_w=$(( width - 38 ))
+  local bar_w=$(( width - 46 ))
   (( bar_w < 10 )) && bar_w=10
   (( bar_w > 50 )) && bar_w=50
   local fill=$(( pct * bar_w / 100 ))
-  local empty=$(( bar_w - fill ))
   local col; col=$(color_for "$pct")
-  printf '  %-26s ' "$label"
-  printf '%s%s%s%s%s' "$col" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" "$c_reset"
+
+  # elapsed : how much of the window has passed. It marks the "on pace" point —
+  # if the fill is past the marker, you burn the budget faster than the clock.
+  local elapsed mark=-1
+  elapsed=$(elapsed_pct "$label" "$reset")
+  if [ -n "$elapsed" ]; then
+    mark=$(( elapsed * bar_w / 100 ))
+    (( mark > bar_w - 1 )) && mark=$(( bar_w - 1 ))
+    (( mark < 0 )) && mark=0
+  fi
+
+  printf '  %-*s ' "$LABEL_W" "$label"
+  local i out=''
+  for (( i = 0; i < bar_w; i++ )); do
+    if   (( i == mark )); then out+="${c_bold}│${c_reset}"
+    elif (( i < fill ));  then out+="${col}█${c_reset}"
+    else                       out+="${c_dim}░${c_reset}"
+    fi
+  done
+  printf '%s' "$out"
   printf ' %s%3d%%%s' "$c_bold" "$pct" "$c_reset"
+
+  # pace delta : used% minus elapsed%. Positive means ahead of the clock.
+  if [ -n "$elapsed" ]; then
+    local d=$(( pct - elapsed ))
+    if   (( d >= 3 ));  then printf ' \033[31m▲+%d\033[0m' "$d"
+    elif (( d <= -3 )); then printf ' \033[32m▼%d\033[0m' "$d"
+    else                     printf ' %s≈%s' "$c_dim" "$c_reset"
+    fi
+  fi
+
   if [ -n "$reset" ]; then
-    printf ' %sresets %s' "$c_dim" "$reset"
     local cd; cd=$(to_countdown "$reset")
-    [ -n "$cd" ] && printf ' · %s' "$cd"
-    printf '%s' "$c_reset"
+    if [ -n "$cd" ]; then printf ' %sresets %s%s' "$c_dim" "$cd" "$c_reset"
+    else                  printf ' %sresets %s%s' "$c_dim" "$reset" "$c_reset"
+    fi
   fi
   printf '\n'
+
+  # second line : point at the marker and say what it means
+  if [ -n "$elapsed" ]; then
+    printf '  %*s %*s%s↑ %d%% of the %s elapsed%s\n' \
+      "$LABEL_W" "" "$mark" "" "$c_dim" "$elapsed" "$(window_noun "$label")" "$c_reset"
+  fi
 }
 
 render() { # raw-text status-note
