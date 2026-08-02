@@ -11,7 +11,10 @@ enable-normalization-flatten-containers = false
 enable-normalization-opposite-orientation-for-nested-containers = false
 after-login-command = []
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
-on-focus-changed = ['move-mouse window-lazy-center']
+on-focus-changed = [
+    'move-mouse window-lazy-center',
+    'exec-and-forget ~/.config/borders/border-focus.sh',
+]
 
 
 # You can use it to add commands that run after AeroSpace startup.
@@ -21,6 +24,7 @@ on-focus-changed = ['move-mouse window-lazy-center']
 # start a second one. The options come from ~/.config/borders/bordersrc.
 after-startup-command = [
     'exec-and-forget /opt/homebrew/opt/borders/bin/borders',
+    'exec-and-forget ~/.config/borders/border-focus.sh',
 ]
 
 # exec-on-workspace-change = [
