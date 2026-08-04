@@ -161,7 +161,7 @@ segments=()        # left side
 right_segments=()  # right-aligned: worktree / branch
 
 [ -n "$model"  ] && segments+=("$(color_for_model  "$model")$(model_short "$model")${reset}")
-[ -n "$effort" ] && segments+=("$(color_for_effort "$effort")eff:${effort}${reset}")
+[ -n "$effort" ] && segments+=("$(color_for_effort "$effort")${effort}${reset}")
 
 if [ -n "$cost_raw" ]; then
   cost_display=$(awk -v u="$cost_raw" 'BEGIN { printf "$%.2f", u+0 }')
