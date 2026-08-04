@@ -174,11 +174,11 @@ fi
 
 # Rate-limit glyphs, right before ctx: S = session (5h), W = weekly (7d). Each
 # letter appears (colored by severity) only once its limit clears 40%; otherwise
-# it's omitted. So this segment is "SW", "W", "S", or absent — e.g. "SW | ctx:50%".
+# it's omitted. So this segment is "SW", "W", "S", or absent — e.g. "SW | 50%".
 glyphs="$(rate_glyph S "$five_h_pct")$(rate_glyph W "$seven_d_pct")"
 [ -n "$glyphs" ] && segments+=("$glyphs")
 
-segments+=("$(color_for_ctx "$ctx_pct")ctx:${ctx_pct}%${reset}")
+segments+=("$(color_for_ctx "$ctx_pct")${ctx_pct}%${reset}")
 
 # Session ID, last 5 chars — enough to disambiguate panes without the clutter.
 [ -n "$session_id" ] && segments+=("${gray}id:${session_id: -5}${reset}")
