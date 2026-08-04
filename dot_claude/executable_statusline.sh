@@ -181,7 +181,7 @@ glyphs="$(rate_glyph S "$five_h_pct")$(rate_glyph W "$seven_d_pct")"
 segments+=("$(color_for_ctx "$ctx_pct")${ctx_pct}%${reset}")
 
 # Session ID, last 5 chars — enough to disambiguate panes without the clutter.
-[ -n "$session_id" ] && segments+=("${gray}id:${session_id: -5}${reset}")
+[ -n "$session_id" ] && segments+=("${gray}${session_id: -5}${reset}")
 
 [ -n "$wt" ] && right_segments+=("wt:${wt}")
 [ -n "$br" ] && right_segments+=("br:${br}")
