@@ -32,6 +32,8 @@
              :aero          "/opt/homebrew/bin/aerospace %s"
              :show-time     "~/.config/karabiner/scripts/show-time.sh"
              :hide-time     "killall time-hud 2>/dev/null"
+             :show-timer    "~/.config/karabiner/scripts/show-timer.sh"
+             :hide-timer    "killall timer-hud 2>/dev/null"
              :toggle-topbar "~/.config/karabiner/scripts/toggle-top-bar"
             }
 
@@ -58,8 +60,10 @@
  :main
  [{:des "Global app shortcut"
    :rules
-   [;; Layer 1 trigger: Left Shift + Right Option
-    [:!Sright_option [["shortcut-l1" 1]] nil {:afterup [["shortcut-l1" 0]]}]
+   [;; Double-tap Left Shift + Right Option to show the timer notification
+    [:!Sright_option [:show-timer] ["sro-tapped" 1] {:afterup [:hide-timer ["sro-tapped" 0]]}]
+    ;; Layer 1 trigger: Left Shift + Right Option
+    [:!Sright_option [["shortcut-l1" 1] ["sro-tapped" 1]] nil {:afterup [["shortcut-l1" 0]] :delayed {:invoked ["sro-tapped" 0] :canceled ["sro-tapped" 0]}}]
     ;; Layer 2 trigger: Left Control + Right Option
     [:!Tright_option [["shortcut-l2" 1]] nil {:afterup [["shortcut-l2" 0]]}]
     ;; Layer 3 trigger: Left Command + Right Option
