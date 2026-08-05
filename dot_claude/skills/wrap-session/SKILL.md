@@ -99,11 +99,14 @@ Per repo that has branches, **delegate**:
    - If it has an open PR to merge → invoke **`commit-push-pr`** (GitHub) or
      **`bitbucket-pr`** (Bitbucket repos — `gh` does not work there).
    - Then invoke **`finish-branch`** to merge-verify, switch back to the base branch,
-     and delete the branch + its worktree.
+     delete the branch + its worktree, **and transition the branch's Jira ticket to Done**.
+     Do not close tickets yourself — `finish-branch` reads the live transitions per board
+     and gates the close on the work having landed. A branch with no ticket key closes
+     the same way, minus that step.
 
 **Jira "Done" does NOT mean the branch is merged.** Squash/rebase merges land under new
-SHAs, so a Done ticket can still have a local branch whose commits aren't in develop.
-Verify with `git branch --merged develop` or `git cherry -v develop <branch>` before
+SHAs, so a Done ticket can still have a local branch whose commits aren't in the base.
+Verify with `git branch --merged <base>` or `git cherry -v <base> <branch>` before
 deleting. If Jira says Done but git disagrees, **stop and flag it** — never `-D`.
 
 ### 5. Verify
