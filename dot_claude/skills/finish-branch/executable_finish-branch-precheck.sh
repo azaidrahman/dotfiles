@@ -20,9 +20,20 @@ case "$BRANCH" in
   main|master|develop) echo "stop: on base branch ($BRANCH) — nothing to close"; exit 2 ;;
 esac
 
-# Base = explicit arg, else develop (finish-branch's integration target), else origin/HEAD,
-# else main. develop is preferred over origin/HEAD because features merge into develop here.
+# Base = explicit arg, else the repo's own override, else develop, else origin/HEAD, else main.
+#
+# develop stays ahead of origin/HEAD because that is the gitflow standard: where a develop
+# branch exists, features merge into it, while origin/HEAD points at main. Reversing the two
+# would send every gitflow feature branch to the wrong base.
+#
+# A repo that keeps a develop branch but no longer merges into it is a policy decision, not
+# something git records — gtech-atlas retired develop on 2026-08-05, yet origin/develop still
+# exists and sits 0 commits ahead of main, which is identical to a freshly-merged gitflow repo.
+# No heuristic can separate the two, so such a repo states it once:
+#
+#     git config finishBranch.base main
 BASE=${1:-}
+[ -n "$BASE" ] || BASE=$(git config --get finishBranch.base || true)
 if [ -z "$BASE" ]; then
   if git show-ref --verify --quiet refs/remotes/origin/develop; then BASE=develop
   else
@@ -57,6 +68,16 @@ if git ls-remote --heads origin "$BRANCH" 2>/dev/null | grep -q .; then
 else
   echo "remote_exists: no"
 fi
+
+# Ticket key carried by the branch name, if any. Empty is normal and not an error:
+# a branch without a ticket closes exactly the same way, minus the Jira step.
+TICKET=$(printf '%s' "$BRANCH" | grep -oE '[A-Z]+-[0-9]+' | head -1 || true)
+echo "ticket: ${TICKET:-none}"
+
+# Worktree hosting this branch, if the branch was opened by start-ticket.
+WT=$(git worktree list --porcelain 2>/dev/null \
+  | awk -v b="refs/heads/$BRANCH" '/^worktree /{p=$2} $0=="branch "b{print p; exit}' || true)
+echo "worktree: ${WT:-none}"
 
 if [ "$UNMERGED_N" -gt 0 ]; then
   echo "--- commits NOT in $BASE (would be lost on delete unless in a merged PR/main) ---"
