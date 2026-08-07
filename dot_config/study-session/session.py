@@ -3,6 +3,7 @@
 import argparse
 import json
 import subprocess
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -86,28 +87,49 @@ def ask_distraction(topic: str):
 def check() -> None:
     if not STATE.exists():
         return
-    s = json.loads(STATE.read_text())
-    planned_end = datetime.fromisoformat(s["planned_end"])
-    start_at = datetime.fromisoformat(s["start"])
-    now = datetime.now()
 
-    timer = next((t for t in timers.load() if t["id"] == s["timer_id"]), None)
-    if timer is not None and timer["fired_date"] is not None:
-        # The plist holds an aware date. Compare in the local naive form.
-        timer = {**timer,
-                 "fired_date": timer["fired_date"].astimezone().replace(tzinfo=None)}
-
-    status, end_at = outcome.classify(timer, planned_end, now, idle_seconds())
-    if status == "running":
+    # Atomically claim the session so a second check() run (e.g. launchd
+    # firing again while a distraction dialog is still open) skips it
+    # instead of opening a second dialog and writing a duplicate note.
+    claimed = STATE.with_suffix(".ending.json")
+    try:
+        STATE.rename(claimed)
+    except FileNotFoundError:
         return
 
-    distraction = ask_distraction(s["topic"]) if status == "completed" else None
-    if status == "cancelled":
-        studycal.mark_cancelled(s["event_uid"], s["topic"])
+    try:
+        s = json.loads(claimed.read_text())
+        planned_end = datetime.fromisoformat(s["planned_end"])
+        start_at = datetime.fromisoformat(s["start"])
+        now = datetime.now()
 
-    path, body = note.build_note(s["topic"], start_at, end_at, status, distraction)
-    subprocess.run(["open", note.adv_uri(path, body)], check=True)
-    STATE.unlink()
+        timer = next((t for t in timers.load() if t["id"] == s["timer_id"]), None)
+        if timer is not None and timer["fired_date"] is not None:
+            # The plist holds an aware date. Compare in the local naive form.
+            timer = {**timer,
+                     "fired_date": timer["fired_date"].astimezone().replace(tzinfo=None)}
+
+        status, end_at = outcome.classify(timer, planned_end, now, idle_seconds())
+        if status == "running":
+            # Not actually done yet. Release the claim for the next run.
+            claimed.rename(STATE)
+            return
+
+        distraction = ask_distraction(s["topic"]) if status == "completed" else None
+        if status == "cancelled":
+            result = studycal.mark_cancelled(s["event_uid"], s["topic"])
+            if result == "missing":
+                print(f"warning: calendar event {s['event_uid']} not found",
+                      file=sys.stderr)
+
+        path, body = note.build_note(s["topic"], start_at, end_at, status, distraction)
+        subprocess.run(["open", note.adv_uri(path, body)], check=True)
+        claimed.unlink()
+    except Exception:
+        # Something failed mid-way. Put the state file back so the next
+        # minute's check() retries instead of stranding the session.
+        claimed.rename(STATE)
+        raise
 
 
 if __name__ == "__main__":
