@@ -256,7 +256,7 @@
 			<key>ActionUID</key>
 			<integer>4009</integer>
 			<key>DisplayKind</key>
-			<string>Window</string>
+			<string>Notification</string>
 			<key>HonourFailureSettings</key>
 			<true/>
 			<key>IncludeStdErr</key>
