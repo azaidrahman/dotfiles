@@ -58,9 +58,15 @@ def start(topic: str, minutes: int) -> None:
 
 
 def notify(text: str) -> None:
-    """Show a small notification. Failures never block the session."""
-    text = text.replace("\\\\", "").replace('"', "'")
-    script = f'display notification "{text}" with title "Study session"'
+    """Show a small notification through Keyboard Maestro.
+
+    The osascript notification path is not registered with the
+    notification center on this machine, so the Keyboard Maestro
+    engine posts it instead. Failures never block the session.
+    """
+    text = text.replace("\\", "").replace('"', "'")
+    script = ('tell application "Keyboard Maestro Engine" to '
+              f'do script "Study Notify" with parameter "{text}"')
     try:
         subprocess.run(["osascript", "-e", script], check=False, timeout=10)
     except Exception:
