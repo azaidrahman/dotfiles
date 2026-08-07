@@ -131,18 +131,19 @@ def start_interactive() -> None:
     start(topic, m)
 
 
-def notify(text: str) -> None:
-    """Show a small notification through Keyboard Maestro.
+HUD = Path.home() / ".config/karabiner/scripts/timer-hud"
 
-    The osascript notification path is not registered with the
-    notification center on this machine, so the Keyboard Maestro
-    engine posts it instead. Failures never block the session.
+
+def notify(text: str) -> None:
+    """Show a small overlay through the karabiner HUD binary.
+
+    Notification Center drops both the osascript and the Keyboard
+    Maestro notifications on this machine, so the HUD shows a toast
+    instead. Failures never block the session.
     """
-    text = text.replace("\\", "").replace('"', "'")
-    script = ('tell application "Keyboard Maestro Engine" to '
-              f'do script "Study Notify" with parameter "{text}"')
     try:
-        subprocess.run(["osascript", "-e", script], check=False, timeout=10)
+        subprocess.Popen([str(HUD), "toast", text],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 

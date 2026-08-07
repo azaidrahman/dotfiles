@@ -111,6 +111,72 @@ func clock(_ seconds: Double) -> String {
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
+// Toast mode: a short bottom-center message, no timer plist, no ticker.
+// The study-session tracker uses this because Notification Center drops
+// its notifications on this machine.
+if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "toast" {
+    let text = CommandLine.arguments[2]
+
+    let maxWidth: CGFloat = 420
+    let padding: CGFloat = 16
+    let font = NSFont.systemFont(ofSize: 15, weight: .medium)
+
+    let label = NSTextField(labelWithString: text)
+    label.font = font
+    label.textColor = .white
+    label.alignment = .center
+    label.lineBreakMode = .byWordWrapping
+    label.maximumNumberOfLines = 0
+
+    // Measure the text so the toast hugs it, wrapping only past maxWidth.
+    let attrs = [NSAttributedString.Key.font: font]
+    let unwrapped = (text as NSString).size(withAttributes: attrs)
+    let textWidth = min(unwrapped.width, maxWidth - padding * 2)
+    let boundingBox = (text as NSString).boundingRect(
+        with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
+        options: [.usesLineFragmentOrigin],
+        attributes: attrs)
+
+    let toastWidth = ceil(boundingBox.width) + padding * 2
+    let toastHeight = ceil(boundingBox.height) + padding * 2
+
+    let toastView = NSView(frame: NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight))
+    toastView.wantsLayer = true
+    toastView.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.9).cgColor
+    toastView.layer?.cornerRadius = 14
+    label.frame = NSRect(x: padding, y: padding, width: toastWidth - padding * 2,
+                          height: toastHeight - padding * 2)
+    toastView.addSubview(label)
+
+    let toastPanel = NSPanel(
+        contentRect: toastView.frame,
+        styleMask: [.borderless, .nonactivatingPanel],
+        backing: .buffered,
+        defer: false
+    )
+    toastPanel.isOpaque = false
+    toastPanel.backgroundColor = .clear
+    toastPanel.level = .floating
+    toastPanel.hasShadow = false
+    toastPanel.contentView = toastView
+
+    if let screen = NSScreen.main {
+        let sf = screen.frame
+        toastPanel.setFrameOrigin(NSPoint(
+            x: sf.midX - toastWidth / 2,
+            y: sf.minY + 120))
+    }
+
+    toastPanel.orderFront(nil)
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+        app.terminate(nil)
+    }
+
+    app.run()
+    exit(0)
+}
+
 let width: CGFloat = 250
 let view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 90))
 view.wantsLayer = true
