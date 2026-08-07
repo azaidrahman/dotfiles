@@ -7,6 +7,8 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import note
+import outcome
 import studycal
 import timers
 
@@ -53,12 +55,70 @@ def start(topic: str, minutes: int) -> None:
     }, indent=2))
 
 
+def idle_seconds() -> float:
+    """Return the seconds since the last key press or mouse move."""
+    out = subprocess.run(
+        ["ioreg", "-c", "IOHIDSystem"], capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if "HIDIdleTime" in line:
+            return int(line.split("=")[-1].strip()) / 1_000_000_000
+    return 0.0
+
+
+def ask_distraction(topic: str):
+    """Ask for the score. Return None if the user closes the prompt."""
+    script = (
+        f'display dialog "How distracted were you during {topic}?\\n'
+        '1 is no interruptions. 10 is never more than 15 clear minutes." '
+        'default answer "" with title "Study session"')
+    r = subprocess.run(["osascript", "-e", script],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    text = r.stdout.strip().split("text returned:")[-1].strip()
+    try:
+        value = int(text)
+    except ValueError:
+        return None
+    return value if 1 <= value <= 10 else None
+
+
+def check() -> None:
+    if not STATE.exists():
+        return
+    s = json.loads(STATE.read_text())
+    planned_end = datetime.fromisoformat(s["planned_end"])
+    start_at = datetime.fromisoformat(s["start"])
+    now = datetime.now()
+
+    timer = next((t for t in timers.load() if t["id"] == s["timer_id"]), None)
+    if timer is not None and timer["fired_date"] is not None:
+        # The plist holds an aware date. Compare in the local naive form.
+        timer = {**timer,
+                 "fired_date": timer["fired_date"].astimezone().replace(tzinfo=None)}
+
+    status, end_at = outcome.classify(timer, planned_end, now, idle_seconds())
+    if status == "running":
+        return
+
+    distraction = ask_distraction(s["topic"]) if status == "completed" else None
+    if status == "cancelled":
+        studycal.mark_cancelled(s["event_uid"], s["topic"])
+
+    path, body = note.build_note(s["topic"], start_at, end_at, status, distraction)
+    subprocess.run(["open", note.adv_uri(path, body)], check=True)
+    STATE.unlink()
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("start")
     s.add_argument("--topic", required=True)
     s.add_argument("--minutes", type=int, required=True)
+    sub.add_parser("check")
     a = p.parse_args()
     if a.cmd == "start":
         start(a.topic, a.minutes)
+    elif a.cmd == "check":
+        check()
