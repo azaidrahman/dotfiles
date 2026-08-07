@@ -291,11 +291,11 @@
 			<key>FireType</key>
 			<string>Pressed</string>
 			<key>KeyCode</key>
-			<integer>1</integer>
+			<integer>64</integer>
 			<key>MacroTriggerType</key>
 			<string>HotKey</string>
 			<key>Modifiers</key>
-			<integer>6400</integer>
+			<integer>256</integer>
 		</dict>
 	</array>
 	<key>UID</key>
