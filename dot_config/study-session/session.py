@@ -54,6 +54,17 @@ def start(topic: str, minutes: int) -> None:
         "timer_id": timer_id,
         "event_uid": uid,
     }, indent=2))
+    notify(f"{topic} — timer running for {minutes} min")
+
+
+def notify(text: str) -> None:
+    """Show a small notification. Failures never block the session."""
+    text = text.replace("\\\\", "").replace('"', "'")
+    script = f'display notification "{text}" with title "Study session"'
+    try:
+        subprocess.run(["osascript", "-e", script], check=False, timeout=10)
+    except Exception:
+        pass
 
 
 def idle_seconds() -> float:
@@ -140,6 +151,12 @@ def check() -> None:
         subprocess.run(["open", note.adv_uri(path, body)], check=True)
     except Exception as e:
         print(f"warning: failed to open note: {e}", file=sys.stderr)
+
+    hours = round((end_at - start_at).total_seconds() / 3600, 2)
+    if status == "completed":
+        notify(f"{s['topic']} completed — {hours} h logged")
+    elif status == "cancelled":
+        notify(f"{s['topic']} cancelled — {hours} h logged")
 
 
 if __name__ == "__main__":
