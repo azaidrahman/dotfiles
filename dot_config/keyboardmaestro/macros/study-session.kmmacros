@@ -24,7 +24,7 @@
 			<key>Source</key>
 			<string>Nothing</string>
 			<key>Text</key>
-			<string>sed -n '/^---$/,/^---$/!p' "$HOME/vaults/Polaris/5-Workbook/worklog/Topics.md" | sed '/^$/d' | tr '\n' '|' | sed 's/|$//' | sed 's/$/|other…/'</string>
+			<string>sed -n '/^---$/,/^---$/!p' "$HOME/vaults/Polaris/5-Workbook/worklog/Topics.md" | sed '/^$/d' | tr '\n' '|' | sed 's/|$//'</string>
 			<key>TimeOutAbortsMacro</key>
 			<true/>
 			<key>TrimResults</key>
@@ -66,14 +66,14 @@
 			<array>
 				<dict>
 					<key>Default</key>
-					<string>%Variable%Topics%</string>
-					<key>Name</key>
+					<string>%Variable%Topics%|other…</string>
+					<key>Variable</key>
 					<string>Topic</string>
 				</dict>
 				<dict>
 					<key>Default</key>
 					<string>25|50|60|90|custom…</string>
-					<key>Name</key>
+					<key>Variable</key>
 					<string>Minutes</string>
 				</dict>
 			</array>
@@ -136,7 +136,7 @@
 						<dict>
 							<key>Default</key>
 							<string></string>
-							<key>Name</key>
+							<key>Variable</key>
 							<string>NewTopic</string>
 						</dict>
 					</array>
@@ -243,7 +243,7 @@
 						<dict>
 							<key>Default</key>
 							<string></string>
-							<key>Name</key>
+							<key>Variable</key>
 							<string>Minutes</string>
 						</dict>
 					</array>
