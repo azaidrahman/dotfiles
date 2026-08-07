@@ -295,7 +295,7 @@
 			<key>MacroTriggerType</key>
 			<string>HotKey</string>
 			<key>Modifiers</key>
-			<integer>256</integer>
+			<integer>2304</integer>
 		</dict>
 	</array>
 	<key>UID</key>
