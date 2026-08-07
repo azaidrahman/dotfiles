@@ -165,7 +165,7 @@ func refresh() {
     guard let first = timers.first else {
         bigLabel.stringValue = "No timer"
         if let session = readSession() {
-            let elapsed = clock(Date().timeIntervalSince(session.start))
+            let elapsed = clock(max(0, Date().timeIntervalSince(session.start)))
             subLabel.stringValue = "\(session.topic) — \(elapsed) elapsed"
         } else {
             subLabel.stringValue = "Clock.app has no active timer"
@@ -180,6 +180,13 @@ func refresh() {
     if first.duration > 0 { sub += " of \(clock(first.duration))" }
     if !first.title.isEmpty { sub = "\(first.title) — \(sub)" }
     subLabel.stringValue = sub
+
+    // The study session may still be open while a Clock.app timer runs, so
+    // show the topic here too. This is the primary case: the macro starts a
+    // timer, and the user checks the HUD while the session is active.
+    if let s = readSession() {
+        subLabel.stringValue = "\(s.topic) — \(clock(max(0, Date().timeIntervalSince(s.start)))) elapsed"
+    }
 
     // List any other active timers on one line.
     let rest = timers.dropFirst().map { clock($0.remaining) }
