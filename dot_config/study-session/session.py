@@ -116,20 +116,30 @@ def check() -> None:
             return
 
         distraction = ask_distraction(s["topic"]) if status == "completed" else None
-        if status == "cancelled":
+        path, body = note.build_note(s["topic"], start_at, end_at, status, distraction)
+    except Exception:
+        # Something failed mid-way, before any side effect ran. Put the
+        # state file back so the next minute's check() retries.
+        claimed.rename(STATE)
+        raise
+
+    # From here on, side effects begin. The claim must not go back to
+    # STATE, or a failure here would cause a retry and a duplicate note.
+    claimed.unlink()
+
+    if status == "cancelled":
+        try:
             result = studycal.mark_cancelled(s["event_uid"], s["topic"])
             if result == "missing":
                 print(f"warning: calendar event {s['event_uid']} not found",
                       file=sys.stderr)
+        except Exception as e:
+            print(f"warning: mark_cancelled failed: {e}", file=sys.stderr)
 
-        path, body = note.build_note(s["topic"], start_at, end_at, status, distraction)
+    try:
         subprocess.run(["open", note.adv_uri(path, body)], check=True)
-        claimed.unlink()
-    except Exception:
-        # Something failed mid-way. Put the state file back so the next
-        # minute's check() retries instead of stranding the session.
-        claimed.rename(STATE)
-        raise
+    except Exception as e:
+        print(f"warning: failed to open note: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
