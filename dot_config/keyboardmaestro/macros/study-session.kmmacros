@@ -39,12 +39,6 @@
 		<dict>
 			<key>ActionUID</key>
 			<integer>4002</integer>
-			<key>MacroActionType</key>
-			<string>PromptForUserInput</string>
-			<key>Prompt</key>
-			<string>Start a study session</string>
-			<key>Title</key>
-			<string>Study Session</string>
 			<key>Buttons</key>
 			<array>
 				<dict>
@@ -60,23 +54,29 @@
 					<true/>
 				</dict>
 			</array>
+			<key>MacroActionType</key>
+			<string>PromptForUserInput</string>
+			<key>Prompt</key>
+			<string>Start a study session</string>
+			<key>TimeOutAbortsMacro</key>
+			<true/>
+			<key>Title</key>
+			<string>Study Session</string>
 			<key>Variables</key>
 			<array>
 				<dict>
-					<key>Name</key>
-					<string>Topic</string>
 					<key>Default</key>
 					<string>%Variable%Topics%</string>
+					<key>Name</key>
+					<string>Topic</string>
 				</dict>
 				<dict>
-					<key>Name</key>
-					<string>Minutes</string>
 					<key>Default</key>
 					<string>25|50|60|90|custom…</string>
+					<key>Name</key>
+					<string>Minutes</string>
 				</dict>
 			</array>
-			<key>TimeOutAbortsMacro</key>
-			<true/>
 		</dict>
 		<dict>
 			<key>ActionUID</key>
@@ -99,6 +99,8 @@
 				<key>ConditionListMatch</key>
 				<string>All</string>
 			</dict>
+			<key>ElseActions</key>
+			<array/>
 			<key>MacroActionType</key>
 			<string>IfThenElse</string>
 			<key>ThenActions</key>
@@ -106,12 +108,6 @@
 				<dict>
 					<key>ActionUID</key>
 					<integer>4004</integer>
-					<key>MacroActionType</key>
-					<string>PromptForUserInput</string>
-					<key>Prompt</key>
-					<string>New topic name</string>
-					<key>Title</key>
-					<string>New Topic</string>
 					<key>Buttons</key>
 					<array>
 						<dict>
@@ -127,17 +123,23 @@
 							<true/>
 						</dict>
 					</array>
+					<key>MacroActionType</key>
+					<string>PromptForUserInput</string>
+					<key>Prompt</key>
+					<string>New topic name</string>
+					<key>TimeOutAbortsMacro</key>
+					<true/>
+					<key>Title</key>
+					<string>New Topic</string>
 					<key>Variables</key>
 					<array>
 						<dict>
-							<key>Name</key>
-							<string>NewTopic</string>
 							<key>Default</key>
 							<string></string>
+							<key>Name</key>
+							<string>NewTopic</string>
 						</dict>
 					</array>
-					<key>TimeOutAbortsMacro</key>
-					<true/>
 				</dict>
 				<dict>
 					<key>ActionUID</key>
@@ -159,7 +161,7 @@
 					<key>Source</key>
 					<string>Nothing</string>
 					<key>Text</key>
-					<string>printf '%s\n' "$KMVAR_NewTopic" &gt;&gt; "$HOME/vaults/Polaris/5-Workbook/worklog/Topics.md"</string>
+					<string>f="$HOME/vaults/Polaris/5-Workbook/worklog/Topics.md"; [ -s "$f" ] &amp;&amp; [ "$(tail -c1 "$f")" != "" ] &amp;&amp; printf '\n' &gt;&gt; "$f"; printf '%s\n' "$KMVAR_NewTopic" &gt;&gt; "$f"</string>
 					<key>TimeOutAbortsMacro</key>
 					<true/>
 					<key>TrimResults</key>
@@ -204,6 +206,8 @@
 				<key>ConditionListMatch</key>
 				<string>All</string>
 			</dict>
+			<key>ElseActions</key>
+			<array/>
 			<key>MacroActionType</key>
 			<string>IfThenElse</string>
 			<key>ThenActions</key>
@@ -211,12 +215,6 @@
 				<dict>
 					<key>ActionUID</key>
 					<integer>4008</integer>
-					<key>MacroActionType</key>
-					<string>PromptForUserInput</string>
-					<key>Prompt</key>
-					<string>Minutes for this session</string>
-					<key>Title</key>
-					<string>Custom Minutes</string>
 					<key>Buttons</key>
 					<array>
 						<dict>
@@ -232,17 +230,23 @@
 							<true/>
 						</dict>
 					</array>
+					<key>MacroActionType</key>
+					<string>PromptForUserInput</string>
+					<key>Prompt</key>
+					<string>Minutes for this session</string>
+					<key>TimeOutAbortsMacro</key>
+					<true/>
+					<key>Title</key>
+					<string>Custom Minutes</string>
 					<key>Variables</key>
 					<array>
 						<dict>
-							<key>Name</key>
-							<string>Minutes</string>
 							<key>Default</key>
 							<string></string>
+							<key>Name</key>
+							<string>Minutes</string>
 						</dict>
 					</array>
-					<key>TimeOutAbortsMacro</key>
-					<true/>
 				</dict>
 			</array>
 			<key>TimeOutAbortsMacro</key>
@@ -252,7 +256,7 @@
 			<key>ActionUID</key>
 			<integer>4009</integer>
 			<key>DisplayKind</key>
-			<string>Notification</string>
+			<string>Window</string>
 			<key>HonourFailureSettings</key>
 			<true/>
 			<key>IncludeStdErr</key>
@@ -284,10 +288,12 @@
 	<key>Triggers</key>
 	<array>
 		<dict>
-			<key>MacroTriggerType</key>
-			<string>HotKey</string>
+			<key>FireType</key>
+			<string>Pressed</string>
 			<key>KeyCode</key>
 			<integer>1</integer>
+			<key>MacroTriggerType</key>
+			<string>HotKey</string>
 			<key>Modifiers</key>
 			<integer>6400</integer>
 		</dict>
