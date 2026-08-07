@@ -60,6 +60,46 @@ func readTimers() -> [TimerInfo] {
     return out.sorted { $0.remaining < $1.remaining }
 }
 
+// The study-session tracker writes its state as a naive local datetime, with
+// no timezone suffix and optional fractional seconds. ISO8601DateFormatter
+// rejects that string, so use a plain DateFormatter instead.
+let sessionDateFormatterFrac = DateFormatter()
+sessionDateFormatterFrac.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+sessionDateFormatterFrac.timeZone = .current
+
+let sessionDateFormatter = DateFormatter()
+sessionDateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+sessionDateFormatter.timeZone = .current
+
+struct SessionInfo {
+    let topic: String
+    let start: Date
+}
+
+// The tracker writes study-session.json while a session is open, and renames
+// it to study-session.ending.json while it closes out. Show the session in
+// both cases so the HUD does not blink out right as the session ends.
+func readSession() -> SessionInfo? {
+    let paths = [
+        "~/.local/state/study-session.json",
+        "~/.local/state/study-session.ending.json",
+    ]
+    for path in paths {
+        let expanded = (path as NSString).expandingTildeInPath
+        guard let data = FileManager.default.contents(atPath: expanded),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let topic = obj["topic"] as? String,
+              let startString = obj["start"] as? String
+        else { continue }
+
+        let start = sessionDateFormatterFrac.date(from: startString)
+            ?? sessionDateFormatter.date(from: startString)
+        guard let start = start else { continue }
+        return SessionInfo(topic: topic, start: start)
+    }
+    return nil
+}
+
 func clock(_ seconds: Double) -> String {
     let s = Int(seconds.rounded())
     if s >= 3600 {
@@ -70,6 +110,72 @@ func clock(_ seconds: Double) -> String {
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
+
+// Toast mode: a short bottom-center message, no timer plist, no ticker.
+// The study-session tracker uses this because Notification Center drops
+// its notifications on this machine.
+if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "toast" {
+    let text = CommandLine.arguments[2]
+
+    let maxWidth: CGFloat = 420
+    let padding: CGFloat = 16
+    let font = NSFont.systemFont(ofSize: 15, weight: .medium)
+
+    let label = NSTextField(labelWithString: text)
+    label.font = font
+    label.textColor = .white
+    label.alignment = .center
+    label.lineBreakMode = .byWordWrapping
+    label.maximumNumberOfLines = 0
+
+    // Measure the text so the toast hugs it, wrapping only past maxWidth.
+    let attrs = [NSAttributedString.Key.font: font]
+    let unwrapped = (text as NSString).size(withAttributes: attrs)
+    let textWidth = min(unwrapped.width, maxWidth - padding * 2)
+    let boundingBox = (text as NSString).boundingRect(
+        with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
+        options: [.usesLineFragmentOrigin],
+        attributes: attrs)
+
+    let toastWidth = ceil(boundingBox.width) + padding * 2
+    let toastHeight = ceil(boundingBox.height) + padding * 2
+
+    let toastView = NSView(frame: NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight))
+    toastView.wantsLayer = true
+    toastView.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.9).cgColor
+    toastView.layer?.cornerRadius = 14
+    label.frame = NSRect(x: padding, y: padding, width: toastWidth - padding * 2,
+                          height: toastHeight - padding * 2)
+    toastView.addSubview(label)
+
+    let toastPanel = NSPanel(
+        contentRect: toastView.frame,
+        styleMask: [.borderless, .nonactivatingPanel],
+        backing: .buffered,
+        defer: false
+    )
+    toastPanel.isOpaque = false
+    toastPanel.backgroundColor = .clear
+    toastPanel.level = .floating
+    toastPanel.hasShadow = false
+    toastPanel.contentView = toastView
+
+    if let screen = NSScreen.main {
+        let sf = screen.frame
+        toastPanel.setFrameOrigin(NSPoint(
+            x: sf.midX - toastWidth / 2,
+            y: sf.minY + 120))
+    }
+
+    toastPanel.orderFront(nil)
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+        app.terminate(nil)
+    }
+
+    app.run()
+    exit(0)
+}
 
 let width: CGFloat = 250
 let view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 90))
@@ -124,7 +230,12 @@ func refresh() {
     let timers = readTimers()
     guard let first = timers.first else {
         bigLabel.stringValue = "No timer"
-        subLabel.stringValue = "Clock.app has no active timer"
+        if let session = readSession() {
+            let elapsed = clock(max(0, Date().timeIntervalSince(session.start)))
+            subLabel.stringValue = "\(session.topic) — \(elapsed) elapsed"
+        } else {
+            subLabel.stringValue = "Clock.app has no active timer"
+        }
         extraLabel.stringValue = ""
         layout(height: 74)
         return
@@ -135,6 +246,13 @@ func refresh() {
     if first.duration > 0 { sub += " of \(clock(first.duration))" }
     if !first.title.isEmpty { sub = "\(first.title) — \(sub)" }
     subLabel.stringValue = sub
+
+    // The study session may still be open while a Clock.app timer runs, so
+    // show the topic here too. This is the primary case: the macro starts a
+    // timer, and the user checks the HUD while the session is active.
+    if let s = readSession() {
+        subLabel.stringValue = "\(s.topic) — \(clock(max(0, Date().timeIntervalSince(s.start)))) elapsed"
+    }
 
     // List any other active timers on one line.
     let rest = timers.dropFirst().map { clock($0.remaining) }
