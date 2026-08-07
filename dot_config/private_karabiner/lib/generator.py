@@ -20,6 +20,9 @@ def make_rule(key, label, app):
     from_key = f":!S{key.lower()}" if is_shifted else f":{key}"
     if app and app.startswith('!'):
         to_part = f":{app}"
+    elif app and app.startswith('sh:'):
+        # sh: prefix runs the rest of the field as a shell command
+        to_part = f'"{app[3:]}"'
     elif app:
         to_part = f'[:open "{app}"]'
     else:

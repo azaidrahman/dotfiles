@@ -8,7 +8,8 @@ app:
   - w | WA | Whatsapp
   - W | messages | Messages
   - e | obsidian | Obsidian
-  - r | arc | Arc
+  - r | arc(work) | sh:$HOME/.config/karabiner/scripts/arc-space.sh toggle
+  - R | arc(not work) | sh:$HOME/.config/karabiner/scripts/arc-space.sh Zaid
   - t | ghostty | Ghostty
   - y | sioyek | Sioyek
   - i | IINA | IINA
@@ -24,8 +25,7 @@ app:
   - k | KM | Keyboard Maestro
   - l | gmail | Gmail Work
   - c | switch | !Cgrave_accent_and_tilde
-  - v | vivaldi | Vivaldi
-  - V | arc | Arc
+  - v | chrome | Google Chrome
   - b | telegram | Telegram
   - n | ino | Inoreader
   - m | spotify | Spotify
