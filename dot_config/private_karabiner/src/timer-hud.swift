@@ -60,6 +60,46 @@ func readTimers() -> [TimerInfo] {
     return out.sorted { $0.remaining < $1.remaining }
 }
 
+// The study-session tracker writes its state as a naive local datetime, with
+// no timezone suffix and optional fractional seconds. ISO8601DateFormatter
+// rejects that string, so use a plain DateFormatter instead.
+let sessionDateFormatterFrac = DateFormatter()
+sessionDateFormatterFrac.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+sessionDateFormatterFrac.timeZone = .current
+
+let sessionDateFormatter = DateFormatter()
+sessionDateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+sessionDateFormatter.timeZone = .current
+
+struct SessionInfo {
+    let topic: String
+    let start: Date
+}
+
+// The tracker writes study-session.json while a session is open, and renames
+// it to study-session.ending.json while it closes out. Show the session in
+// both cases so the HUD does not blink out right as the session ends.
+func readSession() -> SessionInfo? {
+    let paths = [
+        "~/.local/state/study-session.json",
+        "~/.local/state/study-session.ending.json",
+    ]
+    for path in paths {
+        let expanded = (path as NSString).expandingTildeInPath
+        guard let data = FileManager.default.contents(atPath: expanded),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let topic = obj["topic"] as? String,
+              let startString = obj["start"] as? String
+        else { continue }
+
+        let start = sessionDateFormatterFrac.date(from: startString)
+            ?? sessionDateFormatter.date(from: startString)
+        guard let start = start else { continue }
+        return SessionInfo(topic: topic, start: start)
+    }
+    return nil
+}
+
 func clock(_ seconds: Double) -> String {
     let s = Int(seconds.rounded())
     if s >= 3600 {
@@ -124,7 +164,12 @@ func refresh() {
     let timers = readTimers()
     guard let first = timers.first else {
         bigLabel.stringValue = "No timer"
-        subLabel.stringValue = "Clock.app has no active timer"
+        if let session = readSession() {
+            let elapsed = clock(Date().timeIntervalSince(session.start))
+            subLabel.stringValue = "\(session.topic) — \(elapsed) elapsed"
+        } else {
+            subLabel.stringValue = "Clock.app has no active timer"
+        }
         extraLabel.stringValue = ""
         layout(height: 74)
         return
