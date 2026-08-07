@@ -77,8 +77,11 @@ def choose(prompt: str, options: list[str]):
     """Show a native list picker. Return the choice, or None on cancel."""
     safe = [o.replace("\\", "").replace('"', "") for o in options]
     lst = ", ".join(f'"{o}"' for o in safe)
-    script = (f'choose from list {{{lst}}} with title "Study session" '
-              f'with prompt "{prompt}" default items {{"{safe[0]}"}}')
+    script = ('tell application "System Events"\n'
+              'activate\n'
+              f'choose from list {{{lst}}} with title "Study session" '
+              f'with prompt "{prompt}" default items {{"{safe[0]}"}}\n'
+              'end tell')
     r = subprocess.run(["osascript", "-e", script],
                        capture_output=True, text=True)
     out = r.stdout.strip()
@@ -89,8 +92,11 @@ def choose(prompt: str, options: list[str]):
 
 def ask_text(prompt: str):
     """Show a one-line text dialog. Return the text, or None on cancel."""
-    script = (f'display dialog "{prompt}" default answer "" '
-              'with title "Study session"')
+    script = ('tell application "System Events"\n'
+              'activate\n'
+              f'display dialog "{prompt}" default answer "" '
+              'with title "Study session"\n'
+              'end tell')
     r = subprocess.run(["osascript", "-e", script],
                        capture_output=True, text=True)
     if r.returncode != 0:
