@@ -15,6 +15,8 @@ import timers
 
 STATE = Path.home() / ".local/state/study-session.json"
 SHORTCUT = "Start Study Timer"
+TOPICS = Path.home() / "vaults/Polaris/5-Workbook/worklog/Topics.md"
+PRESETS = ["25", "50", "60", "90"]
 
 
 def _start_timer(minutes: int) -> None:
@@ -55,6 +57,78 @@ def start(topic: str, minutes: int) -> None:
         "event_uid": uid,
     }, indent=2))
     notify(f"{topic} — timer running for {minutes} min")
+
+
+def read_topics() -> list[str]:
+    """Return the topics, with the frontmatter and blank lines removed."""
+    lines = TOPICS.read_text().splitlines()
+    out, fences = [], 0
+    for line in lines:
+        if line.strip() == "---" and fences < 2:
+            fences += 1
+            continue
+        if fences < 2 or not line.strip():
+            continue
+        out.append(line.strip())
+    return out
+
+
+def choose(prompt: str, options: list[str]):
+    """Show a native list picker. Return the choice, or None on cancel."""
+    safe = [o.replace("\\", "").replace('"', "") for o in options]
+    lst = ", ".join(f'"{o}"' for o in safe)
+    script = (f'choose from list {{{lst}}} with title "Study session" '
+              f'with prompt "{prompt}" default items {{"{safe[0]}"}}')
+    r = subprocess.run(["osascript", "-e", script],
+                       capture_output=True, text=True)
+    out = r.stdout.strip()
+    if r.returncode != 0 or out == "false":
+        return None
+    return out
+
+
+def ask_text(prompt: str):
+    """Show a one-line text dialog. Return the text, or None on cancel."""
+    script = (f'display dialog "{prompt}" default answer "" '
+              'with title "Study session"')
+    r = subprocess.run(["osascript", "-e", script],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    return r.stdout.strip().split("text returned:")[-1].strip() or None
+
+
+def start_interactive() -> None:
+    """Ask for the topic and the minutes, then start the session."""
+    if STATE.exists():
+        notify("A session is already open. Cancel its timer first.")
+        return
+
+    topic = choose("What are you studying?", read_topics() + ["other…"])
+    if topic is None:
+        return
+    if topic == "other…":
+        topic = ask_text("New topic:")
+        if topic is None:
+            return
+        with TOPICS.open("a") as f:
+            if TOPICS.read_bytes()[-1:] not in (b"\n", b""):
+                f.write("\n")
+            f.write(topic + "\n")
+
+    minutes = choose("For how long?", PRESETS + ["custom…"])
+    if minutes is None:
+        return
+    if minutes == "custom…":
+        minutes = ask_text("Minutes:")
+        if minutes is None:
+            return
+    try:
+        m = int(minutes)
+    except ValueError:
+        notify(f"Not a number: {minutes}")
+        return
+    start(topic, m)
 
 
 def notify(text: str) -> None:
@@ -171,9 +245,12 @@ if __name__ == "__main__":
     s = sub.add_parser("start")
     s.add_argument("--topic", required=True)
     s.add_argument("--minutes", type=int, required=True)
+    sub.add_parser("start-interactive")
     sub.add_parser("check")
     a = p.parse_args()
     if a.cmd == "start":
         start(a.topic, a.minutes)
+    elif a.cmd == "start-interactive":
+        start_interactive()
     elif a.cmd == "check":
         check()
