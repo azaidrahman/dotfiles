@@ -7,7 +7,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>/Users/zaid/.config/study-session/session.py</string>
+    <string>{{ .chezmoi.homeDir }}/.config/study-session/session.py</string>
     <string>check</string>
   </array>
   <!-- Clock.app rewrites this plist when a timer stops or is dismissed.
@@ -15,7 +15,7 @@
        later. StartInterval stays as the fallback for the idle check. -->
   <key>WatchPaths</key>
   <array>
-    <string>/Users/zaid/Library/Preferences/com.apple.mobiletimerd.plist</string>
+    <string>{{ .chezmoi.homeDir }}/Library/Preferences/com.apple.mobiletimerd.plist</string>
   </array>
   <key>StartInterval</key><integer>60</integer>
   <key>RunAtLoad</key><true/>
