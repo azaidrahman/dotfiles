@@ -9,6 +9,12 @@ import AppKit
 let plistPath = ("~/Library/Preferences/com.apple.mobiletimerd.plist" as NSString)
     .expandingTildeInPath
 
+// A borderless window refuses key focus by default. The score HUD reads
+// key presses, so it needs a window that accepts them.
+final class KeyPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 struct TimerInfo {
     let title: String
     let duration: Double
@@ -173,6 +179,280 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "toast" {
         app.terminate(nil)
     }
 
+    app.run()
+    exit(0)
+}
+
+// Score mode: ask how distracted the session was. One key press answers,
+// so the user never reaches for the mouse. The HUD prints the score, the
+// word skip, or the word timeout, and the caller decides what each means.
+//
+//   timer-hud score "<topic>" [<seconds>]
+//
+if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
+    let topic = CommandLine.arguments[2]
+    let timeout = CommandLine.arguments.count >= 4
+        ? (Double(CommandLine.arguments[3]) ?? 180) : 180
+
+    // Hold the app that had focus. The HUD takes focus to read the keys,
+    // so it must give the focus back when it closes.
+    let previous = NSWorkspace.shared.frontmostApplication
+
+    func finish(_ answer: String) {
+        print(answer)
+        fflush(stdout)
+        previous?.activate(options: [])
+        exit(0)
+    }
+
+    let panelWidth: CGFloat = 470
+    let panelHeight: CGFloat = 158
+
+    let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
+    root.wantsLayer = true
+    root.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.95).cgColor
+    root.layer?.cornerRadius = 14
+
+    func line(_ text: String, size: CGFloat, weight: NSFont.Weight,
+              alpha: CGFloat, y: CGFloat, height: CGFloat) {
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: size, weight: weight)
+        label.textColor = NSColor(white: 1, alpha: alpha)
+        label.alignment = .center
+        label.lineBreakMode = .byTruncatingTail
+        label.frame = NSRect(x: 12, y: y, width: panelWidth - 24, height: height)
+        root.addSubview(label)
+    }
+
+    line("How distracted were you?", size: 15, weight: .medium,
+         alpha: 1, y: panelHeight - 36, height: 20)
+    line(topic, size: 12, weight: .regular,
+         alpha: 0.55, y: panelHeight - 56, height: 16)
+
+    // One chip for each score. The 0 key stands for ten, because no key
+    // holds two digits.
+    let chip: CGFloat = 36
+    let gap: CGFloat = 7
+    let rowWidth = chip * 10 + gap * 9
+    var chips: [NSView] = []
+    for i in 0..<10 {
+        let x = (panelWidth - rowWidth) / 2 + CGFloat(i) * (chip + gap)
+        let box = NSView(frame: NSRect(x: x, y: 52, width: chip, height: chip))
+        box.wantsLayer = true
+        box.layer?.backgroundColor = NSColor(white: 1, alpha: 0.10).cgColor
+        box.layer?.cornerRadius = 9
+        let label = NSTextField(labelWithString: i == 9 ? "0" : "\(i + 1)")
+        label.font = .monospacedDigitSystemFont(ofSize: 15, weight: .medium)
+        label.textColor = .white
+        label.alignment = .center
+        label.frame = NSRect(x: 0, y: 8, width: chip, height: 20)
+        box.addSubview(label)
+        root.addSubview(box)
+        chips.append(box)
+    }
+
+    line("1 is no interruptions · 10 is never more than 15 clear minutes",
+         size: 11, weight: .regular, alpha: 0.5, y: 28, height: 15)
+    line("press a number · 0 is ten · esc skips",
+         size: 11, weight: .regular, alpha: 0.35, y: 10, height: 15)
+
+    let panel = KeyPanel(
+        contentRect: root.frame,
+        styleMask: [.borderless],
+        backing: .buffered,
+        defer: false
+    )
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.level = .floating
+    panel.hasShadow = true
+    panel.contentView = root
+
+    if let screen = NSScreen.main {
+        let sf = screen.frame
+        panel.setFrameOrigin(NSPoint(x: sf.midX - panelWidth / 2,
+                                     y: sf.midY - panelHeight / 2))
+    }
+
+    NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        // 53 is the escape key.
+        if event.keyCode == 53 {
+            finish("skip")
+        }
+        guard let chars = event.charactersIgnoringModifiers,
+              chars.count == 1, let digit = Int(chars)
+        else { return nil }
+
+        let score = digit == 0 ? 10 : digit
+        // Light the chip, so the user sees which key the HUD read.
+        chips[score - 1].layer?.backgroundColor = NSColor.systemBlue.cgColor
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            finish("\(score)")
+        }
+        return nil
+    }
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+        finish("timeout")
+    }
+
+    panel.makeKeyAndOrderFront(nil)
+    app.activate(ignoringOtherApps: true)
+    app.run()
+    exit(0)
+}
+
+// Pick mode: choose one item from a list with one key press. The list
+// shows 5 items at a time. The bracket keys turn the page. The HUD prints
+// the index of the item, the word skip, or the word timeout.
+//
+//   timer-hud pick "<prompt>" "<item>" "<item>" ...
+//
+if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
+    let prompt = CommandLine.arguments[2]
+    let items = Array(CommandLine.arguments.dropFirst(3))
+
+    let previous = NSWorkspace.shared.frontmostApplication
+
+    func finish(_ answer: String) {
+        print(answer)
+        fflush(stdout)
+        previous?.activate(options: [])
+        exit(0)
+    }
+
+    let perPage = 5
+    let pages = (items.count + perPage - 1) / perPage
+    var page = 0
+
+    let panelWidth: CGFloat = 480
+    let rowHeight: CGFloat = 32
+    let headArea: CGFloat = 42
+    let footArea: CGFloat = 34
+    let panelHeight = headArea + rowHeight * CGFloat(perPage) + footArea
+
+    let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
+    root.wantsLayer = true
+    root.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.95).cgColor
+    root.layer?.cornerRadius = 14
+
+    let head = NSTextField(labelWithString: prompt)
+    head.font = .systemFont(ofSize: 15, weight: .medium)
+    head.textColor = .white
+    head.alignment = .center
+    head.lineBreakMode = .byTruncatingTail
+    head.frame = NSRect(x: 14, y: panelHeight - 32, width: panelWidth - 28, height: 20)
+    root.addSubview(head)
+
+    var rows: [NSView] = []
+    var numbers: [NSTextField] = []
+    var labels: [NSTextField] = []
+
+    for i in 0..<perPage {
+        let y = footArea + rowHeight * CGFloat(perPage - 1 - i)
+        let row = NSView(frame: NSRect(x: 14, y: y, width: panelWidth - 28, height: rowHeight - 4))
+        row.wantsLayer = true
+        row.layer?.backgroundColor = NSColor(white: 1, alpha: 0.07).cgColor
+        row.layer?.cornerRadius = 8
+
+        let num = NSTextField(labelWithString: "\(i + 1)")
+        num.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
+        num.textColor = NSColor(white: 1, alpha: 0.65)
+        num.alignment = .center
+        num.frame = NSRect(x: 6, y: 5, width: 20, height: 18)
+        row.addSubview(num)
+
+        let label = NSTextField(labelWithString: "")
+        label.font = .systemFont(ofSize: 13, weight: .regular)
+        label.textColor = .white
+        label.lineBreakMode = .byTruncatingTail
+        label.frame = NSRect(x: 34, y: 5, width: panelWidth - 28 - 44, height: 18)
+        row.addSubview(label)
+
+        root.addSubview(row)
+        rows.append(row)
+        numbers.append(num)
+        labels.append(label)
+    }
+
+    let foot = NSTextField(labelWithString: "")
+    foot.font = .systemFont(ofSize: 11, weight: .regular)
+    foot.textColor = NSColor(white: 1, alpha: 0.35)
+    foot.alignment = .center
+    foot.frame = NSRect(x: 14, y: 10, width: panelWidth - 28, height: 15)
+    root.addSubview(foot)
+
+    func render() {
+        for i in 0..<perPage {
+            let index = page * perPage + i
+            let present = index < items.count
+            rows[i].isHidden = !present
+            if present { labels[i].stringValue = items[index] }
+        }
+        let shown = min(perPage, items.count - page * perPage)
+        var hint = "press 1-\(max(1, shown)) · esc cancels"
+        if pages > 1 {
+            hint = "press 1-\(max(1, shown)) · [ ] page \(page + 1)/\(pages) · esc cancels"
+        }
+        foot.stringValue = hint
+    }
+
+    render()
+
+    let panel = KeyPanel(
+        contentRect: root.frame,
+        styleMask: [.borderless],
+        backing: .buffered,
+        defer: false
+    )
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.level = .floating
+    panel.hasShadow = true
+    panel.contentView = root
+
+    if let screen = NSScreen.main {
+        let sf = screen.frame
+        panel.setFrameOrigin(NSPoint(x: sf.midX - panelWidth / 2,
+                                     y: sf.midY - panelHeight / 2))
+    }
+
+    NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        // 53 is escape, 123 is the left arrow, 124 is the right arrow.
+        if event.keyCode == 53 {
+            finish("skip")
+        }
+        let chars = event.charactersIgnoringModifiers ?? ""
+
+        if chars == "[" || event.keyCode == 123 {
+            if page > 0 { page -= 1; render() }
+            return nil
+        }
+        if chars == "]" || event.keyCode == 124 {
+            if page < pages - 1 { page += 1; render() }
+            return nil
+        }
+
+        guard chars.count == 1, let digit = Int(chars),
+              digit >= 1, digit <= perPage
+        else { return nil }
+
+        let index = page * perPage + (digit - 1)
+        guard index < items.count else { return nil }
+
+        rows[digit - 1].layer?.backgroundColor = NSColor.systemBlue.cgColor
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            finish("\(index)")
+        }
+        return nil
+    }
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 180) {
+        finish("timeout")
+    }
+
+    panel.makeKeyAndOrderFront(nil)
+    app.activate(ignoringOtherApps: true)
     app.run()
     exit(0)
 }
