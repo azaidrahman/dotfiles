@@ -1,4 +1,48 @@
-from session import parse_distraction, parse_choice, AWAY_DISTRACTION
+from session import (parse_distraction, parse_choice, parse_score,
+                     parse_pick, AWAY_DISTRACTION)
+
+OPTIONS = ["Kubernetes", "Terraform", "Go"]
+
+
+def test_the_picked_item_is_read_by_its_index():
+    assert parse_pick("0\n", OPTIONS) == "Kubernetes"
+    assert parse_pick("2\n", OPTIONS) == "Go"
+
+def test_a_cancelled_pick_gives_nothing():
+    assert parse_pick("skip\n", OPTIONS) is None
+
+def test_a_pick_that_timed_out_gives_nothing():
+    # Nobody is at the desk, so no session must start.
+    assert parse_pick("timeout\n", OPTIONS) is None
+
+def test_an_index_past_the_list_gives_nothing():
+    assert parse_pick("9\n", OPTIONS) is None
+
+def test_a_negative_index_gives_nothing():
+    assert parse_pick("-1\n", OPTIONS) is None
+
+def test_an_empty_pick_gives_nothing():
+    assert parse_pick("", OPTIONS) is None
+
+
+def test_the_hud_score_is_read():
+    assert parse_score("5\n") == 5
+
+def test_the_hud_key_zero_means_ten():
+    # The HUD maps the 0 key to ten, so it prints 10 and not 0.
+    assert parse_score("10\n") == 10
+
+def test_a_hud_that_timed_out_takes_the_default_score():
+    assert parse_score("timeout\n") == AWAY_DISTRACTION
+
+def test_a_skipped_hud_gives_no_score():
+    assert parse_score("skip\n") is None
+
+def test_an_empty_hud_answer_gives_no_score():
+    assert parse_score("") is None
+
+def test_a_hud_score_out_of_range_gives_no_score():
+    assert parse_score("11\n") is None
 
 
 def test_a_score_is_read_from_the_dialog():
@@ -39,6 +83,18 @@ def test_an_unknown_button_keeps_the_session():
 if __name__ == "__main__":
     import traceback
     tests = [
+        test_the_picked_item_is_read_by_its_index,
+        test_a_cancelled_pick_gives_nothing,
+        test_a_pick_that_timed_out_gives_nothing,
+        test_an_index_past_the_list_gives_nothing,
+        test_a_negative_index_gives_nothing,
+        test_an_empty_pick_gives_nothing,
+        test_the_hud_score_is_read,
+        test_the_hud_key_zero_means_ten,
+        test_a_hud_that_timed_out_takes_the_default_score,
+        test_a_skipped_hud_gives_no_score,
+        test_an_empty_hud_answer_gives_no_score,
+        test_a_hud_score_out_of_range_gives_no_score,
         test_a_score_is_read_from_the_dialog,
         test_a_score_is_read_when_the_dialog_reports_no_timeout,
         test_a_dialog_that_timed_out_takes_the_default_score,

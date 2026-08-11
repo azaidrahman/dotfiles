@@ -22,6 +22,10 @@ SHORTCUT = "Start Study Timer"
 TOPICS = Path.home() / "vaults/Polaris/5-Workbook/worklog/Topics.md"
 PRESETS = ["25", "50", "60", "90"]
 
+# The HUD binary shows the toast, the list picker, and the score picker.
+# It reads one key press, so the pickers need no mouse.
+HUD = Path.home() / ".config/karabiner/scripts/timer-hud"
+
 # The distraction dialog closes itself after this many seconds, so a timer
 # that rings at an empty desk never blocks the next session.
 DIALOG_TIMEOUT = 180
@@ -94,7 +98,44 @@ def read_topics() -> list[str]:
     return out
 
 
+def parse_pick(out: str, options: list[str]):
+    """Read the chosen option from the HUD.
+
+    The HUD prints the index of the option. It prints skip when the user
+    cancels, and timeout when nobody answers. Both give no choice, because
+    a session must never start on its own.
+    """
+    try:
+        index = int(out.strip())
+    except ValueError:
+        return None
+    return options[index] if 0 <= index < len(options) else None
+
+
+def choose_hud(prompt: str, options: list[str]):
+    """Show the HUD list picker. Return the choice, or None on cancel."""
+    r = subprocess.run([str(HUD), "pick", prompt, *options],
+                       capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        raise RuntimeError(f"the HUD failed: {r.stderr.strip()}")
+    return parse_pick(r.stdout, options)
+
+
 def choose(prompt: str, options: list[str]):
+    """Ask the user to choose one option.
+
+    The HUD answers on one key press. A machine with no HUD binary falls
+    back to the native picker.
+    """
+    if HUD.exists():
+        try:
+            return choose_hud(prompt, options)
+        except Exception as e:
+            print(f"warning: the pick HUD failed: {e}", file=sys.stderr)
+    return choose_native(prompt, options)
+
+
+def choose_native(prompt: str, options: list[str]):
     """Show a native list picker. Return the choice, or None on cancel."""
     safe = [o.replace("\\", "").replace('"', "") for o in options]
     lst = ", ".join(f'"{o}"' for o in safe)
@@ -159,9 +200,6 @@ def start_interactive() -> None:
     start(topic, m)
 
 
-HUD = Path.home() / ".config/karabiner/scripts/timer-hud"
-
-
 def notify(text: str) -> None:
     """Show a small overlay through the karabiner HUD binary.
 
@@ -203,18 +241,57 @@ def parse_distraction(out: str):
     return value if 1 <= value <= 10 else None
 
 
-def ask_distraction(topic: str):
-    """Ask for the score. Return None if the user closes the prompt."""
+def parse_score(out: str):
+    """Read the score from the HUD.
+
+    The HUD prints the score, skip, or timeout. Return None when there is
+    no score, and the default score when nobody answered.
+    """
+    text = out.strip()
+    if text == "timeout":
+        return AWAY_DISTRACTION
+    try:
+        value = int(text)
+    except ValueError:
+        return None
+    return value if 1 <= value <= 10 else None
+
+
+def ask_distraction_dialog(topic: str):
+    """Ask for the score in a text dialog. This is the fallback for a
+    machine that has no HUD binary."""
     script = (
+        'tell application "System Events"\n'
+        'activate\n'
         f'display dialog "How distracted were you during {topic}?\\n'
         '1 is no interruptions. 10 is never more than 15 clear minutes." '
         'default answer "" with title "Study session" '
-        f'giving up after {DIALOG_TIMEOUT}')
+        f'giving up after {DIALOG_TIMEOUT}\n'
+        'end tell')
     r = subprocess.run(["osascript", "-e", script],
                        capture_output=True, text=True)
     if r.returncode != 0:
         return None
     return parse_distraction(r.stdout.strip())
+
+
+def ask_distraction(topic: str):
+    """Ask for the score. Return None if the user skips the prompt.
+
+    The HUD answers on one key press, so the user never needs the mouse.
+    """
+    if not HUD.exists():
+        return ask_distraction_dialog(topic)
+    try:
+        r = subprocess.run([str(HUD), "score", topic, str(DIALOG_TIMEOUT)],
+                           capture_output=True, text=True,
+                           timeout=DIALOG_TIMEOUT + 30)
+    except Exception as e:
+        print(f"warning: the score HUD failed: {e}", file=sys.stderr)
+        return ask_distraction_dialog(topic)
+    if r.returncode != 0:
+        return ask_distraction_dialog(topic)
+    return parse_score(r.stdout)
 
 
 def parse_choice(out: str) -> str:
