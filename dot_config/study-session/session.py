@@ -2,8 +2,8 @@
 """Start and end a study session."""
 import argparse
 import json
+import logging
 import subprocess
-import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,6 +13,9 @@ import outcome
 import studycal
 import timers
 
+log = logging.getLogger("study-session")
+
+LOG_PATH = Path.home() / ".local/state/study-session.log"
 STATE = Path.home() / ".local/state/study-session.json"
 # check() renames STATE to this while it ends the session. A crash during
 # the distraction dialog can leave the claim behind, so every reader looks
@@ -56,22 +59,34 @@ def start(topic: str, minutes: int) -> None:
 
     before = {t["id"] for t in timers.active(timers.load())}
     _start_timer(minutes)
-
-    # Give the Shortcuts app time to write the plist.
-    timer_id = ""
-    for _ in range(10):
-        time.sleep(1)
-        new = [t for t in timers.active(timers.load()) if t["id"] not in before]
-        if new:
-            timer_id = new[0]["id"]
-            break
-    if not timer_id:
-        raise SystemExit(
-            "The timer did not start. Check that the shortcut "
-            f"'{SHORTCUT}' exists on this machine.")
-
     now = datetime.now()
-    uid = studycal.create_event(topic, minutes)
+    log.info("timer requested: topic=%r minutes=%d", topic, minutes)
+
+    # The timer above is already running. Everything past this point can
+    # still fail, so a failure here must be loud — a silent one leaves the
+    # timer running with no session to log it.
+    try:
+        # Give the Shortcuts app time to write the plist.
+        timer_id = ""
+        for _ in range(20):
+            time.sleep(1)
+            new = [t for t in timers.active(timers.load()) if t["id"] not in before]
+            if new:
+                timer_id = new[0]["id"]
+                break
+        if not timer_id:
+            raise RuntimeError(
+                "the timer never showed up in the Clock.app plist. Check "
+                f"that the shortcut '{SHORTCUT}' exists on this machine.")
+
+        uid = studycal.create_event(topic, minutes)
+    except Exception as e:
+        log.error("session tracking failed after the timer started: %s",
+                   e, exc_info=True)
+        notify(f"{topic} timer is running, but session logging failed — "
+               "see study-session.log")
+        raise
+
     STATE.parent.mkdir(parents=True, exist_ok=True)
     STATE.write_text(json.dumps({
         "topic": topic,
@@ -81,6 +96,8 @@ def start(topic: str, minutes: int) -> None:
         "timer_id": timer_id,
         "event_uid": uid,
     }, indent=2))
+    log.info("session started: topic=%r minutes=%d timer_id=%s event_uid=%s",
+              topic, minutes, timer_id, uid)
     notify(f"{topic} — timer running for {minutes} min")
 
 
@@ -131,7 +148,7 @@ def choose(prompt: str, options: list[str]):
         try:
             return choose_hud(prompt, options)
         except Exception as e:
-            print(f"warning: the pick HUD failed: {e}", file=sys.stderr)
+            log.warning("the pick HUD failed: %s", e)
     return choose_native(prompt, options)
 
 
@@ -287,7 +304,7 @@ def ask_distraction(topic: str):
                            capture_output=True, text=True,
                            timeout=DIALOG_TIMEOUT + 30)
     except Exception as e:
-        print(f"warning: the score HUD failed: {e}", file=sys.stderr)
+        log.warning("the score HUD failed: %s", e)
         return ask_distraction_dialog(topic)
     if r.returncode != 0:
         return ask_distraction_dialog(topic)
@@ -341,17 +358,17 @@ def finish(s: dict, status: str, end_at: datetime, distraction) -> None:
         try:
             result = studycal.mark_cancelled(s["event_uid"], s["topic"])
             if result == "missing":
-                print(f"warning: calendar event {s['event_uid']} not found",
-                      file=sys.stderr)
+                log.warning("calendar event %s not found", s["event_uid"])
         except Exception as e:
-            print(f"warning: mark_cancelled failed: {e}", file=sys.stderr)
+            log.warning("mark_cancelled failed: %s", e)
 
     try:
         subprocess.run(["open", note.adv_uri(path, body)], check=True)
     except Exception as e:
-        print(f"warning: failed to open note: {e}", file=sys.stderr)
+        log.warning("failed to open note: %s", e)
 
     hours = round((end_at - start_at).total_seconds() / 3600, 2)
+    log.info("session %s: topic=%r hours=%s", status, s["topic"], hours)
     notify(f"{s['topic']} {status} — {hours} h logged")
 
 
@@ -373,6 +390,7 @@ def reset() -> str:
 
     path.unlink()
     if choice == "discard":
+        log.info("session discarded: topic=%r", s["topic"])
         notify(f"{s['topic']} discarded — nothing logged")
         return "discard"
 
@@ -415,6 +433,7 @@ def check() -> None:
     except Exception:
         # Something failed mid-way, before any side effect ran. Put the
         # state file back so the next minute's check() retries.
+        log.error("check failed, will retry next run", exc_info=True)
         claimed.rename(STATE)
         raise
 
@@ -425,6 +444,10 @@ def check() -> None:
 
 
 if __name__ == "__main__":
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=LOG_PATH, level=logging.INFO,
+                         format="%(asctime)s %(levelname)s %(message)s")
+
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("start")
