@@ -86,9 +86,10 @@ require("zaid.core.env").when_standalone(function()
     vim.keymap.set("n", "<leader>tf", "<cmd>tabnew %<CR>", { desc = "Open current buffer in new tab" })
 end)
 
--- buffer stuff
-vim.keymap.set("n", "<S-l>", ":bnext<CR>", { noremap = true, silent = true, desc = "Move to next buffer" })
-vim.keymap.set("n", "<S-h>", ":bprevious<CR>", { noremap = true, silent = true, desc = "Move to previous buffer" })
+-- buffer stuff (MRU order, not buffer-number order)
+local buffer_mru = require("zaid.core.buffer_mru")
+vim.keymap.set("n", "<S-h>", buffer_mru.jump_recent, { desc = "Go to last-opened buffer" })
+vim.keymap.set("n", "<S-l>", buffer_mru.jump_oldest, { desc = "Go to furthest-back buffer" })
 
 -- get current buffers directory
 vim.keymap.set("n", "<leader>hd", function()
