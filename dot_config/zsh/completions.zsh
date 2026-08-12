@@ -60,6 +60,12 @@ compdef _gwtcd gwtcd
 # bun: static completion file, cheap to source eagerly.
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
+# chezmoi + cz: static completion file at completions/_chezmoi (see launch.zsh
+# fpath), autoloaded by compinit's normal fpath scan. No eager subprocess and
+# no lazy-load gap: `chezmoi <TAB>` and `cz <TAB>` both work from a fresh
+# shell, since `#compdef chezmoi cz` on that file's first line registers both
+# names against the same _chezmoi function.
+
 # --- lazy tool completions -------------------------------------------------
 
 _lazy_completion argocd    'source <(argocd completion zsh)'
@@ -67,7 +73,8 @@ _lazy_completion bkt       'source <(bkt completion zsh)'
 _lazy_completion jj        'source <(jj util completion zsh)'
 _lazy_completion jira      'source <(jira completion zsh)'
 _lazy_completion labctl    'source <(labctl completion zsh)'
-_lazy_completion wacli    'source <(wacli completion zsh)'
+_lazy_completion exercism  'source <(exercism completion zsh)'
+_lazy_completion wacli     'source <(wacli completion zsh)'
 _lazy_completion docker    'fpath=("$HOME/.docker/completions" $fpath); autoload -Uz _docker && compdef _docker docker'
 _lazy_completion terraform '_ensure_bashcompinit; complete -o nospace -C /opt/homebrew/bin/terraform terraform'
 _lazy_completion terramate '_ensure_bashcompinit; complete -o nospace -C /opt/homebrew/bin/terramate terramate'
