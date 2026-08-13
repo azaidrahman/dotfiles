@@ -48,6 +48,17 @@ keybind = cmd+shift+minus=set_font_size:14
 keybind = cmd+shift+equal=set_font_size:22
 keybind = cmd+shift+0=reset_font_size
 
+# Font sizes for tmux zen mode (prefix+z). Ghostty has no remote control
+# socket, so ~/.tmux/scripts/tmux-zen.sh sends these two chords with osascript.
+# Do not put zen mode on the tmux prefix key itself. Ghostty supports a key
+# sequence such as ctrl+space>z, but set_font_size takes an absolute size and
+# Ghostty runs the keybind before tmux runs the script. Ghostty cannot know the
+# direction of the toggle, so a second press would set 24 again. Ghostty also
+# waits for the next key in a sequence with no timeout, which would hold back
+# every other prefix key.
+keybind = cmd+ctrl+shift+z=set_font_size:24
+keybind = cmd+ctrl+shift+x=reset_font_size
+
 # macOS: To hide the titlebar without removing the native window borders
 #        or rounded corners, use `macos-titlebar-style = hidden` instead.
 macos-titlebar-style = hidden
