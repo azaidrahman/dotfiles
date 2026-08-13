@@ -42,7 +42,7 @@ PANE=$(q solo: '#{pane_id}')
 zen_apply_layout "$PANE"
 check "3 panes after the split"   "3"     "$(q solo: '#{window_panes}')"
 check "2 panes are tagged"        "2"     "$(command tmux -L "$SOCK" list-panes -t solo: -F '#{@zen_pane}' | grep -c 1)"
-check "the middle pane is 110 wide" "110"  "$(q "$PANE" '#{pane_width}')"
+check "the middle pane is 130 wide" "130"  "$(q "$PANE" '#{pane_width}')"
 check "the middle pane has focus"  "$PANE" "$(q solo: '#{pane_id}')"
 check "the backdrop is set"        "bg=#000d14" "$(command tmux -L "$SOCK" show -wqv -t solo: window-style)"
 check "pane borders are off"       "off"   "$(command tmux -L "$SOCK" show -wqv -t solo: pane-border-status)"
@@ -114,5 +114,45 @@ check "the toggle sets the font up" " up" "$FONT_LOG"
 zen_toggle "$PANE" "xterm-ghostty" 3
 check "the toggle leaves zen mode"  "1" "$(q "$PANE" '#{window_panes}')"
 check "the toggle resets the font"  " up reset" "$FONT_LOG"
+
+# --- zen_clean: the font override must not outlive zen mode --------------
+# A tmux server that stops during zen mode leaves the font file on disk. Only
+# clear it when no window is in zen mode. Kill the other test sessions first,
+# because zen_clean looks at every window on the server.
+command tmux -L "$SOCK" kill-session -t solo 2>/dev/null
+command tmux -L "$SOCK" kill-session -t multi 2>/dev/null
+command tmux -L "$SOCK" kill-session -t plain 2>/dev/null
+command tmux -L "$SOCK" new-session -d -s clean1 -x 200 -y 50
+FONT_LOG=""
+zen_clean
+check "no zen window -> clears the override" " reset" "$FONT_LOG"
+
+CPANE=$(q clean1: '#{pane_id}')
+command tmux -L "$SOCK" set -w -t clean1: @zen_active "$CPANE"
+FONT_LOG=""
+zen_clean
+check "a live zen window -> keeps the override" "" "$FONT_LOG"
+
+
+# --- the lock stops two toggles from stacking gutters --------------------
+# The binding uses "run-shell -b", so two quick presses run two copies of the
+# script together. Without the lock both copies build a pair of gutters and the
+# window ends up with 5 panes.
+ZEN_LOCK="$(mktemp -d)/lock"
+command tmux -L "$SOCK" new-session -d -s race -x 200 -y 50
+RPANE=$(q race: '#{pane_id}')
+
+zen_lock; check "the first copy takes the lock" "0" "$?"
+zen_lock; check "the second copy is refused"    "1" "$?"
+zen_unlock
+zen_lock; check "the lock frees up again"       "0" "$?"
+zen_unlock
+
+# Two toggles racing: run them as background jobs and wait.
+zen_toggle "$RPANE" "xterm-ghostty" 1 &
+zen_toggle "$RPANE" "xterm-ghostty" 1 &
+wait
+check "racing toggles still give 3 panes" "3" "$(q race: '#{window_panes}')"
+check "racing toggles tag only 2 gutters" "2" "$(command tmux -L "$SOCK" list-panes -t race: -F '#{@zen_pane}' | grep -c 1)"
 
 exit "$fail"

@@ -32,10 +32,10 @@ zen_is_ghostty "";                checkrc "empty termname is not Ghostty" 1 "$?"
 # --- zen_pct -------------------------------------------------------------
 check "plain number passes through"   "60" "$(zen_pct 60)"
 check "trailing % is stripped"        "60" "$(zen_pct '60%')"
-check "empty falls back to default"   "55" "$(zen_pct '')"
-check "garbage falls back to default" "55" "$(zen_pct 'wide')"
-check "too small falls back"          "55" "$(zen_pct 5)"
-check "too large falls back"          "55" "$(zen_pct 99)"
+check "empty falls back to default"   "65" "$(zen_pct '')"
+check "garbage falls back to default" "65" "$(zen_pct 'wide')"
+check "too small falls back"          "65" "$(zen_pct 5)"
+check "too large falls back"          "65" "$(zen_pct 99)"
 check "lower bound is kept"           "20" "$(zen_pct 20)"
 check "upper bound is kept"           "95" "$(zen_pct 95)"
 
@@ -68,6 +68,41 @@ check "dot is replaced"     "zen-my-sess-0"   "$(zen_session_name 'my.sess' 0)"
 check "colon is replaced"   "zen-a-b-1"       "$(zen_session_name 'a:b' 1)"
 check "hyphen is kept"      "zen-proj-273-2"  "$(zen_session_name 'proj-273' 2)"
 check "underscore is kept"  "zen-my_sess-0"   "$(zen_session_name 'my_sess' 0)"
+
+# --- zen_font ------------------------------------------------------------
+# The font size now goes through a file and a signal, so it is testable. Point
+# the file at a temporary path, and replace pgrep and kill with stubs. A shell
+# function takes the place of a builtin, so the stub for kill works.
+FONT_TMP="$(mktemp -d)"
+ZEN_FONT_CONF="$FONT_TMP/zen-font.conf"
+SIGNALS=""
+pgrep() { echo 4822; }
+kill() { SIGNALS="$SIGNALS $1:$2"; }
+
+zen_font up
+check "up writes the zen font size" "font-size = 24" "$(cat "$FONT_TMP/zen-font.conf" 2>/dev/null)"
+check "up signals ghostty to reload" " -USR2:4822" "$SIGNALS"
+
+SIGNALS=""
+zen_font reset
+check "reset empties the file"    "" "$(cat "$FONT_TMP/zen-font.conf" 2>/dev/null)"
+check "reset leaves the file there" "yes" "$([ -f "$FONT_TMP/zen-font.conf" ] && echo yes)"
+check "reset signals ghostty too" " -USR2:4822" "$SIGNALS"
+
+SIGNALS=""
+zen_font bogus
+check "an unknown direction does nothing" "" "$SIGNALS"
+
+# If Ghostty does not run here, do nothing and report success. This happens when
+# you attach over SSH from Ghostty on another machine.
+SIGNALS=""
+pgrep() { return 1; }
+zen_font up; rc=$?
+check "no ghostty process sends no signal" "" "$SIGNALS"
+check "no ghostty process still succeeds" "0" "$rc"
+
+unset -f pgrep kill
+rm -rf "$FONT_TMP"
 
 # --- the arithmetic must agree with itself ------------------------------
 # The centre plus the two gutters plus the two borders must fill the window,

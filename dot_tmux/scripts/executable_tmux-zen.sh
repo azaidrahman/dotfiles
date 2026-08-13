@@ -9,20 +9,15 @@
 # does a plain zoom.
 #
 # Ghostty has no remote control socket, so a script cannot set the font size
-# directly. The font size comes from two Ghostty keybinds that this script
-# sends with osascript: cmd+ctrl+shift+z (size 24) and cmd+ctrl+shift+x
-# (reset). Both chords are hard to press by accident, which is why they were
-# chosen.
+# directly. Ghostty does reload its configuration when it gets SIGUSR2. The main
+# Ghostty configuration includes ZEN_FONT_CONF with a "?" prefix, which means
+# the file can be absent. This script writes the font size to that file and then
+# sends the signal. See zen_font below.
 #
-# reload-config.scpt sends its chord with "keystroke". Do not copy that here.
-# "keystroke" sends a character, and a control and a letter together become one
-# control character, so Ghostty sees no z key and matches no keybind. Use
-# "key code" instead. See zen_font below.
-#
-# A Ghostty keybind cannot do the toggle on its own. set_font_size takes an
-# absolute size, and Ghostty runs the keybind before tmux runs this script, so
-# Ghostty cannot know if you want to enter zen mode or leave it. The script
-# holds the state, so the script must send the chord.
+# An earlier version sent a Ghostty keybind with osascript. Do not go back to
+# that. It cost about 130 ms, it needed Ghostty in front of the other windows,
+# and a global hotkey tool such as Alfred or Karabiner can take the chord first.
+# A signal costs about 1 ms and no other program can take it.
 #
 # If the window holds more than one pane, gutters are not possible. The script
 # then moves the pane into a temporary session and applies zen mode there. The
@@ -39,13 +34,56 @@
 # if the new window is not. Without the hook, every other window in the session
 # would lose its status bar while zen mode is on.
 
-ZEN_DEFAULT_PCT=55        # Width of the middle pane, as a percent of the window.
+# Width of the middle pane, as a percent of the window. At font size 24 the
+# window is about 158 columns, so 65 percent gives a middle pane of 102 columns
+# and gutters of 27 columns. To change it, set the @zen-width option. Use
+# "tmux set -g @zen-width 70" for every window, or "tmux set -w @zen-width 70"
+# for one window. A window value wins over a global value.
+ZEN_DEFAULT_PCT=65
 ZEN_MIN_CENTER=40         # Never make the middle pane thinner than this.
 ZEN_MIN_GUTTER=6          # If a gutter is thinner than this, skip the gutters.
 ZEN_BACKDROP='bg=#000d14' # One step darker than the global window-style.
+ZEN_FONT_SIZE=24          # Ghostty font size in zen mode.
 ZEN_RESIZE_TIMEOUT_MS=800 # How long to wait for tmux to see the new font size.
+ZEN_RESIZE_POLL_MS=20     # How often to look. The real change takes about 100 ms.
+
+# The Ghostty configuration includes this file. Keep it out of ~/.config, because
+# chezmoi manages that directory and this file changes at run time.
+ZEN_FONT_CONF="${ZEN_FONT_CONF:-$HOME/.cache/ghostty/zen-font.conf}"
 
 zen_tmux() { tmux "$@" 2>/dev/null; }
+
+# --- one toggle at a time ------------------------------------------------
+
+# The key binding uses "run-shell -b", so tmux starts this script in the
+# background and returns at once. Two quick presses of prefix+z would then run
+# two copies together. Both copies read the state before either copy writes it,
+# so both decide to enter zen mode and each one builds its own pair of gutters.
+# The window ends up with 5 or 7 panes and a very thin middle pane.
+#
+# mkdir either makes the directory or fails, and nothing in between, so it works
+# as a lock. A copy that cannot take the lock exits and ignores the key press.
+ZEN_LOCK="${TMPDIR:-/tmp}/tmux-zen-$(id -u).lock"
+ZEN_LOCK_STALE_S=10
+
+zen_lock_age() {
+  local mtime
+  mtime=$(stat -f %m "$ZEN_LOCK" 2>/dev/null || stat -c %Y "$ZEN_LOCK" 2>/dev/null)
+  [ -n "$mtime" ] || return 1
+  printf '%s\n' "$(( $(date +%s) - mtime ))"
+}
+
+zen_lock() {
+  local age
+  mkdir "$ZEN_LOCK" 2>/dev/null && return 0
+  # A script that was killed leaves the lock behind. Drop an old one.
+  age=$(zen_lock_age) || return 1
+  [ "$age" -ge "$ZEN_LOCK_STALE_S" ] || return 1
+  rmdir "$ZEN_LOCK" 2>/dev/null
+  mkdir "$ZEN_LOCK" 2>/dev/null
+}
+
+zen_unlock() { rmdir "$ZEN_LOCK" 2>/dev/null; return 0; }
 
 # --- pure helpers (the tests cover these) --------------------------------
 
@@ -109,29 +147,29 @@ zen_session_name() {
 
 # --- Ghostty font size ---------------------------------------------------
 
-# Send one of the two Ghostty font keybinds. If Ghostty is not on this machine,
-# do nothing and report success: the rest of zen mode still works. This matters
-# when you attach over SSH from Ghostty on another machine, because the client
-# termname is xterm-ghostty but the app is somewhere else.
-# Send the key as a key code, not as a character. "keystroke" sends a
-# character, and "control down" turns a control and a letter into one control
-# character. Ghostty then never sees a z key, so it matches no keybind. A key
-# code sends the physical key with the modifier flags, which is what Ghostty
-# matches. Key code 6 is z. Key code 7 is x. These are the codes for a US
-# layout, which is the layout on this machine.
+# Set the Ghostty font size, or put it back. Write the size to the file that the
+# Ghostty configuration includes, then tell Ghostty to reload with SIGUSR2. An
+# empty file means Ghostty uses the size from the main configuration.
+#
+# If Ghostty does not run on this machine, do nothing and report success: the
+# rest of zen mode still works. This matters when you attach over SSH from
+# Ghostty on another machine. The client termname is xterm-ghostty, but the app
+# is somewhere else, so there is no process here to signal.
+#
+# The reload is global. Every Ghostty window gets the new size, and a font size
+# that you set by hand goes back to the size in the configuration.
 zen_font() {
-  local code
+  local pid
   [ "$(uname)" = "Darwin" ] || return 0
-  [ -d /Applications/Ghostty.app ] || return 0
+  pid=$(pgrep -x ghostty 2>/dev/null | head -1)
+  [ -n "$pid" ] || return 0
+  mkdir -p "$(dirname "$ZEN_FONT_CONF")" 2>/dev/null || return 0
   case "${1:-}" in
-    up)    code=6 ;;
-    reset) code=7 ;;
+    up)    printf 'font-size = %s\n' "$ZEN_FONT_SIZE" > "$ZEN_FONT_CONF" || return 0 ;;
+    reset) : > "$ZEN_FONT_CONF" || return 0 ;;
     *) return 0 ;;
   esac
-  osascript >/dev/null 2>&1 <<EOF
-tell application "Ghostty" to activate
-tell application "System Events" to key code $code using {command down, control down, shift down}
-EOF
+  kill -USR2 "$pid" 2>/dev/null
   return 0
 }
 
@@ -145,8 +183,10 @@ zen_wait_resize() {
     if [ -n "$now" ] && [ "$now" != "$before" ]; then
       return 0
     fi
-    sleep 0.05
-    waited=$(( waited + 50 ))
+    # printf is a shell builtin, so this starts no extra process. The format
+    # turns milliseconds into the seconds that sleep wants, for 1 to 999 ms.
+    sleep "$(printf '0.%03d' "$ZEN_RESIZE_POLL_MS")"
+    waited=$(( waited + ZEN_RESIZE_POLL_MS ))
   done
   return 1
 }
@@ -157,53 +197,70 @@ zen_wait_resize() {
 # The gutters run "cat" to hold the pane open. Each gutter carries a @zen_pane
 # option, so the teardown can find them. Do not look for the "cat" process to
 # find them: any ordinary window could hold a pane that runs cat.
+# Every call to tmux is a new client, and each one costs about 13 ms. Read all
+# the values in one call, and send all the changes in one call. tmux takes many
+# commands in one invocation when you separate them with a ";" argument.
 zen_apply_layout() {
-  local pane=$1 session width center gutter left right
-  session=$(zen_tmux display-message -p -t "$pane" '#{session_name}')
-  width=$(zen_tmux display-message -p -t "$pane" '#{window_width}')
-  center=$(zen_center_cols "$width" "$(zen_pct "$(zen_tmux show -wqv -t "$pane" @zen-width)")")
+  local pane=$1 session width pct center gutter left right
+
+  { read -r width; read -r pct; read -r session; } <<< "$(zen_tmux display-message -p -t "$pane" \
+    "#{window_width}
+#{@zen-width}
+#{session_name}")"
+
+  center=$(zen_center_cols "$width" "$(zen_pct "$pct")")
   gutter=$(zen_gutter_cols "$width" "$center")
 
+  # tmux has only two pane style slots, active and inactive, so the backdrop
+  # darkens every inactive pane in the window. The gutters are empty, so it
+  # reads as a backdrop. It is not a true per-pane dim.
   if zen_gutters_fit "$gutter"; then
-    left=$(zen_tmux split-window -hbd -P -F '#{pane_id}' -t "$pane" 'cat')
-    right=$(zen_tmux split-window -hd -P -F '#{pane_id}' -t "$pane" 'cat')
-    zen_tmux select-layout -t "$pane" even-horizontal
-    if [ -n "$left" ]; then
-      zen_tmux set -p -t "$left" @zen_pane 1
-      zen_tmux resize-pane -t "$left" -x "$gutter"
-    fi
-    if [ -n "$right" ]; then
-      zen_tmux set -p -t "$right" @zen_pane 1
-      zen_tmux resize-pane -t "$right" -x "$gutter"
-    fi
+    { read -r left; read -r right; } <<< "$(zen_tmux \
+      split-window -hbd -P -F '#{pane_id}' -t "$pane" 'cat' ';' \
+      split-window -hd -P -F '#{pane_id}' -t "$pane" 'cat')"
+    zen_tmux \
+      select-layout -t "$pane" even-horizontal ';' \
+      set -p -t "$left" @zen_pane 1 ';' \
+      set -p -t "$right" @zen_pane 1 ';' \
+      resize-pane -t "$left" -x "$gutter" ';' \
+      resize-pane -t "$right" -x "$gutter" ';' \
+      set -w -t "$pane" window-style "$ZEN_BACKDROP" ';' \
+      set -w -t "$pane" pane-border-status off ';' \
+      set -w -t "$pane" @zen_active "$pane" ';' \
+      set -t "$session" status off ';' \
+      select-pane -t "$pane"
   else
-    zen_tmux display-message "zen: window is too narrow for gutters"
+    zen_tmux \
+      display-message "zen: window is too narrow for gutters" ';' \
+      set -w -t "$pane" window-style "$ZEN_BACKDROP" ';' \
+      set -w -t "$pane" pane-border-status off ';' \
+      set -w -t "$pane" @zen_active "$pane" ';' \
+      set -t "$session" status off ';' \
+      select-pane -t "$pane"
   fi
-
-  # tmux has only two pane style slots, active and inactive, so this darkens
-  # every inactive pane in the window. The gutters are empty, so it reads as a
-  # backdrop. It is not a true per-pane dim.
-  zen_tmux set -w -t "$pane" window-style "$ZEN_BACKDROP"
-  zen_tmux set -w -t "$pane" pane-border-status off
-  zen_tmux set -w -t "$pane" @zen_active "$pane"
-  zen_tmux set -t "$session" status off
-  zen_tmux select-pane -t "$pane"
 }
 
 # Remove the gutters and put the window options back. "set -u" drops the
 # window level value, so the global value from visual.conf applies again.
 zen_clear_layout() {
-  local pane=$1 window session gutter
-  window=$(zen_tmux display-message -p -t "$pane" '#{window_id}')
-  session=$(zen_tmux display-message -p -t "$pane" '#{session_name}')
+  local pane=$1 window session gutter kills=()
+
+  { read -r window; read -r session; } <<< "$(zen_tmux display-message -p -t "$pane" \
+    "#{window_id}
+#{session_name}")"
+
   for gutter in $(zen_tmux list-panes -t "$window" -F '#{pane_id} #{@zen_pane}' | awk '$2 == "1" { print $1 }'); do
-    zen_tmux kill-pane -t "$gutter"
+    kills+=(kill-pane -t "$gutter" ';')
   done
-  zen_tmux set -uw -t "$window" window-style
-  zen_tmux set -uw -t "$window" pane-border-status
-  zen_tmux set -uw -t "$window" @zen_active
-  zen_tmux set -u -t "$session" status
-  zen_tmux select-pane -t "$pane"
+
+  # Expand the array the safe way. A plain "${kills[@]}" on an empty array is an
+  # error under "set -u" in bash 3.2, which is the bash that macOS ships.
+  zen_tmux ${kills[@]+"${kills[@]}"} \
+    set -uw -t "$window" window-style ';' \
+    set -uw -t "$window" pane-border-status ';' \
+    set -uw -t "$window" @zen_active ';' \
+    set -u -t "$session" status ';' \
+    select-pane -t "$pane"
 }
 
 # --- the temporary session (windows with more than one pane) -------------
@@ -272,7 +329,19 @@ zen_exit_session() {
 
 # --- commands ------------------------------------------------------------
 
+# Take the lock, toggle, then give the lock back. The work is in a second
+# function so that every early return in it still gives the lock back. Keep the
+# lock here, not in main, so no caller can forget it.
 zen_toggle() {
+  local rc
+  zen_lock || return 0
+  zen_toggle_locked "$@"
+  rc=$?
+  zen_unlock
+  return "$rc"
+}
+
+zen_toggle_locked() {
   local pane=${1:-} term=${2:-} panes=${3:-1} session before
 
   [ -n "$pane" ] || return 0
@@ -324,9 +393,25 @@ zen_sync_status() {
   return 0
 }
 
+# Drop the font override if no window is in zen mode. tmux forgets the zen
+# options when the server stops, but the font file stays on the disk. Without
+# this, a server that stops during zen mode leaves every new Ghostty window at
+# the zen font size, and nothing tells you why. The tmux configuration runs this
+# when the server starts.
+zen_clean() {
+  local active
+  active=$(zen_tmux list-windows -a -F '#{@zen_active}' 2>/dev/null | grep -c .)
+  [ "${active:-0}" -eq 0 ] || return 0
+  zen_font reset
+}
+
 main() {
   case "${1:-}" in
+    # sync runs from a hook on every window change, so it must never wait for a
+    # lock or contend with a toggle. It only reads state and sets the status bar.
     sync) zen_sync_status "${2:-}" ;;
+    clean) zen_clean ;;
+    # zen_toggle takes the lock itself.
     *) zen_toggle "${1:-}" "${2:-}" "${3:-}" ;;
   esac
 }

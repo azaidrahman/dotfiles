@@ -28,9 +28,20 @@ window-padding-x = 4,2
 # `window-padding-y = 2` will set both paddings to 2.
 window-padding-y = 6,0
 
+# The height of the window is almost never a whole number of cells. The cell is
+# 21 points high at font size 17, and the grid is 1065 points, so 15 points are
+# left over. If this is false, all of the leftover space goes to the bottom and
+# the right, which looks like a gap under the tmux status bar. If this is true,
+# Ghostty spreads the leftover space over the four edges instead.
+#
+# This does not change the number of rows or columns. Ghostty counts the cells
+# first and balances the leftover space last. The padding above is also applied
+# first, so the top keeps more space than the bottom.
+window-padding-balance = true
+
 font-family = "Iosevka Term"
 font-style = "Regular"
-font-size = 17
+font-size = 14
 
 # Without this, Ghostty can't derive a bold variant from the Light style and
 # falls back to a different (mismatched) system font for anything bolded -
@@ -48,16 +59,19 @@ keybind = cmd+shift+minus=set_font_size:14
 keybind = cmd+shift+equal=set_font_size:22
 keybind = cmd+shift+0=reset_font_size
 
-# Font sizes for tmux zen mode (prefix+z). Ghostty has no remote control
-# socket, so ~/.tmux/scripts/tmux-zen.sh sends these two chords with osascript.
-# Do not put zen mode on the tmux prefix key itself. Ghostty supports a key
-# sequence such as ctrl+space>z, but set_font_size takes an absolute size and
-# Ghostty runs the keybind before tmux runs the script. Ghostty cannot know the
-# direction of the toggle, so a second press would set 24 again. Ghostty also
-# waits for the next key in a sequence with no timeout, which would hold back
-# every other prefix key.
-keybind = cmd+ctrl+shift+z=set_font_size:24
-keybind = cmd+ctrl+shift+x=reset_font_size
+# Font size for tmux zen mode (prefix+z). Ghostty has no remote control socket,
+# but it reloads this configuration when it gets SIGUSR2. So
+# ~/.tmux/scripts/tmux-zen.sh writes a font size to the file below and then
+# signals Ghostty. An empty or absent file leaves the size above in place.
+#
+# The "?" prefix means the file does not need to exist. The path is relative to
+# this file, so it points at ~/.cache/ghostty/zen-font.conf. It lives in
+# ~/.cache because chezmoi manages ~/.config and this file changes at run time.
+#
+# An earlier version gave zen mode two keybinds and sent the chords with
+# osascript. Do not go back to that. It cost about 130 ms per toggle, it needed
+# Ghostty in front of the other windows, and Alfred took the chord first.
+config-file = ?../../.cache/ghostty/zen-font.conf
 
 # macOS: To hide the titlebar without removing the native window borders
 #        or rounded corners, use `macos-titlebar-style = hidden` instead.
