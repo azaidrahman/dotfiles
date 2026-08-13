@@ -106,6 +106,11 @@ return {
 						-- enabling this conflicts between Kubernetes resources, kustomization.yaml, and Helmreleases
 						validate = false,
 						schemas = {
+							-- GCP IAM roles for the member_roles.yaml registries. The schema is
+							-- generated locally by ~/.local/bin/gcp-roles-schema, because the role
+							-- list is account-specific and the custom roles are internal. It is not
+							-- in this repository. If the file is absent, yamlls ignores the entry.
+							[vim.fn.expand("~/.local/share/gcp-roles/member-roles.schema.json")] = "**/registry/member_roles.{yml,yaml}",
 							kubernetes = "*.yaml",
 							["http://json.schemastore.org/github-workflow"] = ".github/workflows/*",
 							["http://json.schemastore.org/github-action"] = ".github/action.{yml,yaml}",

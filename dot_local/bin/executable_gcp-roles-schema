@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+#
+# gcp-roles-schema - Build a JSON Schema of GCP IAM roles for YAML autocomplete
+#
+# The one-line summary above is the cheatsheet entry: prefix+? lists every
+# script in ~/.local/bin that starts with a "# <name> - <summary>" line.
+#
+# yaml-language-server completes the values of a JSON Schema "enum" and shows
+# the matching "enumDescriptions" entry beside each value. This script writes
+# such a schema for the member_roles.yaml registry files, so the editor offers
+# every predefined GCP role and every custom role of the organization.
+#
+# Design decisions worth knowing before you edit this:
+#
+#   * NO IDENTIFIER OF THE COMPANY IS IN THIS FILE. The dotfiles repository is
+#     public. The script reads the organization from `gcloud organizations
+#     list` at run time. The output goes to XDG_DATA_HOME, which git does not
+#     track. Keep it that way.
+#   * The output file has mode 0600 and its directory has mode 0700. The file
+#     contains the names of the custom roles, which are internal information.
+#   * A list entry in member_roles.yaml is a plain role string OR a mapping
+#     with a "role" key and an expiry. The schema accepts both with "anyOf",
+#     and the enum is referenced from one place so both branches complete.
+#   * Roles in the DEPRECATED or DISABLED stage are dropped. They still exist
+#     in the API, but you must not add them to a registry.
+#   * The menu shows the short title of a role, not the long description. The
+#     title fits on one line and the description does not.
+#
+# Usage:
+#   gcp-roles-schema                 # predefined roles + all organization roles
+#   gcp-roles-schema PROJECT_ID ...  # also add the custom roles of a project
+#
+# Requires: gcloud (authenticated), jq.
+
+set -euo pipefail
+
+out_dir="${XDG_DATA_HOME:-$HOME/.local/share}/gcp-roles"
+out_file="$out_dir/member-roles.schema.json"
+
+for tool in gcloud jq; do
+	command -v "$tool" >/dev/null || {
+		echo "gcp-roles-schema: $tool is not on PATH" >&2
+		exit 1
+	}
+done
+
+# `gcloud iam roles list` prints a warning to stderr for large result sets and
+# exits non-zero if the credentials expired. Fail with a clear message instead.
+if ! gcloud auth print-access-token >/dev/null 2>&1; then
+	echo "gcp-roles-schema: gcloud has no valid credentials. Run: gcloud auth login" >&2
+	exit 1
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+echo "gcp-roles-schema: reading the predefined roles..." >&2
+gcloud iam roles list --format=json >"$tmp/predefined.json"
+
+echo "gcp-roles-schema: reading the organizations..." >&2
+gcloud organizations list --format='value(name)' >"$tmp/orgs.txt"
+if [ ! -s "$tmp/orgs.txt" ]; then
+	echo "gcp-roles-schema: no organization is visible to this account" >&2
+fi
+
+# A while-read loop keeps this compatible with the bash 3.2 of macOS, which has
+# no mapfile and errors on an empty array under `set -u`.
+echo '[]' >"$tmp/custom.json"
+while IFS= read -r org; do
+	[ -n "$org" ] || continue
+	echo "gcp-roles-schema: reading the custom roles of organization $org..." >&2
+	gcloud iam roles list --organization="$org" --format=json >"$tmp/org.json"
+	jq -s 'add' "$tmp/custom.json" "$tmp/org.json" >"$tmp/merged.json"
+	mv "$tmp/merged.json" "$tmp/custom.json"
+done <"$tmp/orgs.txt"
+
+for project in "$@"; do
+	echo "gcp-roles-schema: reading the custom roles of project $project..." >&2
+	gcloud iam roles list --project="$project" --format=json >"$tmp/proj.json"
+	jq -s 'add' "$tmp/custom.json" "$tmp/proj.json" >"$tmp/merged.json"
+	mv "$tmp/merged.json" "$tmp/custom.json"
+done
+
+# The name of a predefined role is already "roles/x". The name of a custom role
+# is already the full resource path. No prefix is necessary for either.
+jq -n \
+	--slurpfile predefined "$tmp/predefined.json" \
+	--slurpfile custom "$tmp/custom.json" '
+	def clean:
+		map(select((.stage // "GA") | IN("DEPRECATED", "DISABLED") | not))
+		| map({ name: .name, title: (.title // .name), description: (.description // "") });
+
+	( ($predefined[0] | clean) + ($custom[0] | clean) )
+	| unique_by(.name)
+	| sort_by(.name)
+	| { roles: . }
+	| {
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"title": "GCP IAM member roles registry",
+		"type": "object",
+		"properties": {
+			"member_roles": {
+				"type": "object",
+				"description": "Map of an IAM member to the roles that the member holds.",
+				"additionalProperties": {
+					"type": "array",
+					"items": {
+						"anyOf": [
+							{ "$ref": "#/definitions/role" },
+							{
+								"type": "object",
+								"required": ["role"],
+								"properties": {
+									"role": { "$ref": "#/definitions/role" },
+									"expires": {
+										"type": "string",
+										"description": "ISO 8601 timestamp. The access is valid until this time."
+									},
+									"reason": {
+										"type": "string",
+										"description": "Why this grant is temporary."
+									}
+								},
+								"additionalProperties": false
+							}
+						]
+					}
+				}
+			}
+		},
+		"definitions": {
+			"role": {
+				"type": "string",
+				"description": "A predefined or custom IAM role.",
+				"enum": [ .roles[].name ],
+				"enumDescriptions": [ .roles[].title ]
+			}
+		}
+	}
+' >"$tmp/schema.json"
+
+mkdir -p "$out_dir"
+chmod 700 "$out_dir"
+mv "$tmp/schema.json" "$out_file"
+chmod 600 "$out_file"
+
+count="$(jq '.definitions.role.enum | length' "$out_file")"
+echo "gcp-roles-schema: wrote $count roles to $out_file" >&2
