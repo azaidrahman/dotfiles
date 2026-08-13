@@ -28,6 +28,15 @@ set -g @continuum-restore 'on'
 # Auto-save every minute (default is 15) so a crash restores a near-current
 # session rather than one up to 15 min stale. Resurrect saves are cheap text.
 set -g @continuum-save-interval '1'
+# Bring Claude panes back too. Resurrect restores a pane by replaying its command
+# line, which is wrong twice over for Claude: the saved line carries the original
+# prompt (re-sending it would start the whole task again) and it says nothing
+# about which conversation the pane held. The claude-resurrect wrapper resumes the
+# pane by its exact session id, which ~/.claude/hooks/tag-pane-session.sh records
+# on every turn. It waits for a key press rather than launching, so a restore does
+# not cold-start every Claude pane at once. Append flags here if you want them on
+# every resumed pane — resurrect cannot carry the pane's original flags across.
+set -g @resurrect-processes '"claude->claude-resurrect"'
 
 # Tmux-jump to character (https://github.com/schasse/tmux-jump)
 set -g @plugin 'schasse/tmux-jump'

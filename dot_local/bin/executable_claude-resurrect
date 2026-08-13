@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Bring a Claude Code conversation back after tmux-resurrect restores a pane.
+#
+# tmux-resurrect runs this in place of `claude` for every pane that was running
+# Claude when the tmux server died. See @resurrect-processes in
+# ~/.tmux/conf.d/plugins.conf.
+#
+# Why a wrapper and not `claude --continue`. The one-line answer to "restore my
+# Claude panes" is an inline strategy of `claude->claude --continue`, but
+# --continue resumes the newest conversation in the pane's DIRECTORY. Several
+# panes in one repository would all resume the same conversation and fight over
+# it. This script resumes each pane by its exact session id instead, which
+# tag-pane-session.sh recorded under ~/.local/state/claude-resurrect/ keyed by
+# the pane coordinates that resurrect preserves.
+#
+# Why it waits for a key press. Restore hits every pane at once, and a dozen
+# panes each cold-starting Claude at login is a lot of work you did not ask for.
+# So this prints what it found and stops. Press Enter to resume that one pane.
+#
+# Any arguments are forwarded to `claude`. Resurrect discards the flags the pane
+# originally ran with, because the saved command line also holds the original
+# prompt and the two cannot be told apart — put the flags you always want in
+# @resurrect-processes instead, for example:
+#   set -g @resurrect-processes '"claude->claude-resurrect --model opus"'
+set -uo pipefail
+
+STATE_DIR="${CLAUDE_RESURRECT_STATE_DIR:-$HOME/.local/state/claude-resurrect}"
+
+# Outside tmux there are no pane coordinates to look up, so there is nothing to
+# resume by id. Behave like plain `claude`.
+if [ -z "${TMUX_PANE:-}" ]; then
+    exec claude "$@"
+fi
+
+coords=$(tmux display-message -p -t "$TMUX_PANE" \
+    '#{session_name}#{l:|}#{window_index}#{l:|}#{pane_index}#{l:|}#{window_name}' 2>/dev/null || true)
+IFS='|' read -r sname widx pidx wname <<<"$coords"
+
+session_id=''
+cwd=''
+label=''
+transcript=''
+
+if [ -n "$sname" ] && [ -n "$widx" ] && [ -n "$pidx" ]; then
+    safe_sname=$(printf '%s' "$sname" | tr -c 'A-Za-z0-9_-' '_')
+    record="$STATE_DIR/${safe_sname}__${widx}__${pidx}"
+    if [ -f "$record" ]; then
+        while IFS='=' read -r k v; do
+            case "$k" in
+                session_id) session_id="$v" ;;
+                cwd)        cwd="$v" ;;
+                label)      label="$v" ;;
+                transcript) transcript="$v" ;;
+            esac
+        done <"$record"
+    fi
+fi
+
+# Two ways a record lies. A pane that moved leaves its coordinates behind, so the
+# record may belong to a different conversation entirely — the directory it was
+# written in is the check that catches that. And a conversation the user deleted
+# leaves an id that no longer resolves. Reject both and offer a fresh start.
+if [ -n "$session_id" ]; then
+    if [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+        session_id=''
+    elif [ -n "$transcript" ] && [ ! -f "$transcript" ]; then
+        session_id=''
+    fi
+fi
+
+# --- the prompt ---------------------------------------------------------------
+
+pretty_dir=${PWD/#$HOME/\~}
+
+box() {
+    local title="$1"; shift
+    local width=0 line
+    for line in "$@" "$title"; do
+        [ "${#line}" -gt "$width" ] && width=${#line}
+    done
+    [ "$width" -lt 42 ] && width=42
+    local rule
+    rule=$(printf '%*s' "$((width + 2))" '' | tr ' ' '-')
+    printf '\n .%s.\n' "$rule"
+    printf ' | %-*s |\n' "$width" "$title"
+    printf ' |%s|\n' "$rule"
+    for line in "$@"; do
+        printf ' | %-*s |\n' "$width" "$line"
+    done
+    printf " '%s'\n\n" "$rule"
+}
+
+where="${wname:-claude} - pane ${pidx:-?}"
+
+if [ -n "$session_id" ]; then
+    box "$where" \
+        "Claude session saved for this pane:" \
+        "  ${label:-(no topic recorded)}" \
+        "  $pretty_dir" \
+        "  ${session_id:0:8}" \
+        "" \
+        "[Enter] resume   [n] fresh   [Ctrl-C] shell"
+else
+    box "$where" \
+        "No saved Claude session for this pane." \
+        "  $pretty_dir" \
+        "" \
+        "[Enter] start claude   [Ctrl-C] shell"
+fi
+
+# A restore driven by anything other than an interactive shell has nobody to
+# press the key. Print the command and stop rather than launch a process the user
+# never asked for.
+if [ ! -t 0 ]; then
+    if [ -n "$session_id" ]; then
+        printf ' not a terminal - run: claude --resume %s\n\n' "$session_id"
+    fi
+    exit 0
+fi
+
+# Ctrl-C leaves the shell prompt, which is the documented "give me a plain pane"
+# answer, so it must not look like a failure.
+trap 'printf "\n"; exit 0' INT
+
+reply=''
+read -r reply || exit 0
+
+case "$reply" in
+    n|N) exec claude "$@" ;;
+esac
+
+if [ -n "$session_id" ]; then
+    exec claude --resume "$session_id" "$@"
+fi
+
+exec claude "$@"

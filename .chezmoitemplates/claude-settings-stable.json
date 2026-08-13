@@ -84,6 +84,11 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/notify-tmux.sh stop"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/tag-pane-session.sh",
+            "timeout": 5
           }
         ]
       }
@@ -101,6 +106,11 @@
     "SessionEnd": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/tag-pane-session.sh",
+            "timeout": 5
+          },
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/notify-tmux.sh exit"
