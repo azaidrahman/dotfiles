@@ -54,6 +54,8 @@ created time: HH.MM AM
 ---
 ```
 
+**Never guess `created date` or `created time`.** Run `date` in the shell and use its real output. A guessed timestamp is a fabricated fact like any other, and the system date in context may only give the day, not the time.
+
 Concept note shape:
 
 ```md
@@ -90,11 +92,13 @@ Short baseline explanation.
 
 1. Resolve the vault root from `$OBSIDIAN_VAULT` (the Polaris vault). Fall back to the path in the user's request only if that variable is unset.
 2. **Search the vault for the concept first.** Read any related notes before writing anything.
-3. **Creation gate, edit by default.** Default to editing or extending an existing note. Only create a brand-new file when the concept has no home AND would not fit as a section under an existing note. State which you chose and why before acting.
-4. If the concept fits inside an existing note, add it there as a section rather than as a competing file.
-5. After creating or editing a note, always add backlinks to it from the related existing notes you found in step 2. This is a default step, not optional. Place each backlink contextually where it is relevant in the neighbor note, and also add it to that note's References section. Keep each backlink to a short, natural sentence so neighbor notes are not over-written.
-6. When two related notes exist, give each a one-line pointer near the top naming the sibling and what it is for (for example, a theory note points to its worked example and back). This keeps their relationship self-documenting.
-7. Verify generated or edited notes contain no em dash characters.
+3. Before writing frontmatter on a new note, run `date` in the shell and format its output as `YYYY-MM-DD` and `HH.MM AM/PM`. Do not write a timestamp from memory or context.
+4. **Creation gate, edit by default.** Default to editing or extending an existing note. Only create a brand-new file when the concept has no home AND would not fit as a section under an existing note. State which you chose and why before acting.
+5. **When creating a brand-new file, start from the vault's base template at `98-Templates/Note Template.md`.** Read it first, then build the note on top of its exact frontmatter field order and shape, replacing `{{date}}`/`{{time}}` with the real values from step 3. Do not hand-write frontmatter from the skeleton below without reading the template first; the template file is the source of truth and this skeleton must stay consistent with it.
+6. If the concept fits inside an existing note, add it there as a section rather than as a competing file.
+7. After creating or editing a note, always add backlinks to it from the related existing notes you found in step 2. This is a default step, not optional. Place each backlink contextually where it is relevant in the neighbor note, and also add it to that note's References section. Keep each backlink to a short, natural sentence so neighbor notes are not over-written.
+8. When two related notes exist, give each a one-line pointer near the top naming the sibling and what it is for (for example, a theory note points to its worked example and back). This keeps their relationship self-documenting.
+9. Verify generated or edited notes contain no em dash characters.
 
 ## Writing your own input
 
