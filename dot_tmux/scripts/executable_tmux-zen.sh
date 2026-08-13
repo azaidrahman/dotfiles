@@ -25,7 +25,7 @@
 # pane home, restores the saved layout, and kills the temporary session.
 #
 # Usage:
-#   tmux-zen.sh <pane_id> <client_termname> <window_panes>   Toggle zen mode.
+#   tmux-zen.sh <pane_id> <termname> <window_panes> <client>  Toggle zen mode.
 #   tmux-zen.sh sync <window_id>                             Hook. See below.
 #
 # The status bar is a session option, not a window option. tmux cannot hide it
@@ -270,46 +270,114 @@ zen_clear_layout() {
 # tmux layout string holds pane ids, so the saved string restores the original
 # layout exactly.
 zen_enter_session() {
-  local pane=$1 session window index layout path zsession placeholder
-  session=$(zen_tmux display-message -p -t "$pane" '#{session_name}')
-  window=$(zen_tmux display-message -p -t "$pane" '#{window_id}')
-  index=$(zen_tmux display-message -p -t "$pane" '#{window_index}')
-  layout=$(zen_tmux display-message -p -t "$pane" '#{window_layout}')
-  path=$(zen_tmux display-message -p -t "$pane" '#{pane_current_path}')
+  local pane=$1 session window index layout path cols rows pindex zsession placeholder
+
+  { read -r session; read -r window; read -r index; read -r pindex
+    read -r cols; read -r rows; read -r layout; read -r path; } <<< "$(zen_tmux display-message -p -t "$pane" \
+    "#{session_name}
+#{window_id}
+#{window_index}
+#{pane_index}
+#{window_width}
+#{window_height}
+#{window_layout}
+#{pane_current_path}")"
+
   zsession=$(zen_session_name "$session" "$index")
 
   if zen_tmux has-session -t "=$zsession"; then
     zen_tmux display-message "zen: session $zsession is already there"
     return 1
   fi
-  zen_tmux new-session -d -s "$zsession" -c "$path" || return 1
+
+  # Give the new session the size of the window we came from. A detached
+  # new-session takes default-size, which is 80x24. The gutters would then be
+  # sized for an 80 column window, and switch-client would resize the window and
+  # spoil them. tmux does not keep the proportions when it resizes a window.
+  zen_tmux new-session -d -s "$zsession" -c "$path" -x "$cols" -y "$rows" || return 1
+  # Claim it at once, so every later kill can check ownership.
+  zen_tmux set -t "$zsession" @zen_owned 1
 
   # new-session makes a placeholder pane. Note it, move the real pane in, then
   # kill the placeholder. This leaves the real pane alone in the window.
   placeholder=$(zen_tmux list-panes -t "$zsession:" -F '#{pane_id}' | head -1)
   if ! zen_tmux join-pane -h -s "$pane" -t "$zsession:"; then
-    zen_tmux kill-session -t "=$zsession"
+    zen_kill_owned_session "$zsession"
     return 1
   fi
   [ -n "$placeholder" ] && zen_tmux kill-pane -t "$placeholder"
 
-  zen_tmux set -t "$zsession" @zen_owned 1
-  zen_tmux set -t "$zsession" @zen_origin_session "$session"
-  zen_tmux set -t "$zsession" @zen_origin_window "$window"
-  zen_tmux set -t "$zsession" @zen_origin_layout "$layout"
+  zen_tmux \
+    set -t "$zsession" @zen_origin_session "$session" ';' \
+    set -t "$zsession" @zen_origin_window "$window" ';' \
+    set -t "$zsession" @zen_origin_layout "$layout" ';' \
+    set -t "$zsession" @zen_origin_index "$pindex"
 
+  # Switch first, then lay out. The window takes the size of the attached client
+  # when the client switches to it, so the gutter arithmetic must run after that.
+  zen_switch_client "$zsession"
   zen_apply_layout "$pane"
-  zen_tmux switch-client -t "$zsession"
+}
+
+# Switch the client that pressed the key. Name the client if the caller knows it.
+# More than one client can be attached, and a bare switch-client moves whichever
+# client tmux thinks is current, which may be a different one.
+zen_switch_client() {
+  if [ -n "${ZEN_CLIENT:-}" ]; then
+    zen_tmux switch-client -c "$ZEN_CLIENT" -t "$1" && return 0
+  fi
+  zen_tmux switch-client -t "$1"
 }
 
 # Move the pane home, restore the layout of the original window, and kill the
 # temporary session. tmux kills a session when its last window closes, so the
 # kill-session call is only a safety net.
+# join-pane always puts the pane at the end of the window. Move it back to the
+# place it had before. select-layout gives the geometry to the panes in the order
+# they are in now, so without this the panes come back in each other's places
+# even though every size is right.
+zen_restore_pane_order() {
+  local window=$1 pane=$2 want=$3 count swaps i
+  case "$want" in '' | *[!0-9]*) return 0 ;; esac
+  count=$(zen_tmux display-message -p -t "$window" '#{window_panes}')
+  case "$count" in '' | *[!0-9]*) return 0 ;; esac
+  swaps=$(( count - 1 - want ))
+  i=0
+  while [ "$i" -lt "$swaps" ]; do
+    zen_tmux swap-pane -d -U -t "$pane" || return 0
+    i=$(( i + 1 ))
+  done
+  return 0
+}
+
+# Kill a session only if zen mode made it. Nothing else may be killed. A test
+# once called zen_exit_session with a real session name, and the kill at the end
+# destroyed that session and every process in it. The @zen_owned option is the
+# proof of ownership, and it is set as soon as the session is made.
+zen_kill_owned_session() {
+  local s=${1:-}
+  [ -n "$s" ] || return 0
+  [ "$(zen_tmux show -qv -t "$s" @zen_owned)" = "1" ] || return 0
+  zen_tmux kill-session -t "=$s"
+}
+
 zen_exit_session() {
-  local pane=$1 zsession=$2 osession owindow olayout
+  local pane=$1 zsession=$2 osession owindow olayout oindex
+
+  # Refuse to touch a session that zen mode does not own, and refuse to move the
+  # pane if the record of where it came from is missing.
+  if [ "$(zen_tmux show -qv -t "$zsession" @zen_owned)" != "1" ]; then
+    zen_tmux display-message "zen: $zsession is not a zen session"
+    return 1
+  fi
   osession=$(zen_tmux show -qv -t "$zsession" @zen_origin_session)
   owindow=$(zen_tmux show -qv -t "$zsession" @zen_origin_window)
   olayout=$(zen_tmux show -qv -t "$zsession" @zen_origin_layout)
+  oindex=$(zen_tmux show -qv -t "$zsession" @zen_origin_index)
+  if [ -z "$owindow" ] || [ -z "$osession" ]; then
+    zen_tmux display-message "zen: no record of where the pane came from"
+    return 1
+  fi
 
   zen_clear_layout "$pane"
 
@@ -320,10 +388,11 @@ zen_exit_session() {
     zen_tmux display-message "zen: the original window is gone, the pane stays in $zsession"
     return 1
   fi
+  zen_restore_pane_order "$owindow" "$pane" "$oindex"
   [ -n "$olayout" ] && zen_tmux select-layout -t "$owindow" "$olayout"
-  zen_tmux switch-client -t "$osession"
+  zen_switch_client "$osession"
   zen_tmux select-pane -t "$pane"
-  zen_tmux kill-session -t "=$zsession"
+  zen_kill_owned_session "$zsession"
   return 0
 }
 
@@ -343,6 +412,7 @@ zen_toggle() {
 
 zen_toggle_locked() {
   local pane=${1:-} term=${2:-} panes=${3:-1} session before
+  ZEN_CLIENT=${4:-}
 
   [ -n "$pane" ] || return 0
   session=$(zen_tmux display-message -p -t "$pane" '#{session_name}')
@@ -383,12 +453,19 @@ zen_toggle_locked() {
 # Hide the status bar only while a zen window is on screen. See the note at the
 # top of this file.
 zen_sync_status() {
-  local window=${1:-}
+  local window=${1:-} session active
   [ -n "$window" ] || return 0
-  if [ -n "$(zen_tmux show -wqv -t "$window" @zen_active)" ]; then
-    zen_tmux set status off
+  # Read both values in one call. This runs on every window change, so keep it
+  # to a single round trip. Name the session: more than one client can be
+  # attached, and the current session may belong to another client.
+  { read -r session; read -r active; } <<< "$(zen_tmux display-message -p -t "$window" \
+    "#{session_name}
+#{@zen_active}")"
+  [ -n "$session" ] || return 0
+  if [ -n "$active" ]; then
+    zen_tmux set -t "$session" status off
   else
-    zen_tmux set -u status
+    zen_tmux set -u -t "$session" status
   fi
   return 0
 }
@@ -412,7 +489,7 @@ main() {
     sync) zen_sync_status "${2:-}" ;;
     clean) zen_clean ;;
     # zen_toggle takes the lock itself.
-    *) zen_toggle "${1:-}" "${2:-}" "${3:-}" ;;
+    *) zen_toggle "${1:-}" "${2:-}" "${3:-}" "${4:-}" ;;
   esac
 }
 

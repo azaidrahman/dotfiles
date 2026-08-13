@@ -86,6 +86,12 @@ check "the temporary session exists" "0" "$?"
 check "the original window loses the pane" "2" "$(q "$MWIN" '#{window_panes}')"
 check "the pane moved to the zen session"  "$ZSESS" "$(q "$MPANE" '#{session_name}')"
 check "the zen window has gutters"         "3" "$(q "$MPANE" '#{window_panes}')"
+# The zen session must inherit the size of the window it came from. A detached
+# new-session otherwise takes default-size (80x24) and the gutters come out
+# sized for an 80 column window. Asserting only the pane count misses this.
+check "the zen window keeps the origin width"  "200" "$(q "$MPANE" '#{window_width}')"
+check "the zen window keeps the origin height" "50"  "$(q "$MPANE" '#{window_height}')"
+check "the zen middle pane is sized for 200"   "130" "$(q "$MPANE" '#{pane_width}')"
 check "the origin window is recorded"      "$MWIN" "$(command tmux -L "$SOCK" show -qv -t "$ZSESS" @zen_origin_window)"
 check "the origin layout is recorded"      "$MLAYOUT" "$(command tmux -L "$SOCK" show -qv -t "$ZSESS" @zen_origin_layout)"
 check "the original status bar is untouched" "" "$(command tmux -L "$SOCK" show -qv -t multi status)"
@@ -154,5 +160,23 @@ zen_toggle "$RPANE" "xterm-ghostty" 1 &
 wait
 check "racing toggles still give 3 panes" "3" "$(q race: '#{window_panes}')"
 check "racing toggles tag only 2 gutters" "2" "$(command tmux -L "$SOCK" list-panes -t race: -F '#{@zen_pane}' | grep -c 1)"
+
+
+# --- the ownership guard: never kill a session zen did not create --------
+# A careless call once passed a real session name here and the kill at the end
+# destroyed it. Exiting must refuse any session without @zen_owned.
+command tmux -L "$SOCK" new-session -d -s precious -x 200 -y 50
+PPANE=$(q precious: '#{pane_id}')
+zen_exit_session "$PPANE" "precious"
+command tmux -L "$SOCK" has-session -t "=precious" 2>/dev/null
+check "a session without @zen_owned survives an exit call" "0" "$?"
+check "its pane is untouched" "precious" "$(q "$PPANE" '#{session_name}')"
+
+# It must also refuse when ownership is faked but the origin record is missing.
+command tmux -L "$SOCK" set -t precious @zen_owned 1
+zen_exit_session "$PPANE" "precious"
+command tmux -L "$SOCK" has-session -t "=precious" 2>/dev/null
+check "no origin record -> still refuses" "0" "$?"
+command tmux -L "$SOCK" set -u -t precious @zen_owned
 
 exit "$fail"
