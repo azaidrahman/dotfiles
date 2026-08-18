@@ -69,6 +69,18 @@ The page has these four sections, in this order, under a table of contents:
    idea. Do not group them by file, and do not follow the order of the diff.
 4. **Quiz.** Write five multiple-choice questions. See Step 4.
 
+If the change belongs to a ticket or to a pull request, put a link to the pull
+request in the masthead. Make it a real hyperlink, not plain text. Get the URL
+from the tool for the host:
+
+```bash
+gh pr view <n> --json url -q .url    # GitHub
+bkt pr view <n> --json               # Bitbucket - take the URL from the output
+```
+
+If the branch has no pull request yet, link the ticket instead. If you find
+neither, say so in one line in the masthead. Never invent a URL.
+
 Write one long page with section headers. Do not use tabs for the top-level
 structure. These four sections are the whole page. A masthead, a table of
 contents, and a footer are welcome. Another top-level section is not.
@@ -162,6 +174,7 @@ schedule it for a spaced review.
 | Mistake | Fix |
 |---|---|
 | The explanation stays in the chat. | Write the file, publish it, hand over the link. |
+| The page names a ticket or a pull request but does not link it. | Put a hyperlink to the pull request in the masthead. See Step 2. |
 | The page has no diagram. | Diagrams are required. See Step 3. |
 | The page follows the order of the diff. | Group the changes by idea. |
 | The page assumes that the reader knows the system. | Write the two background layers. |
