@@ -60,6 +60,33 @@ fi
     printf "  %-8s  %s\n", fmtkey($0), desc; desc = ""
   }
   ' "$CONF"
+
+  # Root-table keys that tmux has but keys.conf never declares: they come from
+  # plugins (vim-tmux-navigator owns C-h/j/k/l and C-\\). Without this they are
+  # invisible here, and you rediscover them by binding over them.
+  mine=$(grep -oE '^bind(-key)?[ \t]+-n[ \t]+[^ \t]+' "$CONF" | awk '{print $NF}' | tr -d '"')
+  # Mouse/wheel events are not keys you can type — drop them, the stock
+  # list-keys dump below still has them.
+  tmux list-keys -T root 2>/dev/null | awk '{print $4}' |
+    grep -vE 'Mouse|Click|Wheel|Drag' | sort -u |
+    while read -r k; do
+      [ -n "$k" ] || continue
+      printf '%s\n' "$mine" | grep -qxF "$k" && continue
+      # list-keys escapes the backslash key as C-\\; show it as typed.
+      printf "  %-8s  %s\n" "${k//\\\\/\\}" "(from a plugin)"
+    done
+
+  echo
+  echo "== NO-PREFIX GOTCHAS =="
+  echo
+  echo "  Ctrl+option only reaches tmux with the LEFT option key. Left ctrl +"
+  echo "  RIGHT option is Karabiner Shortcut Layer 2 (see karabiner.edn), which"
+  echo "  swallows every letter, digit, and symbol before the terminal sees it."
+  echo
+  echo "  Ctrl+[ can never be bound: it is byte 0x1B, the same byte as Escape."
+  echo "  tmux cannot tell them apart. Ctrl+] (0x1D) is free and safe to bind."
+  echo
+  echo "  Ctrl+option+l is taken by the Todoist global quick add."
   echo
   echo "== MY COMMANDS (~/.local/bin) =="
   echo
