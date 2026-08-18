@@ -103,6 +103,27 @@ check "the layout is restored exactly"     "$MLAYOUT" "$(q "$MWIN" '#{window_lay
 command tmux -L "$SOCK" has-session -t "=$ZSESS" 2>/dev/null
 check "the temporary session is gone"      "1" "$?"
 
+# --- the pane comes home to its own place, not to the end ----------------
+# join-pane puts the pane after the active pane of the target window, which is
+# not always the last pane. The test above hides this, because the pane it zens
+# is the last one and the window keeps the last pane active. Zen the middle pane
+# instead, and make the first pane active while the middle pane is away.
+command tmux -L "$SOCK" new-session -d -s order -x 200 -y 50
+command tmux -L "$SOCK" split-window -h -t order:
+command tmux -L "$SOCK" split-window -v -t order:
+OWIN=$(q order: '#{window_id}')
+OLAYOUT=$(q order: '#{window_layout}')
+ORDER_BEFORE=$(command tmux -L "$SOCK" list-panes -t "$OWIN" -F '#{pane_id}' | tr '\n' ' ')
+OPANE=$(command tmux -L "$SOCK" list-panes -t "$OWIN" -F '#{pane_index} #{pane_id}' | awk '$1 == 1 { print $2 }')
+OFIRST=$(command tmux -L "$SOCK" list-panes -t "$OWIN" -F '#{pane_index} #{pane_id}' | awk '$1 == 0 { print $2 }')
+
+zen_enter_session "$OPANE"
+command tmux -L "$SOCK" select-pane -t "$OFIRST"
+zen_exit_session "$OPANE" "$(zen_session_name order 0)"
+check "the pane order survives"  "$ORDER_BEFORE" "$(command tmux -L "$SOCK" list-panes -t "$OWIN" -F '#{pane_id}' | tr '\n' ' ')"
+check "the layout survives too"  "$OLAYOUT" "$(q "$OWIN" '#{window_layout}')"
+command tmux -L "$SOCK" kill-session -t order 2>/dev/null
+
 # --- a terminal that is not Ghostty gets a plain zoom -------------------
 command tmux -L "$SOCK" new-session -d -s plain -x 200 -y 50
 command tmux -L "$SOCK" split-window -h -t plain:

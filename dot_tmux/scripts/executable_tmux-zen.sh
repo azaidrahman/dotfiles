@@ -332,19 +332,69 @@ zen_switch_client() {
 # Move the pane home, restore the layout of the original window, and kill the
 # temporary session. tmux kills a session when its last window closes, so the
 # kill-session call is only a safety net.
-# join-pane always puts the pane at the end of the window. Move it back to the
-# place it had before. select-layout gives the geometry to the panes in the order
-# they are in now, so without this the panes come back in each other's places
-# even though every size is right.
+#
+# The pane must come home to the place it had before. select-layout gives the
+# geometry to the panes in the order they are in now, so a pane in the wrong
+# place puts two panes in each other's seats even though every size is right.
+#
+# tmux puts a joined pane next to the pane that you name. Name the neighbour that
+# the pane had before, and the order is right with no more work. Do not name the
+# window: tmux then uses the active pane of that window, which is the last pane
+# only some of the time, and the answer changes with the pane that you used last.
+zen_join_home() {
+  local pane=$1 window=$2 want=$3 list base slot target
+
+  list=$(zen_tmux list-panes -t "$window" -F '#{pane_index} #{pane_id}')
+  case "$want" in '' | *[!0-9]*) list='' ;; esac
+
+  if [ -n "$list" ]; then
+    # Pane indexes do not have to start at 0, so read the base from the list.
+    base=$(printf '%s\n' "$list" | awk 'NR == 1 { print $1 }')
+    slot=$(( want - base ))
+    if [ "$slot" -le 0 ]; then
+      # It was the first pane, so put it in front of the pane that is first now.
+      target=$(printf '%s\n' "$list" | awk 'NR == 1 { print $2 }')
+      [ -n "$target" ] && zen_tmux join-pane -b -s "$pane" -t "$target" && return 0
+    else
+      # Put it after the pane that was in front of it. If that pane closed while
+      # zen mode was on, the last pane is the nearest place that is left.
+      target=$(printf '%s\n' "$list" | awk -v n="$slot" 'NR == n { print $2 }')
+      [ -n "$target" ] || target=$(printf '%s\n' "$list" | awk 'END { print $2 }')
+      [ -n "$target" ] && zen_tmux join-pane -s "$pane" -t "$target" && return 0
+    fi
+  fi
+
+  # The neighbour is too small to split, or there is no record of the place.
+  # Join anywhere. zen_restore_pane_order then walks the pane over.
+  zen_tmux join-pane -s "$pane" -t "$window"
+}
+
+# Check the place that the pane really has, and walk it over if zen_join_home
+# missed. Every swap is one more call to tmux and one more redraw, so the pane
+# hops across the window while you look at it. This does nothing most of the time.
 zen_restore_pane_order() {
-  local window=$1 pane=$2 want=$3 count swaps i
+  local window=$1 pane=$2 want=$3 panes now last dir steps i
   case "$want" in '' | *[!0-9]*) return 0 ;; esac
-  count=$(zen_tmux display-message -p -t "$window" '#{window_panes}')
-  case "$count" in '' | *[!0-9]*) return 0 ;; esac
-  swaps=$(( count - 1 - want ))
+
+  panes=$(zen_tmux list-panes -t "$window" -F '#{pane_index} #{pane_id}')
+  now=$(printf '%s\n' "$panes" | awk -v p="$pane" '$2 == p { print $1 }')
+  last=$(printf '%s\n' "$panes" | awk 'END { print $1 }')
+  case "$now$last" in '' | *[!0-9]*) return 0 ;; esac
+
+  # A pane can close while zen mode is on, so the old place may be gone.
+  [ "$want" -gt "$last" ] && want=$last
+
+  if [ "$want" -lt "$now" ]; then
+    dir=-U
+    steps=$(( now - want ))
+  else
+    dir=-D
+    steps=$(( want - now ))
+  fi
+
   i=0
-  while [ "$i" -lt "$swaps" ]; do
-    zen_tmux swap-pane -d -U -t "$pane" || return 0
+  while [ "$i" -lt "$steps" ]; do
+    zen_tmux swap-pane -d "$dir" -t "$pane" || return 0
     i=$(( i + 1 ))
   done
   return 0
@@ -370,10 +420,16 @@ zen_exit_session() {
     zen_tmux display-message "zen: $zsession is not a zen session"
     return 1
   fi
-  osession=$(zen_tmux show -qv -t "$zsession" @zen_origin_session)
-  owindow=$(zen_tmux show -qv -t "$zsession" @zen_origin_window)
-  olayout=$(zen_tmux show -qv -t "$zsession" @zen_origin_layout)
-  oindex=$(zen_tmux show -qv -t "$zsession" @zen_origin_index)
+  # Read the four records in one call. Every call to tmux is a new client and
+  # costs about 13 ms, and you look at the window while the exit path runs.
+  # The "session:" target keeps the read on the session that the check above
+  # cleared, and an option that is not set gives an empty line, so the reads
+  # below stay in step.
+  { read -r osession; read -r owindow; read -r oindex; read -r olayout; } <<< "$(zen_tmux display-message -p -t "$zsession:" \
+    "#{@zen_origin_session}
+#{@zen_origin_window}
+#{@zen_origin_index}
+#{@zen_origin_layout}")"
   if [ -z "$owindow" ] || [ -z "$osession" ]; then
     zen_tmux display-message "zen: no record of where the pane came from"
     return 1
@@ -383,15 +439,21 @@ zen_exit_session() {
 
   # If the original window is gone, keep the pane where it is. A stranded pane
   # is better than a lost one.
-  if ! zen_tmux join-pane -s "$pane" -t "$owindow"; then
+  if ! zen_join_home "$pane" "$owindow" "$oindex"; then
     zen_tmux set -u -t "$zsession" @zen_owned
     zen_tmux display-message "zen: the original window is gone, the pane stays in $zsession"
     return 1
   fi
   zen_restore_pane_order "$owindow" "$pane" "$oindex"
-  [ -n "$olayout" ] && zen_tmux select-layout -t "$owindow" "$olayout"
+
+  # Give the window its geometry and its focus in one call, before the client
+  # looks at it. Two calls show the half-done window for a moment.
+  if [ -n "$olayout" ]; then
+    zen_tmux select-layout -t "$owindow" "$olayout" ';' select-pane -t "$pane"
+  else
+    zen_tmux select-pane -t "$pane"
+  fi
   zen_switch_client "$osession"
-  zen_tmux select-pane -t "$pane"
   zen_kill_owned_session "$zsession"
   return 0
 }
