@@ -1,0 +1,18 @@
+#!/bin/bash
+# Sources hash: {{ range (glob (joinPath .chezmoi.sourceDir "dot_config/private_karabiner/src/*.swift")) }}{{ include . | sha256sum }}{{ end }}
+set -euo pipefail
+
+# A compiled binary is specific to one machine, so each Mac builds its own.
+# See docs/adr/0002-compile-swift-huds-on-each-machine.md.
+if ! command -v swiftc >/dev/null 2>&1; then
+  echo "build-huds: swiftc not found, skipping HUD build" >&2
+  exit 0
+fi
+
+SRC="$HOME/.config/karabiner/src"
+OUT="$HOME/.config/karabiner/scripts"
+
+for name in timer-hud time-hud toggle-top-bar; do
+  echo "build-huds: compiling $name"
+  swiftc -O "$SRC/$name.swift" -o "$OUT/$name"
+done
