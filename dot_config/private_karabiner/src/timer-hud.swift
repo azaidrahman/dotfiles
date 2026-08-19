@@ -117,6 +117,22 @@ func clock(_ seconds: Double) -> String {
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
+// Pin the appearance. The two Macs run different versions of macOS, and
+// macOS 26 changes the default materials, the fonts, and the semantic
+// colours. Explicit values keep the HUD identical on both.
+NSApp.appearance = NSAppearance(named: .darkAqua)
+
+let hudAccent = NSColor(srgbRed: 0.04, green: 0.52, blue: 1.0, alpha: 1.0)
+
+func hudGray(_ white: CGFloat, _ alpha: CGFloat) -> NSColor {
+    NSColor(srgbRed: white, green: white, blue: white, alpha: alpha)
+}
+
+func hudFont(ofSize size: CGFloat, weight: NSFont.Weight) -> NSFont {
+    let name = weight == .medium ? "SFProText-Medium" : "SFProText-Regular"
+    return NSFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight)
+}
+
 // Toast mode: a short bottom-center message, no timer plist, no ticker.
 // The study-session tracker uses this because Notification Center drops
 // its notifications on this machine.
@@ -125,11 +141,11 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "toast" {
 
     let maxWidth: CGFloat = 420
     let padding: CGFloat = 16
-    let font = NSFont.systemFont(ofSize: 15, weight: .medium)
+    let font = hudFont(ofSize: 15, weight: .medium)
 
     let label = NSTextField(labelWithString: text)
     label.font = font
-    label.textColor = .white
+    label.textColor = hudGray(1, 1)
     label.alignment = .center
     label.lineBreakMode = .byWordWrapping
     label.maximumNumberOfLines = 0
@@ -148,7 +164,7 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "toast" {
 
     let toastView = NSView(frame: NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight))
     toastView.wantsLayer = true
-    toastView.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.9).cgColor
+    toastView.layer?.backgroundColor = hudGray(0.1, 0.9).cgColor
     toastView.layer?.cornerRadius = 14
     label.frame = NSRect(x: padding, y: padding, width: toastWidth - padding * 2,
                           height: toastHeight - padding * 2)
@@ -165,6 +181,7 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "toast" {
     toastPanel.level = .floating
     toastPanel.hasShadow = false
     toastPanel.contentView = toastView
+    toastPanel.appearance = NSAppearance(named: .darkAqua)
 
     if let screen = NSScreen.main {
         let sf = screen.frame
@@ -210,14 +227,14 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
 
     let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
     root.wantsLayer = true
-    root.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.95).cgColor
+    root.layer?.backgroundColor = hudGray(0.1, 0.95).cgColor
     root.layer?.cornerRadius = 14
 
     func line(_ text: String, size: CGFloat, weight: NSFont.Weight,
               alpha: CGFloat, y: CGFloat, height: CGFloat) {
         let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: size, weight: weight)
-        label.textColor = NSColor(white: 1, alpha: alpha)
+        label.font = hudFont(ofSize: size, weight: weight)
+        label.textColor = hudGray(1, alpha)
         label.alignment = .center
         label.lineBreakMode = .byTruncatingTail
         label.frame = NSRect(x: 12, y: y, width: panelWidth - 24, height: height)
@@ -239,11 +256,11 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
         let x = (panelWidth - rowWidth) / 2 + CGFloat(i) * (chip + gap)
         let box = NSView(frame: NSRect(x: x, y: 52, width: chip, height: chip))
         box.wantsLayer = true
-        box.layer?.backgroundColor = NSColor(white: 1, alpha: 0.10).cgColor
+        box.layer?.backgroundColor = hudGray(1, 0.10).cgColor
         box.layer?.cornerRadius = 9
         let label = NSTextField(labelWithString: i == 9 ? "0" : "\(i + 1)")
         label.font = .monospacedDigitSystemFont(ofSize: 15, weight: .medium)
-        label.textColor = .white
+        label.textColor = hudGray(1, 1)
         label.alignment = .center
         label.frame = NSRect(x: 0, y: 8, width: chip, height: 20)
         box.addSubview(label)
@@ -267,6 +284,7 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
     panel.level = .floating
     panel.hasShadow = true
     panel.contentView = root
+    panel.appearance = NSAppearance(named: .darkAqua)
 
     if let screen = NSScreen.main {
         let sf = screen.frame
@@ -285,7 +303,7 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
 
         let score = digit == 0 ? 10 : digit
         // Light the chip, so the user sees which key the HUD read.
-        chips[score - 1].layer?.backgroundColor = NSColor.systemBlue.cgColor
+        chips[score - 1].layer?.backgroundColor = hudAccent.cgColor
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
             finish("\(score)")
         }
@@ -333,12 +351,12 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
 
     let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
     root.wantsLayer = true
-    root.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.95).cgColor
+    root.layer?.backgroundColor = hudGray(0.1, 0.95).cgColor
     root.layer?.cornerRadius = 14
 
     let head = NSTextField(labelWithString: prompt)
-    head.font = .systemFont(ofSize: 15, weight: .medium)
-    head.textColor = .white
+    head.font = hudFont(ofSize: 15, weight: .medium)
+    head.textColor = hudGray(1, 1)
     head.alignment = .center
     head.lineBreakMode = .byTruncatingTail
     head.frame = NSRect(x: 14, y: panelHeight - 32, width: panelWidth - 28, height: 20)
@@ -352,19 +370,19 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
         let y = footArea + rowHeight * CGFloat(perPage - 1 - i)
         let row = NSView(frame: NSRect(x: 14, y: y, width: panelWidth - 28, height: rowHeight - 4))
         row.wantsLayer = true
-        row.layer?.backgroundColor = NSColor(white: 1, alpha: 0.07).cgColor
+        row.layer?.backgroundColor = hudGray(1, 0.07).cgColor
         row.layer?.cornerRadius = 8
 
         let num = NSTextField(labelWithString: "\(i + 1)")
         num.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
-        num.textColor = NSColor(white: 1, alpha: 0.65)
+        num.textColor = hudGray(1, 0.65)
         num.alignment = .center
         num.frame = NSRect(x: 6, y: 5, width: 20, height: 18)
         row.addSubview(num)
 
         let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 13, weight: .regular)
-        label.textColor = .white
+        label.font = hudFont(ofSize: 13, weight: .regular)
+        label.textColor = hudGray(1, 1)
         label.lineBreakMode = .byTruncatingTail
         label.frame = NSRect(x: 34, y: 5, width: panelWidth - 28 - 44, height: 18)
         row.addSubview(label)
@@ -376,8 +394,8 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     }
 
     let foot = NSTextField(labelWithString: "")
-    foot.font = .systemFont(ofSize: 11, weight: .regular)
-    foot.textColor = NSColor(white: 1, alpha: 0.35)
+    foot.font = hudFont(ofSize: 11, weight: .regular)
+    foot.textColor = hudGray(1, 0.35)
     foot.alignment = .center
     foot.frame = NSRect(x: 14, y: 10, width: panelWidth - 28, height: 15)
     root.addSubview(foot)
@@ -410,6 +428,7 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     panel.level = .floating
     panel.hasShadow = true
     panel.contentView = root
+    panel.appearance = NSAppearance(named: .darkAqua)
 
     if let screen = NSScreen.main {
         let sf = screen.frame
@@ -440,7 +459,7 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
         let index = page * perPage + (digit - 1)
         guard index < items.count else { return nil }
 
-        rows[digit - 1].layer?.backgroundColor = NSColor.systemBlue.cgColor
+        rows[digit - 1].layer?.backgroundColor = hudAccent.cgColor
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
             finish("\(index)")
         }
@@ -460,22 +479,22 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
 let width: CGFloat = 250
 let view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 90))
 view.wantsLayer = true
-view.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.9).cgColor
+view.layer?.backgroundColor = hudGray(0.1, 0.9).cgColor
 view.layer?.cornerRadius = 14
 
 let bigLabel = NSTextField(labelWithString: "")
 bigLabel.font = .monospacedDigitSystemFont(ofSize: 28, weight: .medium)
-bigLabel.textColor = .white
+bigLabel.textColor = hudGray(1, 1)
 bigLabel.alignment = .center
 
 let subLabel = NSTextField(labelWithString: "")
-subLabel.font = .systemFont(ofSize: 13, weight: .regular)
-subLabel.textColor = NSColor(white: 1, alpha: 0.6)
+subLabel.font = hudFont(ofSize: 13, weight: .regular)
+subLabel.textColor = hudGray(1, 0.6)
 subLabel.alignment = .center
 
 let extraLabel = NSTextField(labelWithString: "")
 extraLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
-extraLabel.textColor = NSColor(white: 1, alpha: 0.6)
+extraLabel.textColor = hudGray(1, 0.6)
 extraLabel.alignment = .center
 
 view.addSubview(bigLabel)
@@ -493,6 +512,7 @@ w.backgroundColor = .clear
 w.level = .floating
 w.hasShadow = true
 w.contentView = view
+w.appearance = NSAppearance(named: .darkAqua)
 
 func layout(height: CGFloat) {
     view.frame = NSRect(x: 0, y: 0, width: width, height: height)
