@@ -84,6 +84,26 @@ to_countdown() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "in 2h 15m" (empty on 
   fi
 }
 
+to_clock() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "4:00PM Jun 22" (empty on parse failure)
+  local s=$1 epoch
+  epoch=$(to_epoch "$s"); [ -n "$epoch" ] || return
+  date -r "$epoch" '+%I:%M%p %b %d' 2>/dev/null | sed -E 's/^0//'
+}
+
+# term_width : the popup's real column count. `tput cols` first — inside a
+# display-popup, $COLUMNS can come in pre-exported as a stale "0" from the
+# outer environment, and "${COLUMNS:-default}" only falls back on unset/empty,
+# not on a literal 0, so trusting it here silently floors every bar to 10 wide.
+# Do NOT redirect tput's stderr: with stdout captured by $(...), tput falls
+# back to querying stderr for the controlling tty, and `2>/dev/null` kills
+# that path too, silently returning the 80x24 default instead of the real size.
+term_width() {
+  local c; c=$(tput cols)
+  if [[ $c =~ ^[0-9]+$ ]] && (( c > 0 )); then printf '%s' "$c"; return; fi
+  if [[ ${COLUMNS:-0} =~ ^[0-9]+$ ]] && (( ${COLUMNS:-0} > 0 )); then printf '%s' "$COLUMNS"; return; fi
+  printf '80'
+}
+
 repeat() { # char count -> char repeated count times (0-safe)
   local ch=$1 n=$2 out=''
   while (( n-- > 0 )); do out+=$ch; done
@@ -152,8 +172,8 @@ render_cost() {
 
   local max; max=$(printf '%s\n' "$models" | awk -F'\t' \
     'BEGIN{m=0}{if($1+0>m)m=$1+0}END{if(m<=0)m=1; print m}')
-  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-  local bar_w=$(( width - 42 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 32 )) && bar_w=32
+  local width=$(term_width)
+  local bar_w=$(( width - 42 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 45 )) && bar_w=45
 
   local spend model pct fill empty
   while IFS=$'\t' read -r spend model; do
@@ -239,10 +259,10 @@ LABEL_W=26   # width of the label column; the marker note aligns against it
 bar() { # label pct reset
   local label=$1 pct=$2 reset=$3
   (( pct > 100 )) && pct=100
-  local width=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-  local bar_w=$(( width - 46 ))
+  local width=$(term_width)
+  local bar_w=$(( width - 74 ))   # 74 = label(29) + pct(5) + pace(5) + "resets in Xh Xm (H:MMAM Mon DD)"(35)
   (( bar_w < 10 )) && bar_w=10
-  (( bar_w > 50 )) && bar_w=50
+  (( bar_w > 70 )) && bar_w=70
   local fill=$(( pct * bar_w / 100 ))
   local col; col=$(color_for "$pct")
 
@@ -277,9 +297,12 @@ bar() { # label pct reset
   fi
 
   if [ -n "$reset" ]; then
-    local cd; cd=$(to_countdown "$reset")
-    if [ -n "$cd" ]; then printf ' %sresets %s%s' "$c_dim" "$cd" "$c_reset"
-    else                  printf ' %sresets %s%s' "$c_dim" "$reset" "$c_reset"
+    local cd clk; cd=$(to_countdown "$reset"); clk=$(to_clock "$reset")
+    if [ -n "$cd" ]; then
+      if [ -n "$clk" ]; then printf ' %sresets %s (%s)%s' "$c_dim" "$cd" "$clk" "$c_reset"
+      else                   printf ' %sresets %s%s' "$c_dim" "$cd" "$c_reset"
+      fi
+    else                     printf ' %sresets %s%s' "$c_dim" "$reset" "$c_reset"
     fi
   fi
   printf '\n'
@@ -329,6 +352,58 @@ usage_main() {
   [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
 }
 
+# --- popup sizing --------------------------------------------------------
+# `prefix+u` opens a fixed-content popup (a handful of bars, or a handful of
+# model rows) but tmux's own -w/-h only understand terminal percentages, so a
+# wide/tall terminal used to blow the popup up far past what the content
+# needs. Instead we size the popup ourselves, in cells, to whichever view
+# (usage vs cost) this pane is about to render.
+
+USAGE_POPUP_W=146   # fits a full-cap 70-char bar (see the -74 offset in bar())
+COST_POPUP_W=90      # fits a full-cap 45-char bar (see the -42 offset in render_cost)
+
+# rows_for_usage : number of metric rows the cached /usage text will render.
+# Falls back to 3 (session + week-all-models + one per-model line) with no
+# cache yet, i.e. before the first fetch has ever completed.
+rows_for_usage() {
+  if [[ -s $CACHE ]]; then
+    grep -cE '^.+: *[0-9]+% used' "$CACHE" 2>/dev/null || printf '3'
+  else
+    printf '3'
+  fi
+}
+
+# rows_for_cost : number of model bars the cached ledger will render. Falls
+# back to 6 with no cache yet.
+rows_for_cost() {
+  if [[ -s $COST_CACHE ]]; then
+    local n; n=$(grep -c '^MODEL ' "$COST_CACHE" 2>/dev/null)
+    printf '%s' "${n:-6}"
+  else
+    printf '6'
+  fi
+}
+
+# size_for <pane_id> : "WxH" popup dimensions for whichever view this pane
+# will render.
+size_for() {
+  SRC_PANE=$1
+  if [ "$(session_provider)" = "litellm" ]; then
+    printf '%dx%d' "$COST_POPUP_W" "$(( $(rows_for_cost) + 13 ))"
+  else
+    printf '%dx%d' "$USAGE_POPUP_W" "$(( $(rows_for_usage) * 2 + 8 ))"
+  fi
+}
+
+# popup_main <pane_id> <cwd> : called from the keybinding (outside any popup)
+# to open the popup at the size the view needs.
+popup_main() {
+  local pane=$1 cwd=$2 sz w h
+  sz=$(size_for "$pane")
+  w=${sz%x*}; h=${sz#*x}
+  tmux display-popup -E -w "$w" -h "$h" -d "$cwd" -T ' Usage ' "$0 $pane"
+}
+
 litellm_base() {
   if [[ "$(hostname -s)" == onyx* ]]; then
     printf 'http://localhost:4000'
@@ -358,4 +433,10 @@ main() {
   fi
 }
 
-[[ "${BASH_SOURCE[0]}" == "${0}" ]] && main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  if [ "${1:-}" = "--popup" ]; then
+    popup_main "$2" "$3"
+  else
+    main "$@"
+  fi
+fi
