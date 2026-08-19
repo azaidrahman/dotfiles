@@ -305,7 +305,7 @@ keymaps:
     hold for back button: null
     hold for drag: CommandLeft
     hold for forward button: null
-    hold for free mode: ctrl+q
+    hold for free mode: cmd+ctrl+alt+shift+q
     hold for middle button: null
     hold for move: OptionLeft
     hold for right button: ShiftLeft
