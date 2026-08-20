@@ -430,10 +430,16 @@ if CommandLine.arguments.count >= 3 &&
         finish(nil, code: 2)
     }
 
-    panel.makeKeyAndOrderFront(nil)
-    panel.makeFirstResponder(field)
-    app.activate(ignoringOtherApps: true)
-    app.run()
+    // NSTextField.delegate is a weak reference. Without this, ARC can free
+    // the local delegate right after field.delegate is set, so Return,
+    // Escape, and the digit filter would silently stop working and only
+    // the 180s timeout would ever fire.
+    withExtendedLifetime(delegate) {
+        panel.makeKeyAndOrderFront(nil)
+        panel.makeFirstResponder(field)
+        app.activate(ignoringOtherApps: true)
+        app.run()
+    }
     exit(0)
 }
 
