@@ -129,16 +129,16 @@ def parse_pick(out: str, options: list[str]):
     return options[index] if 0 <= index < len(options) else None
 
 
-def choose_hud(prompt: str, options: list[str]):
+def choose_hud(prompt: str, options: list[str], select: int = 0):
     """Show the HUD list picker. Return the choice, or None on cancel."""
-    r = subprocess.run([str(HUD), "pick", prompt, *options],
+    r = subprocess.run([str(HUD), "pick", "--select", str(select), prompt, *options],
                        capture_output=True, text=True, timeout=300)
     if r.returncode != 0:
         raise RuntimeError(f"the HUD failed: {r.stderr.strip()}")
     return parse_pick(r.stdout, options)
 
 
-def choose(prompt: str, options: list[str]):
+def choose(prompt: str, options: list[str], select: int = 0):
     """Ask the user to choose one option.
 
     The HUD answers on one key press. A machine with no HUD binary falls
@@ -146,7 +146,7 @@ def choose(prompt: str, options: list[str]):
     """
     if HUD.exists():
         try:
-            return choose_hud(prompt, options)
+            return choose_hud(prompt, options, select)
         except Exception as e:
             log.warning("the pick HUD failed: %s", e)
     return choose_native(prompt, options)
@@ -169,7 +169,7 @@ def choose_native(prompt: str, options: list[str]):
     return out
 
 
-def ask_text(prompt: str):
+def ask_text_native(prompt: str):
     """Show a one-line text dialog. Return the text, or None on cancel."""
     script = ('tell application "System Events"\n'
               'activate\n'
@@ -181,6 +181,24 @@ def ask_text(prompt: str):
     if r.returncode != 0:
         return None
     return r.stdout.strip().split("text returned:")[-1].strip() or None
+
+
+def ask_text(prompt: str, digits: bool = False):
+    """Ask for one line of text. Return the text, or None on cancel.
+
+    The digits variant refuses every key that is not a digit, so a custom
+    timebox can no longer abort the flow on a value like '9o'.
+    """
+    if HUD.exists():
+        try:
+            r = subprocess.run([str(HUD), "digits" if digits else "text", prompt],
+                               capture_output=True, text=True, timeout=300)
+            if r.returncode == 0:
+                return r.stdout.strip() or None
+            return None
+        except Exception as e:
+            log.warning("the text HUD failed: %s", e)
+    return ask_text_native(prompt)
 
 
 def start_interactive() -> None:
@@ -206,7 +224,7 @@ def start_interactive() -> None:
     if minutes is None:
         return
     if minutes == "custom…":
-        minutes = ask_text("Minutes:")
+        minutes = ask_text("Minutes:", digits=True)
         if minutes is None:
             return
     try:
@@ -311,38 +329,17 @@ def ask_distraction(topic: str):
     return parse_score(r.stdout)
 
 
-def parse_choice(out: str) -> str:
-    """Read the button from the result of the open session dialog.
-
-    Return keep for anything that is not one of the two known buttons. A
-    dialog that failed must never destroy an open session.
-    """
-    button = out.split("button returned:")[-1].strip()
-    if button == "End & log":
-        return "end"
-    if button == "Discard":
-        return "discard"
-    return "keep"
-
-
 def ask_open_session(s: dict) -> str:
-    """Ask what to do with a session that is still open."""
-    topic = s["topic"].replace("\\", "").replace('"', "")
+    """Ask what to do with a session that is still open.
+
+    The return key takes 'End & log', which is the safe and common answer.
+    Escape and a timeout return keep, so a closed prompt never destroys an
+    open session.
+    """
     start_at = datetime.fromisoformat(s["start"])
-    script = ('tell application "System Events"\n'
-              'activate\n'
-              f'display dialog "A session for {topic} is still open.\\n'
-              f'It started at {start_at:%H:%M} on {start_at:%d %b} '
-              f'and was planned for {s["minutes"]} min." '
-              'with title "Study session" '
-              'buttons {"Keep it", "Discard", "End & log"} '
-              'default button "End & log"\n'
-              'end tell')
-    r = subprocess.run(["osascript", "-e", script],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        return "keep"
-    return parse_choice(r.stdout.strip())
+    prompt = f"{s['topic']} is still open — {start_at:%H:%M}, {s['minutes']} min"
+    choice = choose(prompt, ["End & log", "Keep it", "Discard"])
+    return {"End & log": "end", "Discard": "discard"}.get(choice, "keep")
 
 
 def finish(s: dict, status: str, end_at: datetime, distraction) -> None:

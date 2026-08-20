@@ -15,6 +15,35 @@ final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
+// The text HUD reads the return and escape keys through the field editor,
+// so a delegate catches them. The digits variant refuses every key that is
+// not a digit, which makes bad input impossible at the keystroke.
+final class TextModeDelegate: NSObject, NSTextFieldDelegate {
+    var digitsOnly = false
+    var onSubmit: ((String) -> Void)?
+    var onCancel: (() -> Void)?
+
+    func control(_ control: NSControl, textView: NSTextView,
+                 doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            let text = control.stringValue.trimmingCharacters(in: .whitespaces)
+            if !text.isEmpty { onSubmit?(text) }
+            return true
+        }
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            onCancel?()
+            return true
+        }
+        return false
+    }
+
+    func controlTextDidChange(_ obj: Notification) {
+        guard digitsOnly, let field = obj.object as? NSTextField else { return }
+        let filtered = field.stringValue.filter { $0.isNumber }
+        if filtered != field.stringValue { field.stringValue = filtered }
+    }
+}
+
 struct TimerInfo {
     let title: String
     let duration: Double
@@ -315,6 +344,94 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
     }
 
     panel.makeKeyAndOrderFront(nil)
+    app.activate(ignoringOtherApps: true)
+    app.run()
+    exit(0)
+}
+
+// Text mode: one line of free text. The return key confirms and prints the
+// text. Escape and the timeout print nothing and exit 2, because a topic
+// named "skip" must stay expressible. The digits variant accepts digit
+// keys only and refuses an empty confirm.
+//
+//   timer-hud text "<prompt>" ["<placeholder>"]
+//   timer-hud digits "<prompt>" ["<placeholder>"]
+//
+if CommandLine.arguments.count >= 3 &&
+   (CommandLine.arguments[1] == "text" || CommandLine.arguments[1] == "digits") {
+    let prompt = CommandLine.arguments[2]
+    let placeholder = CommandLine.arguments.count >= 4 ? CommandLine.arguments[3] : ""
+
+    let previous = NSWorkspace.shared.frontmostApplication
+
+    func finish(_ answer: String?, code: Int32) -> Never {
+        if let answer = answer { print(answer); fflush(stdout) }
+        previous?.activate(options: [])
+        exit(code)
+    }
+
+    let panelWidth: CGFloat = 470
+    let panelHeight: CGFloat = 118
+
+    let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
+    root.wantsLayer = true
+    root.layer?.backgroundColor = hudGray(0.1, 0.95).cgColor
+    root.layer?.cornerRadius = 14
+
+    let head = NSTextField(labelWithString: prompt)
+    head.font = hudFont(ofSize: 15, weight: .medium)
+    head.textColor = hudGray(1, 1)
+    head.alignment = .center
+    head.frame = NSRect(x: 14, y: panelHeight - 34, width: panelWidth - 28, height: 20)
+    root.addSubview(head)
+
+    let field = NSTextField(frame: NSRect(x: 24, y: 44, width: panelWidth - 48, height: 28))
+    field.font = hudFont(ofSize: 14, weight: .regular)
+    field.placeholderString = placeholder
+    field.wantsLayer = true
+    field.layer?.cornerRadius = 8
+    field.focusRingType = .none
+    field.bezelStyle = .roundedBezel
+    root.addSubview(field)
+
+    let hint = NSTextField(labelWithString: "⏎ confirms · esc cancels")
+    hint.font = hudFont(ofSize: 11, weight: .regular)
+    hint.textColor = hudGray(1, 0.35)
+    hint.alignment = .center
+    hint.frame = NSRect(x: 14, y: 12, width: panelWidth - 28, height: 15)
+    root.addSubview(hint)
+
+    let delegate = TextModeDelegate()
+    delegate.digitsOnly = CommandLine.arguments[1] == "digits"
+    delegate.onSubmit = { text in finish(text, code: 0) }
+    delegate.onCancel = { finish(nil, code: 2) }
+    field.delegate = delegate
+
+    let panel = KeyPanel(
+        contentRect: root.frame,
+        styleMask: [.borderless],
+        backing: .buffered,
+        defer: false
+    )
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.level = .floating
+    panel.hasShadow = true
+    panel.contentView = root
+    panel.appearance = NSAppearance(named: .darkAqua)
+
+    if let screen = NSScreen.main {
+        let sf = screen.frame
+        panel.setFrameOrigin(NSPoint(x: sf.midX - panelWidth / 2,
+                                     y: sf.midY - panelHeight / 2))
+    }
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 180) {
+        finish(nil, code: 2)
+    }
+
+    panel.makeKeyAndOrderFront(nil)
+    panel.makeFirstResponder(field)
     app.activate(ignoringOtherApps: true)
     app.run()
     exit(0)

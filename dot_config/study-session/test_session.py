@@ -1,4 +1,4 @@
-from session import (parse_distraction, parse_choice, parse_score,
+from session import (parse_distraction, parse_score,
                      parse_pick, AWAY_DISTRACTION)
 
 OPTIONS = ["Kubernetes", "Terraform", "Go"]
@@ -66,20 +66,6 @@ def test_a_word_gives_no_score():
     assert parse_distraction("button returned:OK, text returned:lots") is None
 
 
-def test_the_end_button_ends_the_session():
-    assert parse_choice("button returned:End & log") == "end"
-
-def test_the_discard_button_discards_the_session():
-    assert parse_choice("button returned:Discard") == "discard"
-
-def test_the_keep_button_keeps_the_session():
-    assert parse_choice("button returned:Keep it") == "keep"
-
-def test_an_unknown_button_keeps_the_session():
-    # A closed dialog must never destroy an open session.
-    assert parse_choice("") == "keep"
-
-
 if __name__ == "__main__":
     import traceback
     tests = [
@@ -101,10 +87,6 @@ if __name__ == "__main__":
         test_an_empty_answer_gives_no_score,
         test_a_score_out_of_range_gives_no_score,
         test_a_word_gives_no_score,
-        test_the_end_button_ends_the_session,
-        test_the_discard_button_discards_the_session,
-        test_the_keep_button_keeps_the_session,
-        test_an_unknown_button_keeps_the_session,
     ]
     passed = 0
     failed = 0
