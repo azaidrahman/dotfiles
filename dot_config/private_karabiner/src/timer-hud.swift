@@ -443,6 +443,233 @@ if CommandLine.arguments.count >= 3 &&
     exit(0)
 }
 
+// Time mode: three fields — hour, minute, am/pm — for a start time today.
+// Tab moves between the fields. Digits type into the current field, and
+// two digits move on. The a and p keys set the third field, and the up and
+// down arrows flip it. Return confirms. A future time flashes and stays
+// open, because a retroactive start must lie in the past. Escape and the
+// timeout exit 2 with no output.
+//
+//   timer-hud time "<prompt>" <hh> <mm> <am|pm> <timebox-minutes>
+//
+if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
+    let prompt = CommandLine.arguments[2]
+    var hour = min(12, max(1, Int(CommandLine.arguments[3]) ?? 9))
+    var minute = min(59, max(0, Int(CommandLine.arguments[4]) ?? 0))
+    var isPM = CommandLine.arguments[5].lowercased() == "pm"
+    let timebox = max(1, Int(CommandLine.arguments[6]) ?? 25)
+
+    let previous = NSWorkspace.shared.frontmostApplication
+
+    func finish(_ answer: String?, code: Int32) -> Never {
+        if let answer = answer { print(answer); fflush(stdout) }
+        previous?.activate(options: [])
+        exit(code)
+    }
+
+    var field = 0      // 0 hour, 1 minute, 2 am/pm
+    var typed = ""     // digits typed into the current field
+
+    func hour24() -> Int {
+        var h = hour % 12
+        if isPM { h += 12 }
+        return h
+    }
+
+    func startDate() -> Date {
+        Calendar.current.date(bySettingHour: hour24(), minute: minute,
+                              second: 0, of: Date()) ?? Date()
+    }
+
+    let panelWidth: CGFloat = 470
+    let panelHeight: CGFloat = 190
+
+    let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
+    root.wantsLayer = true
+    root.layer?.backgroundColor = hudGray(0.1, 0.95).cgColor
+    root.layer?.cornerRadius = 14
+
+    let head = NSTextField(labelWithString: prompt)
+    head.font = hudFont(ofSize: 15, weight: .medium)
+    head.textColor = hudGray(1, 1)
+    head.alignment = .center
+    head.frame = NSRect(x: 14, y: panelHeight - 34, width: panelWidth - 28, height: 20)
+    root.addSubview(head)
+
+    // Three boxes: hour, minute, am/pm. The colon sits between the first two.
+    let boxWidth: CGFloat = 64
+    let boxHeight: CGFloat = 44
+    let gap: CGFloat = 26
+    let rowWidth = boxWidth * 3 + gap * 2
+    let rowX = (panelWidth - rowWidth) / 2
+    let rowY: CGFloat = 92
+
+    var boxes: [NSView] = []
+    var values: [NSTextField] = []
+    for i in 0..<3 {
+        let x = rowX + CGFloat(i) * (boxWidth + gap)
+        let box = NSView(frame: NSRect(x: x, y: rowY, width: boxWidth, height: boxHeight))
+        box.wantsLayer = true
+        box.layer?.cornerRadius = 9
+        let value = NSTextField(labelWithString: "")
+        value.font = .monospacedDigitSystemFont(ofSize: 20, weight: .medium)
+        value.textColor = hudGray(1, 1)
+        value.alignment = .center
+        value.frame = NSRect(x: 0, y: 11, width: boxWidth, height: 24)
+        box.addSubview(value)
+        root.addSubview(box)
+        boxes.append(box)
+        values.append(value)
+    }
+
+    let colon = NSTextField(labelWithString: ":")
+    colon.font = .monospacedDigitSystemFont(ofSize: 20, weight: .medium)
+    colon.textColor = hudGray(1, 0.6)
+    colon.alignment = .center
+    colon.frame = NSRect(x: rowX + boxWidth, y: rowY + 11, width: gap, height: 24)
+    root.addSubview(colon)
+
+    let names = NSTextField(labelWithString: "hour · minute · am/pm")
+    names.font = hudFont(ofSize: 11, weight: .regular)
+    names.textColor = hudGray(1, 0.5)
+    names.alignment = .center
+    names.frame = NSRect(x: 14, y: rowY - 22, width: panelWidth - 28, height: 15)
+    root.addSubview(names)
+
+    let preview = NSTextField(labelWithString: "")
+    preview.font = hudFont(ofSize: 12, weight: .regular)
+    preview.textColor = hudGray(1, 0.6)
+    preview.alignment = .center
+    preview.frame = NSRect(x: 14, y: 34, width: panelWidth - 28, height: 16)
+    root.addSubview(preview)
+
+    let hint = NSTextField(labelWithString: "tab moves · digits type · a/p set · ⏎ confirms · esc cancels")
+    hint.font = hudFont(ofSize: 11, weight: .regular)
+    hint.textColor = hudGray(1, 0.35)
+    hint.alignment = .center
+    hint.frame = NSRect(x: 14, y: 12, width: panelWidth - 28, height: 15)
+    root.addSubview(hint)
+
+    let endFormatter = DateFormatter()
+    endFormatter.dateFormat = "HH:mm"
+
+    func render() {
+        values[0].stringValue = String(format: "%02d", hour)
+        values[1].stringValue = String(format: "%02d", minute)
+        values[2].stringValue = isPM ? "PM" : "AM"
+        for i in 0..<3 {
+            boxes[i].layer?.backgroundColor = i == field
+                ? hudAccent.withAlphaComponent(0.35).cgColor
+                : hudGray(1, 0.10).cgColor
+        }
+        // The preview shows which branch the entry takes: a block that
+        // already ended is a retro session, the rest stays live.
+        let end = startDate().addingTimeInterval(Double(timebox) * 60)
+        let left = end.timeIntervalSinceNow
+        let branch = left > 60 ? "\(Int(left / 60)) min left" : "already finished"
+        preview.stringValue = "ends \(endFormatter.string(from: end)) · \(timebox) min · \(branch)"
+    }
+
+    func flash() {
+        // A future start is refused. Flash the boxes so the user sees why
+        // the return key did nothing.
+        let red = NSColor(srgbRed: 1.0, green: 0.27, blue: 0.23, alpha: 0.5)
+        for box in boxes { box.layer?.backgroundColor = red.cgColor }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { render() }
+    }
+
+    func advance() {
+        typed = ""
+        field = (field + 1) % 3
+        render()
+    }
+
+    render()
+
+    let panel = KeyPanel(
+        contentRect: root.frame,
+        styleMask: [.borderless],
+        backing: .buffered,
+        defer: false
+    )
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.level = .floating
+    panel.hasShadow = true
+    panel.contentView = root
+    panel.appearance = NSAppearance(named: .darkAqua)
+
+    if let screen = NSScreen.main {
+        let sf = screen.frame
+        panel.setFrameOrigin(NSPoint(x: sf.midX - panelWidth / 2,
+                                     y: sf.midY - panelHeight / 2))
+    }
+
+    NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        // 53 esc, 48 tab, 36 return, 125 down, 126 up.
+        if event.keyCode == 53 { finish(nil, code: 2) }
+        if event.keyCode == 48 { advance(); return nil }
+        if event.keyCode == 125 || event.keyCode == 126 {
+            isPM = !isPM
+            render()
+            return nil
+        }
+        if event.keyCode == 36 {
+            if startDate() > Date() {
+                flash()
+            } else {
+                finish(String(format: "%02d:%02d", hour24(), minute), code: 0)
+            }
+            return nil
+        }
+
+        let chars = event.charactersIgnoringModifiers ?? ""
+        if chars == "a" { isPM = false; render(); return nil }
+        if chars == "p" { isPM = true; render(); return nil }
+
+        guard chars.count == 1, let digit = Int(chars) else { return nil }
+
+        typed += "\(digit)"
+        if field == 0 {
+            // The hour reads 1-12. A first digit of 2-9 is a full hour. A
+            // 1 waits for a second digit, and 10-12 land as two digits.
+            let v = Int(typed) ?? 0
+            if typed.count == 2 {
+                hour = (1...12).contains(v) ? v : digit == 0 ? 10 : digit
+                advance()
+            } else if v >= 2 {
+                hour = v
+                advance()
+            } else {
+                render()
+            }
+        } else if field == 1 {
+            // The minute reads 0-59. A first digit of 6-9 is a full minute.
+            let v = Int(typed) ?? 0
+            if typed.count == 2 {
+                minute = min(59, v)
+                advance()
+            } else if v >= 6 {
+                minute = v
+                advance()
+            } else {
+                minute = v
+                render()
+            }
+        }
+        return nil
+    }
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 180) {
+        finish(nil, code: 2)
+    }
+
+    panel.makeKeyAndOrderFront(nil)
+    app.activate(ignoringOtherApps: true)
+    app.run()
+    exit(0)
+}
+
 // Pick mode: choose one item from a list with one key press. The list
 // shows 5 items at a time. The bracket keys turn the page. The HUD prints
 // the index of the item, the word skip, or the word timeout.
