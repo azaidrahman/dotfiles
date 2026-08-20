@@ -327,8 +327,15 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
 //   timer-hud pick "<prompt>" "<item>" "<item>" ...
 //
 if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
-    let prompt = CommandLine.arguments[2]
-    let items = Array(CommandLine.arguments.dropFirst(3))
+    var argIndex = 2
+    var selected = 0
+    if CommandLine.arguments[2] == "--select" && CommandLine.arguments.count >= 6 {
+        selected = Int(CommandLine.arguments[3]) ?? 0
+        argIndex = 4
+    }
+    let prompt = CommandLine.arguments[argIndex]
+    let items = Array(CommandLine.arguments.dropFirst(argIndex + 1))
+    if selected < 0 || selected >= items.count { selected = 0 }
 
     let previous = NSWorkspace.shared.frontmostApplication
 
@@ -340,14 +347,15 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     }
 
     let perPage = 5
+    let visible = min(perPage, items.count)
     let pages = (items.count + perPage - 1) / perPage
-    var page = 0
+    var page = selected / perPage
 
     let panelWidth: CGFloat = 480
     let rowHeight: CGFloat = 32
     let headArea: CGFloat = 42
     let footArea: CGFloat = 34
-    let panelHeight = headArea + rowHeight * CGFloat(perPage) + footArea
+    let panelHeight = headArea + rowHeight * CGFloat(visible) + footArea
 
     let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
     root.wantsLayer = true
@@ -366,8 +374,8 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     var numbers: [NSTextField] = []
     var labels: [NSTextField] = []
 
-    for i in 0..<perPage {
-        let y = footArea + rowHeight * CGFloat(perPage - 1 - i)
+    for i in 0..<visible {
+        let y = footArea + rowHeight * CGFloat(visible - 1 - i)
         let row = NSView(frame: NSRect(x: 14, y: y, width: panelWidth - 28, height: rowHeight - 4))
         row.wantsLayer = true
         row.layer?.backgroundColor = hudGray(1, 0.07).cgColor
@@ -401,16 +409,20 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     root.addSubview(foot)
 
     func render() {
-        for i in 0..<perPage {
+        for i in 0..<visible {
             let index = page * perPage + i
             let present = index < items.count
             rows[i].isHidden = !present
             if present { labels[i].stringValue = items[index] }
+            let isSelected = present && index == selected
+            rows[i].layer?.backgroundColor = isSelected
+                ? hudAccent.withAlphaComponent(0.35).cgColor
+                : hudGray(1, 0.07).cgColor
         }
-        let shown = min(perPage, items.count - page * perPage)
-        var hint = "press 1-\(max(1, shown)) · esc cancels"
+        let shown = min(visible, items.count - page * perPage)
+        var hint = "↑↓ move · ⏎ take · 1-\(max(1, shown)) jumps · esc cancels"
         if pages > 1 {
-            hint = "press 1-\(max(1, shown)) · [ ] page \(page + 1)/\(pages) · esc cancels"
+            hint = "↑↓ move · ⏎ take · 1-\(max(1, shown)) · [ ] page \(page + 1)/\(pages) · esc"
         }
         foot.stringValue = hint
     }
@@ -443,22 +455,40 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
         }
         let chars = event.charactersIgnoringModifiers ?? ""
 
+        if event.keyCode == 125 {
+            if selected < items.count - 1 { selected += 1; page = selected / perPage; render() }
+            return nil
+        }
+        if event.keyCode == 126 {
+            if selected > 0 { selected -= 1; page = selected / perPage; render() }
+            return nil
+        }
+        if event.keyCode == 36 {
+            let row = selected % perPage
+            rows[row].layer?.backgroundColor = hudAccent.cgColor
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                finish("\(selected)")
+            }
+            return nil
+        }
+
         if chars == "[" || event.keyCode == 123 {
-            if page > 0 { page -= 1; render() }
+            if page > 0 { page -= 1; selected = page * perPage; render() }
             return nil
         }
         if chars == "]" || event.keyCode == 124 {
-            if page < pages - 1 { page += 1; render() }
+            if page < pages - 1 { page += 1; selected = page * perPage; render() }
             return nil
         }
 
         guard chars.count == 1, let digit = Int(chars),
-              digit >= 1, digit <= perPage
+              digit >= 1, digit <= visible
         else { return nil }
 
         let index = page * perPage + (digit - 1)
         guard index < items.count else { return nil }
 
+        selected = index
         rows[digit - 1].layer?.backgroundColor = hudAccent.cgColor
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
             finish("\(index)")
