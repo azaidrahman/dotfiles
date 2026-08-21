@@ -162,6 +162,21 @@ func hudFont(ofSize size: CGFloat, weight: NSFont.Weight) -> NSFont {
     return NSFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight)
 }
 
+// A prompt that belongs to a multi-step flow carries a step label. The
+// label sits above the prompt in the accent colour, so the user reads the
+// position in the flow before the question.
+func addStepLabel(_ label: String, to root: NSView,
+                  panelWidth: CGFloat, panelHeight: CGFloat) {
+    if label.isEmpty { return }
+    let view = NSTextField(labelWithString: label)
+    view.font = hudFont(ofSize: 11, weight: .medium)
+    view.textColor = hudAccent
+    view.alignment = .center
+    view.lineBreakMode = .byTruncatingTail
+    view.frame = NSRect(x: 14, y: panelHeight - 26, width: panelWidth - 28, height: 15)
+    root.addSubview(view)
+}
+
 // Toast mode: a short bottom-center message, no timer plist, no ticker.
 // The punch tracker uses this because Notification Center drops
 // its notifications on this machine.
@@ -354,13 +369,24 @@ if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "score" {
 // named "skip" must stay expressible. The digits variant accepts digit
 // keys only and refuses an empty confirm.
 //
-//   timer-hud text "<prompt>" ["<placeholder>"]
-//   timer-hud digits "<prompt>" ["<placeholder>"]
+//   timer-hud text [--step "<label>"] "<prompt>" ["<placeholder>"]
+//   timer-hud digits [--step "<label>"] "<prompt>" ["<placeholder>"]
 //
 if CommandLine.arguments.count >= 3 &&
    (CommandLine.arguments[1] == "text" || CommandLine.arguments[1] == "digits") {
-    let prompt = CommandLine.arguments[2]
-    let placeholder = CommandLine.arguments.count >= 4 ? CommandLine.arguments[3] : ""
+    // --step comes before the prompt. It names the step of a multi-step
+    // flow, so the user always sees where the prompt sits in the flow.
+    var argIndex = 2
+    var stepLabel = ""
+    while argIndex + 1 < CommandLine.arguments.count,
+          CommandLine.arguments[argIndex] == "--step" {
+        stepLabel = CommandLine.arguments[argIndex + 1]
+        argIndex += 2
+    }
+    guard argIndex < CommandLine.arguments.count else { exit(2) }
+    let prompt = CommandLine.arguments[argIndex]
+    let placeholder = CommandLine.arguments.count > argIndex + 1
+        ? CommandLine.arguments[argIndex + 1] : ""
 
     let previous = NSWorkspace.shared.frontmostApplication
 
@@ -371,18 +397,21 @@ if CommandLine.arguments.count >= 3 &&
     }
 
     let panelWidth: CGFloat = 470
-    let panelHeight: CGFloat = 118
+    let panelHeight: CGFloat = stepLabel.isEmpty ? 118 : 138
 
     let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
     root.wantsLayer = true
     root.layer?.backgroundColor = hudGray(0.1, 0.95).cgColor
     root.layer?.cornerRadius = 14
 
+    addStepLabel(stepLabel, to: root, panelWidth: panelWidth, panelHeight: panelHeight)
+
     let head = NSTextField(labelWithString: prompt)
     head.font = hudFont(ofSize: 15, weight: .medium)
     head.textColor = hudGray(1, 1)
     head.alignment = .center
-    head.frame = NSRect(x: 14, y: panelHeight - 34, width: panelWidth - 28, height: 20)
+    head.frame = NSRect(x: 14, y: panelHeight - (stepLabel.isEmpty ? 34 : 54),
+                        width: panelWidth - 28, height: 20)
     root.addSubview(head)
 
     let field = NSTextField(frame: NSRect(x: 24, y: 44, width: panelWidth - 48, height: 28))
@@ -394,7 +423,9 @@ if CommandLine.arguments.count >= 3 &&
     field.bezelStyle = .roundedBezel
     root.addSubview(field)
 
-    let hint = NSTextField(labelWithString: "⏎ confirms · esc cancels")
+    let hint = NSTextField(labelWithString: stepLabel.isEmpty
+        ? "⏎ confirms · esc cancels"
+        : "⏎ confirms · esc goes back")
     hint.font = hudFont(ofSize: 11, weight: .regular)
     hint.textColor = hudGray(1, 0.35)
     hint.alignment = .center
@@ -451,14 +482,25 @@ if CommandLine.arguments.count >= 3 &&
 // confirms. A future time flashes and stays open, because a retroactive
 // start must lie in the past. Escape and the timeout exit 2 with no output.
 //
-//   timer-hud time "<prompt>" <hh> <mm> <am|pm> <timebox-minutes>
+//   timer-hud time [--step "<label>"] "<prompt>" <hh> <mm> <am|pm> <timebox>
 //
+// The a and p keys already set am/pm here, so p cannot mean "previous
+// step". Escape leaves the prompt, and the caller decides whether that is
+// a step backwards or a cancel.
 if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
-    let prompt = CommandLine.arguments[2]
-    var hour = min(12, max(1, Int(CommandLine.arguments[3]) ?? 9))
-    var minute = min(59, max(0, Int(CommandLine.arguments[4]) ?? 0))
-    var isPM = CommandLine.arguments[5].lowercased() == "pm"
-    let timebox = max(1, Int(CommandLine.arguments[6]) ?? 25)
+    var argIndex = 2
+    var stepLabel = ""
+    while argIndex + 1 < CommandLine.arguments.count,
+          CommandLine.arguments[argIndex] == "--step" {
+        stepLabel = CommandLine.arguments[argIndex + 1]
+        argIndex += 2
+    }
+    guard argIndex + 4 < CommandLine.arguments.count else { exit(2) }
+    let prompt = CommandLine.arguments[argIndex]
+    var hour = min(12, max(1, Int(CommandLine.arguments[argIndex + 1]) ?? 9))
+    var minute = min(59, max(0, Int(CommandLine.arguments[argIndex + 2]) ?? 0))
+    var isPM = CommandLine.arguments[argIndex + 3].lowercased() == "pm"
+    let timebox = max(1, Int(CommandLine.arguments[argIndex + 4]) ?? 25)
 
     let previous = NSWorkspace.shared.frontmostApplication
 
@@ -483,18 +525,21 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
     }
 
     let panelWidth: CGFloat = 470
-    let panelHeight: CGFloat = 190
+    let panelHeight: CGFloat = stepLabel.isEmpty ? 190 : 210
 
     let root = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
     root.wantsLayer = true
     root.layer?.backgroundColor = hudGray(0.1, 0.95).cgColor
     root.layer?.cornerRadius = 14
 
+    addStepLabel(stepLabel, to: root, panelWidth: panelWidth, panelHeight: panelHeight)
+
     let head = NSTextField(labelWithString: prompt)
     head.font = hudFont(ofSize: 15, weight: .medium)
     head.textColor = hudGray(1, 1)
     head.alignment = .center
-    head.frame = NSRect(x: 14, y: panelHeight - 34, width: panelWidth - 28, height: 20)
+    head.frame = NSRect(x: 14, y: panelHeight - (stepLabel.isEmpty ? 34 : 54),
+                        width: panelWidth - 28, height: 20)
     root.addSubview(head)
 
     // Three boxes: hour, minute, am/pm. The colon sits between the first two.
@@ -544,7 +589,9 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
     preview.frame = NSRect(x: 14, y: 34, width: panelWidth - 28, height: 16)
     root.addSubview(preview)
 
-    let hint = NSTextField(labelWithString: "arrows move and adjust · digits type · a/p set · ⏎ confirms · esc cancels")
+    let hint = NSTextField(labelWithString: stepLabel.isEmpty
+        ? "arrows move and adjust · digits type · a/p set · ⏎ confirms · esc cancels"
+        : "arrows move and adjust · digits type · a/p set · ⏎ confirms · esc goes back")
     hint.font = hudFont(ofSize: 11, weight: .regular)
     hint.textColor = hudGray(1, 0.35)
     hint.alignment = .center
@@ -691,17 +738,36 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
 
 // Pick mode: choose one item from a list with one key press. The list
 // shows 5 items at a time. The bracket keys turn the page. The HUD prints
-// the index of the item, the word skip, or the word timeout.
+// the index of the item, the word skip, the word back, or the word
+// timeout.
 //
-//   timer-hud pick "<prompt>" "<item>" "<item>" ...
+//   timer-hud pick [--select <n>] [--step "<label>"] [--back] \
+//       "<prompt>" "<item>" "<item>" ...
 //
+// --step names the step of a multi-step flow and turns on the n key,
+// which takes the highlighted item. --back turns on the p key, which
+// prints back and lets the caller show the step before this one.
 if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     var argIndex = 2
     var selected = 0
-    if CommandLine.arguments[2] == "--select" && CommandLine.arguments.count >= 6 {
-        selected = Int(CommandLine.arguments[3]) ?? 0
-        argIndex = 4
+    var stepLabel = ""
+    var canGoBack = false
+    flags: while argIndex < CommandLine.arguments.count {
+        switch CommandLine.arguments[argIndex] {
+        case "--select" where argIndex + 1 < CommandLine.arguments.count:
+            selected = Int(CommandLine.arguments[argIndex + 1]) ?? 0
+            argIndex += 2
+        case "--step" where argIndex + 1 < CommandLine.arguments.count:
+            stepLabel = CommandLine.arguments[argIndex + 1]
+            argIndex += 2
+        case "--back":
+            canGoBack = true
+            argIndex += 1
+        default:
+            break flags
+        }
     }
+    guard argIndex + 1 < CommandLine.arguments.count else { exit(2) }
     let prompt = CommandLine.arguments[argIndex]
     let items = Array(CommandLine.arguments.dropFirst(argIndex + 1))
     if selected < 0 || selected >= items.count { selected = 0 }
@@ -722,7 +788,7 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
 
     let panelWidth: CGFloat = 480
     let rowHeight: CGFloat = 32
-    let headArea: CGFloat = 42
+    let headArea: CGFloat = stepLabel.isEmpty ? 42 : 62
     let footArea: CGFloat = 34
     let panelHeight = headArea + rowHeight * CGFloat(visible) + footArea
 
@@ -731,12 +797,15 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     root.layer?.backgroundColor = hudGray(0.1, 0.95).cgColor
     root.layer?.cornerRadius = 14
 
+    addStepLabel(stepLabel, to: root, panelWidth: panelWidth, panelHeight: panelHeight)
+
     let head = NSTextField(labelWithString: prompt)
     head.font = hudFont(ofSize: 15, weight: .medium)
     head.textColor = hudGray(1, 1)
     head.alignment = .center
     head.lineBreakMode = .byTruncatingTail
-    head.frame = NSRect(x: 14, y: panelHeight - 32, width: panelWidth - 28, height: 20)
+    head.frame = NSRect(x: 14, y: panelHeight - (stepLabel.isEmpty ? 32 : 52),
+                        width: panelWidth - 28, height: 20)
     root.addSubview(head)
 
     var rows: [NSView] = []
@@ -793,7 +862,20 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
         if pages > 1 {
             hint = "↑↓ move · ⏎ take · 1-\(max(1, shown)) · [ ] page \(page + 1)/\(pages) · esc"
         }
+        if !stepLabel.isEmpty {
+            hint += canGoBack ? " · n next · p back" : " · n next"
+        }
         foot.stringValue = hint
+    }
+
+    // The highlighted item is the answer. The flash marks the choice, so
+    // the user sees which row the HUD took.
+    func take() {
+        let row = selected % perPage
+        rows[row].layer?.backgroundColor = hudAccent.cgColor
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            finish("\(selected)")
+        }
     }
 
     render()
@@ -825,6 +907,14 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
         }
         let chars = event.charactersIgnoringModifiers ?? ""
 
+        // n takes the highlighted item and p leaves for the step before
+        // this one. Both keys work only in a multi-step flow, so a plain
+        // pick keeps its old keys.
+        if !stepLabel.isEmpty {
+            if chars == "n" { take(); return nil }
+            if chars == "p" && canGoBack { finish("back") }
+        }
+
         if event.keyCode == 125 {
             if selected < items.count - 1 { selected += 1; page = selected / perPage; render() }
             return nil
@@ -834,11 +924,7 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
             return nil
         }
         if event.keyCode == 36 {
-            let row = selected % perPage
-            rows[row].layer?.backgroundColor = hudAccent.cgColor
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                finish("\(selected)")
-            }
+            take()
             return nil
         }
 

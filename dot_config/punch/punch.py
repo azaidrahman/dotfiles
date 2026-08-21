@@ -38,6 +38,43 @@ DIALOG_TIMEOUT = 180
 # The score a session takes when nobody answers the distraction dialog.
 AWAY_DISTRACTION = 5
 
+# The interactive start asks three questions: the topic, the timebox, and
+# the start time. The user walks the steps with the n and the p keys.
+STEPS = 3
+
+
+class _Back:
+    """The answer of a prompt that the user left with the p key."""
+
+    def __repr__(self) -> str:
+        return "BACK"
+
+
+# One shared value, so a caller can test the answer with `is BACK`.
+BACK = _Back()
+
+
+def step_label(number: int, chosen: list[str]) -> str:
+    """Return the label that names the step and what the user picked.
+
+    The HUD shows this above every prompt, so the user always reads the
+    position in the flow and the answers that already stand.
+    """
+    trail = " · ".join(c for c in chosen if c)
+    label = f"Step {number} of {STEPS}"
+    return f"{label} · {trail}" if trail else label
+
+
+def advance(step: int, answer) -> int:
+    """Return the number of the next step for one answer.
+
+    The p key goes back one step. Step 1 has no step before it, so it
+    stays where it is.
+    """
+    if answer is BACK:
+        return max(1, step - 1)
+    return step + 1
+
 
 def open_state():
     """Return the path and the content of the open session, or None."""
@@ -77,21 +114,15 @@ def last_topic():
     return parts[2] if len(parts) > 2 else None
 
 
-def ask_start(minutes: int):
-    """Ask when the session started. Return the datetime, or None on cancel.
+def ask_time(minutes: int, step: str = ""):
+    """Ask for the clock time of the start. Return the datetime, BACK, or None.
 
     The time fields open with the end of the last session of the day, so
     the common backfill — 'it started when the last block ended' — is one
     return key. With no session today, they open with now, rounded down to
     15 minutes.
     """
-    when = choose("Start when?", ["Now", "Set a time…"])
-    if when is None:
-        return None
     now = datetime.now()
-    if when == "Now":
-        return now
-
     notes = day_notes(now.date())
     base = max((end for _, _, end in notes), default=None)
     if base is None or base > now:
@@ -99,13 +130,18 @@ def ask_start(minutes: int):
     h12, minute, ampm = punchtime.to_12h(base)
 
     if HUD.exists():
+        args = [str(HUD), "time"]
+        if step:
+            args += ["--step", step]
         try:
             r = subprocess.run(
-                [str(HUD), "time", "Start time", str(h12), f"{minute:02d}",
-                 ampm, str(minutes)],
+                args + ["Start time", str(h12), f"{minute:02d}",
+                        ampm, str(minutes)],
                 capture_output=True, text=True, timeout=300)
+            # The a and the p keys set am/pm in this HUD, so escape is the
+            # way back. The step before this one asks Now or a time.
             if r.returncode != 0:
-                return None
+                return BACK
             hh, mm = r.stdout.strip().split(":")
             return now.replace(hour=int(hh), minute=int(mm),
                                second=0, microsecond=0)
@@ -127,6 +163,25 @@ def ask_start(minutes: int):
         notify("The start must lie in the past.")
         return None
     return start_at
+
+
+def ask_start(minutes: int, step: str = ""):
+    """Ask when the session started. Return the datetime, BACK, or None.
+
+    This is step 3. A time that the user leaves with escape brings back
+    the Now question of the same step, and the p key there goes to the
+    timebox of step 2.
+    """
+    while True:
+        when = choose("Start when?", ["Now", "Set a time…"], 0, step, True)
+        if when is None or when is BACK:
+            return when
+        if when == "Now":
+            return datetime.now()
+        start_at = ask_time(minutes, step)
+        if start_at is BACK:
+            continue
+        return start_at
 
 
 def start_live(topic: str, minutes: int, start_at: datetime) -> None:
@@ -225,8 +280,11 @@ def parse_pick(out: str, options: list[str]):
 
     The HUD prints the index of the option. It prints skip when the user
     cancels, and timeout when nobody answers. Both give no choice, because
-    a session must never start on its own.
+    a session must never start on its own. It prints back when the user
+    presses the p key, which asks for the step before this one.
     """
+    if out.strip() == "back":
+        return BACK
     try:
         index = int(out.strip())
     except ValueError:
@@ -234,27 +292,35 @@ def parse_pick(out: str, options: list[str]):
     return options[index] if 0 <= index < len(options) else None
 
 
-def choose_hud(prompt: str, options: list[str], select: int = 0):
-    """Show the HUD list picker. Return the choice, or None on cancel."""
-    r = subprocess.run([str(HUD), "pick", "--select", str(select), prompt, *options],
+def choose_hud(prompt: str, options: list[str], select: int = 0,
+               step: str = "", back: bool = False):
+    """Show the HUD list picker. Return the choice, BACK, or None."""
+    args = [str(HUD), "pick", "--select", str(select)]
+    if step:
+        args += ["--step", step]
+    if back:
+        args.append("--back")
+    r = subprocess.run(args + [prompt, *options],
                        capture_output=True, text=True, timeout=300)
     if r.returncode != 0:
         raise RuntimeError(f"the HUD failed: {r.stderr.strip()}")
     return parse_pick(r.stdout, options)
 
 
-def choose(prompt: str, options: list[str], select: int = 0):
+def choose(prompt: str, options: list[str], select: int = 0,
+           step: str = "", back: bool = False):
     """Ask the user to choose one option.
 
     The HUD answers on one key press. A machine with no HUD binary falls
-    back to the native picker.
+    back to the native picker, which has no step keys. There the step
+    label goes into the prompt and a cancel ends the flow.
     """
     if HUD.exists():
         try:
-            return choose_hud(prompt, options, select)
+            return choose_hud(prompt, options, select, step, back)
         except Exception as e:
             log.warning("the pick HUD failed: %s", e)
-    return choose_native(prompt, options)
+    return choose_native(f"{step} — {prompt}" if step else prompt, options)
 
 
 def choose_native(prompt: str, options: list[str]):
@@ -288,62 +354,123 @@ def ask_text_native(prompt: str):
     return r.stdout.strip().split("text returned:")[-1].strip() or None
 
 
-def ask_text(prompt: str, digits: bool = False):
-    """Ask for one line of text. Return the text, or None on cancel.
+def ask_text(prompt: str, digits: bool = False, step: str = "",
+             back: bool = False):
+    """Ask for one line of text. Return the text, BACK, or None.
 
     The digits variant refuses every key that is not a digit, so a custom
-    timebox can no longer abort the flow on a value like '9o'.
+    timebox can no longer abort the flow on a value like '9o'. With back
+    on, escape returns BACK, so the prompt of the step comes back instead
+    of the flow ending.
     """
     if HUD.exists():
+        args = [str(HUD), "digits" if digits else "text"]
+        if step:
+            args += ["--step", step]
         try:
-            r = subprocess.run([str(HUD), "digits" if digits else "text", prompt],
+            r = subprocess.run(args + [prompt],
                                capture_output=True, text=True, timeout=300)
             if r.returncode == 0:
                 return r.stdout.strip() or None
-            return None
+            return BACK if back else None
         except Exception as e:
             log.warning("the text HUD failed: %s", e)
-    return ask_text_native(prompt)
+    text = ask_text_native(f"{step} — {prompt}" if step else prompt)
+    if text is None and back:
+        return BACK
+    return text
+
+
+def ask_topic(current=None):
+    """Ask which topic to punch. Return the topic, or None on cancel.
+
+    This is step 1, so there is no step to go back to and the p key stays
+    off. A new topic that the user leaves with escape brings back the
+    list of topics.
+    """
+    step = step_label(1, [])
+    while True:
+        options = read_topics() + ["other…"]
+        recent = current or last_topic()
+        select = options.index(recent) if recent in options else 0
+        topic = choose("What are you punching?", options, select, step)
+        if topic is None or topic is BACK:
+            return None
+        if topic != "other…":
+            return topic
+
+        new = ask_text("New topic:", step=step, back=True)
+        if new is BACK:
+            continue
+        if new is None:
+            return None
+        with TOPICS.open("a") as f:
+            if TOPICS.read_bytes()[-1:] not in (b"\n", b""):
+                f.write("\n")
+            f.write(new + "\n")
+        return new
+
+
+def ask_minutes(current, step: str):
+    """Ask for the timebox in minutes. Return the number, BACK, or None.
+
+    A custom value that the user leaves with escape brings back the list
+    of presets, and so does a value that is not a number.
+    """
+    options = PRESETS + ["custom…"]
+    select = options.index(current) if current in options else 0
+    while True:
+        minutes = choose("For how long?", options, select, step, True)
+        if minutes is None or minutes is BACK:
+            return minutes
+        if minutes == "custom…":
+            minutes = ask_text("Minutes:", digits=True, step=step, back=True)
+            if minutes is BACK:
+                continue
+            if minutes is None:
+                return None
+        try:
+            return str(int(minutes))
+        except ValueError:
+            notify(f"Not a number: {minutes}")
 
 
 def start_interactive() -> None:
-    """Ask for the topic, the minutes, and the start, then start."""
+    """Walk the three steps of a start, then start the session.
+
+    Every prompt names its step, and the n and the p keys walk the flow
+    forward and back. A wrong topic no longer means starting again: the
+    step keeps the answer that stood before, so p and n cost two keys.
+    """
     # An open session blocks a new one. Offer to close it instead of only
     # refusing, so a session that nobody ended is never a dead end.
     if open_state() is not None and reset() == "keep":
         return
 
-    options = read_topics() + ["other…"]
-    recent = last_topic()
-    select = options.index(recent) if recent in options else 0
-    topic = choose("What are you punching?", options, select)
-    if topic is None:
-        return
-    if topic == "other…":
-        topic = ask_text("New topic:")
-        if topic is None:
+    topic, minutes, start_at = None, None, None
+    step = 1
+    while step <= STEPS:
+        if step == 1:
+            answer = ask_topic(topic)
+        elif step == 2:
+            answer = ask_minutes(minutes, step_label(2, [topic]))
+        else:
+            answer = ask_start(int(minutes),
+                               step_label(3, [topic, f"{minutes} min"]))
+        if answer is None:
             return
-        with TOPICS.open("a") as f:
-            if TOPICS.read_bytes()[-1:] not in (b"\n", b""):
-                f.write("\n")
-            f.write(topic + "\n")
+        # A step that the user leaves backwards keeps the answer that
+        # stood before, so the step opens on the same item again.
+        if answer is not BACK:
+            if step == 1:
+                topic = answer
+            elif step == 2:
+                minutes = answer
+            else:
+                start_at = answer
+        step = advance(step, answer)
 
-    minutes = choose("For how long?", PRESETS + ["custom…"])
-    if minutes is None:
-        return
-    if minutes == "custom…":
-        minutes = ask_text("Minutes:", digits=True)
-        if minutes is None:
-            return
-    try:
-        m = int(minutes)
-    except ValueError:
-        notify(f"Not a number: {minutes}")
-        return
-
-    start_at = ask_start(m)
-    if start_at is None:
-        return
+    m = int(minutes)
     kind, _ = punchtime.classify(start_at, m, datetime.now())
     if kind == "live":
         start_live(topic, m, start_at)

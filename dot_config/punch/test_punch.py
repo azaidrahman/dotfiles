@@ -1,5 +1,6 @@
 from punch import (parse_distraction, parse_score,
-                    parse_pick, AWAY_DISTRACTION)
+                    parse_pick, advance, step_label,
+                    AWAY_DISTRACTION, BACK, STEPS)
 
 OPTIONS = ["Kubernetes", "Terraform", "Go"]
 
@@ -23,6 +24,32 @@ def test_a_negative_index_gives_nothing():
 
 def test_an_empty_pick_gives_nothing():
     assert parse_pick("", OPTIONS) is None
+
+def test_the_p_key_asks_for_the_step_before():
+    assert parse_pick("back\n", OPTIONS) is BACK
+
+
+def test_a_step_forward_takes_the_next_number():
+    assert advance(1, "Kubernetes") == 2
+    assert advance(2, "50") == 3
+
+def test_a_step_back_takes_the_number_before():
+    assert advance(3, BACK) == 2
+    assert advance(2, BACK) == 1
+
+def test_the_first_step_has_no_step_before_it():
+    assert advance(1, BACK) == 1
+
+
+def test_the_label_names_the_step():
+    assert step_label(1, []) == f"Step 1 of {STEPS}"
+
+def test_the_label_shows_what_the_user_picked():
+    assert step_label(3, ["Kubernetes", "50 min"]) == (
+        f"Step 3 of {STEPS} · Kubernetes · 50 min")
+
+def test_the_label_leaves_out_an_empty_answer():
+    assert step_label(2, ["Kubernetes", ""]) == f"Step 2 of {STEPS} · Kubernetes"
 
 
 def test_the_hud_score_is_read():
@@ -75,6 +102,13 @@ if __name__ == "__main__":
         test_an_index_past_the_list_gives_nothing,
         test_a_negative_index_gives_nothing,
         test_an_empty_pick_gives_nothing,
+        test_the_p_key_asks_for_the_step_before,
+        test_a_step_forward_takes_the_next_number,
+        test_a_step_back_takes_the_number_before,
+        test_the_first_step_has_no_step_before_it,
+        test_the_label_names_the_step,
+        test_the_label_shows_what_the_user_picked,
+        test_the_label_leaves_out_an_empty_answer,
         test_the_hud_score_is_read,
         test_the_hud_key_zero_means_ten,
         test_a_hud_that_timed_out_takes_the_default_score,
