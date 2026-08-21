@@ -117,7 +117,7 @@
     [:o [:open "Orbstack"]                :app-launch]
     [:p [:open "Google Chat"]             :app-launch]
     [:s [:open "Slack"]                   :app-launch]
-    [:d [:open "T3 Code (Alpha)"]         :app-launch]
+    [:d "$HOME/.config/karabiner/scripts/launch-t3code.sh":app-launch]
     [:f [:open "Calendar"]                :app-launch]
     [:g [:open "iPhone Mirroring"]        :app-launch]
     [:h "$HOME/.config/karabiner/scripts/arc-space.sh Research":app-launch]
