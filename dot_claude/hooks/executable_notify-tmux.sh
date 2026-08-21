@@ -126,7 +126,12 @@ autoname_capture() {
 recompute_window_state() {
     [ -n "$WIN_ID" ] || return 0
     local best="" rank=0 pid cmd st r
-    while IFS=' ' read -r pid cmd st; do
+    while IFS=' ' read -r pid cmd; do
+        # Read the pane option directly. The #{@claude_state} format falls back
+        # to the WINDOW option when the pane option is unset, so a just-cleared
+        # pane would echo the window's own stale value back and the state would
+        # never clear.
+        st=$(tmux show-options -pqv -t "$pid" @claude_state 2>/dev/null)
         [ -n "$st" ] || continue
         case "$cmd" in
             claude|node) : ;;
@@ -141,7 +146,7 @@ recompute_window_state() {
             *)          r=0 ;;
         esac
         [ "$r" -gt "$rank" ] && { rank=$r; best=$st; }
-    done < <(tmux list-panes -t "$WIN_ID" -F '#{pane_id} #{pane_current_command} #{@claude_state}' 2>/dev/null)
+    done < <(tmux list-panes -t "$WIN_ID" -F '#{pane_id} #{pane_current_command}' 2>/dev/null)
     if [ -n "$best" ]; then
         tmux set-option -w -t "$WIN_ID" @claude_state "$best" 2>/dev/null
         dlog "recompute: window state -> $best"
