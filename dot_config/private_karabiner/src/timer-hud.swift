@@ -543,7 +543,7 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
     preview.frame = NSRect(x: 14, y: 34, width: panelWidth - 28, height: 16)
     root.addSubview(preview)
 
-    let hint = NSTextField(labelWithString: "tab moves · digits type · a/p set · ⏎ confirms · esc cancels")
+    let hint = NSTextField(labelWithString: "arrows move and adjust · digits type · a/p set · ⏎ confirms · esc cancels")
     hint.font = hudFont(ofSize: 11, weight: .regular)
     hint.textColor = hudGray(1, 0.35)
     hint.alignment = .center
@@ -606,11 +606,29 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
     }
 
     NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-        // 53 esc, 48 tab, 36 return, 125 down, 126 up.
+        // 53 esc, 48 tab, 36 return, 123 left, 124 right, 125 down, 126 up.
         if event.keyCode == 53 { finish(nil, code: 2) }
         if event.keyCode == 48 { advance(); return nil }
+        if event.keyCode == 124 { advance(); return nil }
+        if event.keyCode == 123 {
+            typed = ""
+            field = (field + 2) % 3
+            render()
+            return nil
+        }
         if event.keyCode == 125 || event.keyCode == 126 {
-            isPM = !isPM
+            // Arrows adjust the focused field instead of always flipping
+            // am/pm. A half-typed digit is cleared first so it cannot
+            // linger and get folded into the next keystroke.
+            typed = ""
+            let up = event.keyCode == 126
+            if field == 0 {
+                hour = up ? hour % 12 + 1 : (hour == 1 ? 12 : hour - 1)
+            } else if field == 1 {
+                minute = up ? (minute + 1) % 60 : (minute + 59) % 60
+            } else {
+                isPM = !isPM
+            }
             render()
             return nil
         }
