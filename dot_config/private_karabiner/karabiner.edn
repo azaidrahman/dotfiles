@@ -47,7 +47,7 @@
        :clear-ws-help {:noti {:id "org.pqrs.notificaion_message_workspace"
                               :text ""}}
        :show-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
-                             :text "w:study, o:1p, p:dot, s:cleanshotx, g:gemini, l:todoist, c:claude, ,:soundsource, 1:pin-screen, 2:capture-text, 3:full-screen, 4:capture-area, 5:record"}}
+                             :text "w:punch, o:1p, p:dot, s:cleanshotx, g:gemini, l:todoist, c:claude, ,:soundsource, 1:pin-screen, 2:capture-text, 3:full-screen, 4:capture-area, 5:record"}}
        :clear-l1-help {:noti {:id "org.pqrs.notificaion_message_layer1"
                               :text ""}}
        :show-l2-help {:noti {:id "org.pqrs.notificaion_message_layer2"

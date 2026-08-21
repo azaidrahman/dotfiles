@@ -444,11 +444,12 @@ if CommandLine.arguments.count >= 3 &&
 }
 
 // Time mode: three fields — hour, minute, am/pm — for a start time today.
-// Tab moves between the fields. Digits type into the current field, and
-// two digits move on. The a and p keys set the third field, and the up and
-// down arrows flip it. Return confirms. A future time flashes and stays
-// open, because a retroactive start must lie in the past. Escape and the
-// timeout exit 2 with no output.
+// Tab and the left/right arrows move between the fields. Digits type into
+// the current field, and two digits move on. Up and down adjust the
+// focused field: the hour cycles 1-12, the minute wraps 0-59, and the
+// am/pm field flips. The a and p keys set am/pm from any field. Return
+// confirms. A future time flashes and stays open, because a retroactive
+// start must lie in the past. Escape and the timeout exit 2 with no output.
 //
 //   timer-hud time "<prompt>" <hh> <mm> <am|pm> <timebox-minutes>
 //
@@ -817,7 +818,8 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     }
 
     NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-        // 53 is escape, 123 is the left arrow, 124 is the right arrow.
+        // 53 is escape, 123 is the left arrow, 124 is the right arrow,
+        // 125 is the down arrow, 126 is the up arrow, 36 is return.
         if event.keyCode == 53 {
             finish("skip")
         }

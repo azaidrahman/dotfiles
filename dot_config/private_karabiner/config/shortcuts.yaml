@@ -17,7 +17,7 @@ l1:
   - l | todoist | Todoist quick add
   - c | claude | Claude quick
   - g | gemini | Gemini quick
-  - w | study | Start study session (KM macro)
+  - w | punch | Start punch session (KM macro)
   - 1 | pin-screen
   - 2 | capture-text
   - 3 | full-screen
