@@ -3,7 +3,7 @@ name: block-force-push
 enabled: true
 event: bash
 action: block
-pattern: git\s+push\s+.*--force|git\s+push\s+-f
+pattern: git\s+push\s+(.*\s)?(--force(?!-with-lease)|-f)(\s|$)
 ---
 
 **Blocked: Force push detected!**
