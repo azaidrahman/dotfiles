@@ -8,7 +8,7 @@ VAULT = "Polaris"
 
 
 def build_note(topic: str, start: datetime, end: datetime,
-               status: str, distraction) -> tuple[str, str]:
+               status: str, distraction, source: str = "live") -> tuple[str, str]:
     """Return the path in the vault and the content of the note."""
     hours = round((end - start).total_seconds() / 3600, 2)
     name = f"{start:%Y-%m-%d %H%M} {topic}.md"
@@ -23,6 +23,7 @@ def build_note(topic: str, start: datetime, end: datetime,
         f"topic: {topic}\n"
         f"status: {status}\n"
         f"distraction:{'' if distraction is None else ' ' + str(distraction)}\n"
+        f"source: {source}\n"
         "---\n"
     )
     return f"{FOLDER}/{name}", body

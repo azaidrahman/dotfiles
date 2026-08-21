@@ -12,9 +12,14 @@ CALENDAR = "Study"
 _CREATE = '''
 on run argv
   set t to item 1 of argv
-  set m to (item 2 of argv) as integer
   set s to current date
-  set e to s + m * minutes
+  set year of s to (item 2 of argv) as integer
+  set month of s to (item 3 of argv) as integer
+  set day of s to (item 4 of argv) as integer
+  set hours of s to (item 5 of argv) as integer
+  set minutes of s to (item 6 of argv) as integer
+  set seconds of s to 0
+  set e to s + ((item 7 of argv) as integer) * minutes
   tell application "Calendar" to tell calendar "%s"
     set ev to make new event with properties {summary:t, start date:s, end date:e}
     return uid of ev
@@ -44,9 +49,16 @@ def _osascript(script: str, *args: str) -> str:
     return r.stdout.strip()
 
 
-def create_event(topic: str, minutes: int) -> str:
-    """Make the event and return its UID."""
-    return _osascript(_CREATE, topic, str(minutes))
+def create_event(topic: str, start: datetime, end: datetime) -> str:
+    """Make the event and return its UID.
+
+    The date is built from components, because AppleScript parses a date
+    string with the locale of the machine.
+    """
+    dur = round((end - start).total_seconds() / 60)
+    return _osascript(_CREATE, topic, str(start.year), str(start.month),
+                      str(start.day), str(start.hour), str(start.minute),
+                      str(dur))
 
 
 def mark_cancelled(uid: str, topic: str) -> str:

@@ -10,6 +10,7 @@ from pathlib import Path
 
 import note
 import outcome
+import punchtime
 import studycal
 import timers
 
@@ -23,6 +24,7 @@ STATE = Path.home() / ".local/state/study-session.json"
 CLAIM = STATE.with_suffix(".ending.json")
 SHORTCUT = "Start Study Timer"
 TOPICS = Path.home() / "vaults/Polaris/5-Workbook/worklog/Topics.md"
+WORKLOG = TOPICS.parent
 PRESETS = ["25", "50", "60", "90"]
 
 # The HUD binary shows the toast, the list picker, and the score picker.
@@ -53,14 +55,94 @@ def _start_timer(minutes: int) -> None:
     subprocess.run(["open", url], check=True)
 
 
-def start(topic: str, minutes: int) -> None:
+def day_notes(day) -> list:
+    """Return (topic, start, end) for each session note of the day."""
+    out = []
+    for path in sorted(WORKLOG.glob(f"{day:%Y-%m-%d} *.md")):
+        parsed = punchtime.parse_note(path.read_text(), day)
+        if parsed is None:
+            continue
+        parts = path.stem.split(" ", 2)
+        topic = parts[2] if len(parts) > 2 else path.stem
+        out.append((topic, *parsed))
+    return out
+
+
+def last_topic():
+    """Return the topic of the newest session note, or None."""
+    files = sorted(WORKLOG.glob("2*.md"))
+    if not files:
+        return None
+    parts = files[-1].stem.split(" ", 2)
+    return parts[2] if len(parts) > 2 else None
+
+
+def ask_start(minutes: int):
+    """Ask when the session started. Return the datetime, or None on cancel.
+
+    The time fields open with the end of the last session of the day, so
+    the common backfill — 'it started when the last block ended' — is one
+    return key. With no session today, they open with now, rounded down to
+    15 minutes.
+    """
+    when = choose("Start when?", ["Now", "Set a time…"])
+    if when is None:
+        return None
+    now = datetime.now()
+    if when == "Now":
+        return now
+
+    notes = day_notes(now.date())
+    base = max((end for _, _, end in notes), default=None)
+    if base is None or base > now:
+        base = punchtime.round_down_quarter(now)
+    h12, minute, ampm = punchtime.to_12h(base)
+
+    if HUD.exists():
+        try:
+            r = subprocess.run(
+                [str(HUD), "time", "Start time", str(h12), f"{minute:02d}",
+                 ampm, str(minutes)],
+                capture_output=True, text=True, timeout=300)
+            if r.returncode != 0:
+                return None
+            hh, mm = r.stdout.strip().split(":")
+            return now.replace(hour=int(hh), minute=int(mm),
+                               second=0, microsecond=0)
+        except Exception as e:
+            log.warning("the time HUD failed: %s", e)
+
+    # The fallback for a machine with no HUD: one line, 24 hour form.
+    text = ask_text_native("Start time (HH:MM, today):")
+    if text is None:
+        return None
+    try:
+        t = datetime.strptime(text.strip(), "%H:%M")
+    except ValueError:
+        notify(f"Not a time: {text}")
+        return None
+    start_at = now.replace(hour=t.hour, minute=t.minute,
+                           second=0, microsecond=0)
+    if start_at > now:
+        notify("The start must lie in the past.")
+        return None
+    return start_at
+
+
+def start_live(topic: str, minutes: int, start_at: datetime) -> None:
     if open_state() is not None:
-        raise SystemExit("A session is already open. Run 'session.py reset' first.")
+        raise SystemExit("A session is already open. Run 'punch reset' first.")
+
+    planned_end = start_at + timedelta(minutes=minutes)
+    kind, remaining = punchtime.classify(start_at, minutes, datetime.now())
+    # The caller routes retro starts to log_retro, so this is a guard.
+    if kind != "live":
+        raise SystemExit("The timebox already ended. This is a retro session.")
 
     before = {t["id"] for t in timers.active(timers.load())}
-    _start_timer(minutes)
-    now = datetime.now()
-    log.info("timer requested: topic=%r minutes=%d", topic, minutes)
+    _start_timer(remaining)
+    log.info("timer requested: topic=%r minutes=%d start=%s",
+             topic, remaining, start_at.isoformat())
 
     # The timer above is already running. Everything past this point can
     # still fail, so a failure here must be loud — a silent one leaves the
@@ -79,26 +161,49 @@ def start(topic: str, minutes: int) -> None:
                 "the timer never showed up in the Clock.app plist. Check "
                 f"that the shortcut '{SHORTCUT}' exists on this machine.")
 
-        uid = studycal.create_event(topic, minutes)
+        uid = studycal.create_event(topic, start_at, planned_end)
     except Exception as e:
         log.error("session tracking failed after the timer started: %s",
-                   e, exc_info=True)
+                  e, exc_info=True)
         notify(f"{topic} timer is running, but session logging failed — "
-               "see study-session.log")
+               "see the log")
         raise
 
     STATE.parent.mkdir(parents=True, exist_ok=True)
     STATE.write_text(json.dumps({
         "topic": topic,
-        "start": now.isoformat(),
-        "planned_end": (now + timedelta(minutes=minutes)).isoformat(),
+        "start": start_at.isoformat(),
+        "planned_end": planned_end.isoformat(),
         "minutes": minutes,
         "timer_id": timer_id,
         "event_uid": uid,
+        "source": "live",
     }, indent=2))
     log.info("session started: topic=%r minutes=%d timer_id=%s event_uid=%s",
-              topic, minutes, timer_id, uid)
-    notify(f"{topic} — timer running for {minutes} min")
+             topic, minutes, timer_id, uid)
+    notify(f"{topic} — timer running, ends {planned_end:%H:%M}")
+
+
+def log_retro(topic: str, minutes: int, start_at: datetime) -> None:
+    """Record a session that already ended. No timer, no state file."""
+    end_at = start_at + timedelta(minutes=minutes)
+    conflict = punchtime.find_overlap(start_at, end_at,
+                                      day_notes(start_at.date()))
+
+    try:
+        studycal.create_event(topic, start_at, end_at)
+    except Exception as e:
+        log.warning("calendar event failed for the retro session: %s", e)
+
+    score = ask_distraction(f"{topic} — {start_at:%H:%M}–{end_at:%H:%M} · retro")
+    s = {"topic": topic, "start": start_at.isoformat(), "source": "retro"}
+    finish(s, "completed", end_at, score)
+
+    if conflict:
+        # finish() shows its own toast for 2.5 seconds. Wait it out, or the
+        # overlap warning lands under it and is never seen.
+        time.sleep(2.6)
+        notify(f"overlaps {conflict}")
 
 
 def read_topics() -> list[str]:
@@ -202,13 +307,16 @@ def ask_text(prompt: str, digits: bool = False):
 
 
 def start_interactive() -> None:
-    """Ask for the topic and the minutes, then start the session."""
+    """Ask for the topic, the minutes, and the start, then start."""
     # An open session blocks a new one. Offer to close it instead of only
     # refusing, so a session that nobody ended is never a dead end.
     if open_state() is not None and reset() == "keep":
         return
 
-    topic = choose("What are you studying?", read_topics() + ["other…"])
+    options = read_topics() + ["other…"]
+    recent = last_topic()
+    select = options.index(recent) if recent in options else 0
+    topic = choose("What are you punching?", options, select)
     if topic is None:
         return
     if topic == "other…":
@@ -232,7 +340,15 @@ def start_interactive() -> None:
     except ValueError:
         notify(f"Not a number: {minutes}")
         return
-    start(topic, m)
+
+    start_at = ask_start(m)
+    if start_at is None:
+        return
+    kind, _ = punchtime.classify(start_at, m, datetime.now())
+    if kind == "live":
+        start_live(topic, m, start_at)
+    else:
+        log_retro(topic, m, start_at)
 
 
 def notify(text: str) -> None:
@@ -349,7 +465,8 @@ def finish(s: dict, status: str, end_at: datetime, distraction) -> None:
     by this point, so a failure here must not stop the rest of the work.
     """
     start_at = datetime.fromisoformat(s["start"])
-    path, body = note.build_note(s["topic"], start_at, end_at, status, distraction)
+    path, body = note.build_note(s["topic"], start_at, end_at, status,
+                                 distraction, s.get("source", "live"))
 
     if status == "cancelled":
         try:
@@ -455,7 +572,7 @@ if __name__ == "__main__":
     sub.add_parser("reset")
     a = p.parse_args()
     if a.cmd == "start":
-        start(a.topic, a.minutes)
+        start_live(a.topic, a.minutes, datetime.now())
     elif a.cmd == "start-interactive":
         start_interactive()
     elif a.cmd == "check":

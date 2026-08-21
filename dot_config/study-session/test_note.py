@@ -32,6 +32,18 @@ def test_the_url_encodes_the_path_and_the_data():
     assert "mode=new" in url
 
 
+def test_a_note_carries_its_source():
+    _, body = build_note("Kubernetes", datetime(2026, 8, 20, 9, 30),
+                         datetime(2026, 8, 20, 11, 0), "completed", 3,
+                         source="retro")
+    assert "source: retro\n" in body
+
+def test_the_source_defaults_to_live():
+    _, body = build_note("Kubernetes", datetime(2026, 8, 20, 9, 30),
+                         datetime(2026, 8, 20, 11, 0), "completed", 3)
+    assert "source: live\n" in body
+
+
 if __name__ == "__main__":
     import traceback
     tests = [
@@ -40,6 +52,8 @@ if __name__ == "__main__":
         test_a_cancelled_note_has_an_empty_distraction,
         test_the_note_holds_the_tag_and_the_times,
         test_the_url_encodes_the_path_and_the_data,
+        test_a_note_carries_its_source,
+        test_the_source_defaults_to_live,
     ]
     passed = 0
     failed = 0
