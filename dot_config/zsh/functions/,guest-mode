@@ -1,0 +1,216 @@
+# ,guest-mode - Turn off the window and key automation for a short time, so that
+#               you can watch something or let another person use the Mac.
+#
+#               The function stops these things:
+#                 - borders            (window border highlight)
+#                 - Keyboard Maestro Engine
+#                 - SoundSource
+#                 - AeroSpace          (tiling stops, windows keep their place)
+#                 - Karabiner-Elements (switches to an empty "Guest" profile)
+#
+#               The function then waits. Press Ctrl-C to turn each thing on
+#               again. It only turns on the things that ran before.
+#
+#               Usage:
+#                 ,guest-mode            Turn guest mode on. Ctrl-C ends it.
+#                 ,guest-mode --restore  Turn everything on again. Use this if
+#                                        the shell died and could not clean up.
+
+emulate -L zsh
+setopt local_options
+
+local borders_bin=/opt/homebrew/opt/borders/bin/borders
+local borders_agent="$HOME/Library/LaunchAgents/homebrew.mxcl.borders.plist"
+local borders_label="gui/$(id -u)/homebrew.mxcl.borders"
+local aerospace_bin=/opt/homebrew/bin/aerospace
+local karabiner_cli="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
+local karabiner_json="$HOME/.config/karabiner/karabiner.json"
+local guest_profile=Guest
+local state_file="${TMPDIR:-/tmp}/guest-mode.state"
+local stop=0 sleep_pid=
+
+.guest-mode-log() { print -r -- "  $*" }
+
+.guest-mode-put() { print -r -- "$1=$2" >>"$state_file" }
+
+.guest-mode-get() {
+	local value
+	value=$(grep -m1 "^$1=" "$state_file" 2>/dev/null | cut -d= -f2-)
+	print -r -- "${value:-$2}"
+}
+
+# Karabiner needs a profile with no rules. Make one if it does not exist.
+.guest-mode-ensure-profile() {
+	"$karabiner_cli" --list-profile-names 2>/dev/null | grep -qx "$guest_profile" && return 0
+	.guest-mode-log "Karabiner: making the empty \"$guest_profile\" profile"
+	python3 - "$karabiner_json" "$guest_profile" <<'PY'
+import json, sys
+
+path, name = sys.argv[1], sys.argv[2]
+with open(path) as handle:
+    config = json.load(handle)
+
+profiles = config.setdefault("profiles", [])
+if not any(profile.get("name") == name for profile in profiles):
+    profiles.append({
+        "name": name,
+        "selected": False,
+        "simple_modifications": [],
+        "complex_modifications": {"rules": []},
+        "devices": [],
+        "virtual_hid_keyboard": {"keyboard_type_v2": "ansi"},
+    })
+    with open(path, "w") as handle:
+        json.dump(config, handle, indent=4)
+        handle.write("\n")
+PY
+}
+
+.guest-mode-off() {
+	: >"$state_file"
+	print "Guest mode: turning things off"
+
+	if pgrep -x borders >/dev/null; then
+		# launchd restarts borders after a plain kill, so unload the agent.
+		if launchctl print "$borders_label" >/dev/null 2>&1; then
+			.guest-mode-put borders launchd
+			launchctl bootout "$borders_label" 2>/dev/null
+			.guest-mode-log "borders: off (launch agent unloaded)"
+		else
+			.guest-mode-put borders process
+			killall borders 2>/dev/null
+			.guest-mode-log "borders: off"
+		fi
+	else
+		.guest-mode-put borders 0
+		.guest-mode-log "borders: was already off"
+	fi
+
+	if pgrep -f "Keyboard Maestro Engine" >/dev/null; then
+		.guest-mode-put km 1
+		osascript -e 'tell application "Keyboard Maestro Engine" to quit' >/dev/null 2>&1
+		.guest-mode-log "Keyboard Maestro Engine: off"
+	else
+		.guest-mode-put km 0
+		.guest-mode-log "Keyboard Maestro Engine: was already off"
+	fi
+
+	if pgrep -x SoundSource >/dev/null; then
+		.guest-mode-put soundsource 1
+		osascript -e 'tell application "SoundSource" to quit' >/dev/null 2>&1
+		.guest-mode-log "SoundSource: off"
+	else
+		.guest-mode-put soundsource 0
+		.guest-mode-log "SoundSource: was already off"
+	fi
+
+	if [[ -x $aerospace_bin ]] && pgrep -x AeroSpace >/dev/null; then
+		.guest-mode-put aerospace 1
+		"$aerospace_bin" enable off >/dev/null 2>&1
+		.guest-mode-log "AeroSpace: window management off"
+	else
+		.guest-mode-put aerospace 0
+		.guest-mode-log "AeroSpace: not running"
+	fi
+
+	local current=
+	if [[ -x $karabiner_cli ]]; then
+		current=$("$karabiner_cli" --show-current-profile-name 2>/dev/null)
+	fi
+	if [[ -n $current && $current != $guest_profile ]]; then
+		.guest-mode-ensure-profile
+		.guest-mode-put karabiner "$current"
+		"$karabiner_cli" --select-profile "$guest_profile" >/dev/null 2>&1
+		.guest-mode-log "Karabiner: profile \"$current\" -> \"$guest_profile\""
+	else
+		.guest-mode-put karabiner ""
+		.guest-mode-log "Karabiner: no change"
+	fi
+}
+
+.guest-mode-on() {
+	print ""
+	print "Guest mode: turning things back on"
+
+	local profile
+	profile=$(.guest-mode-get karabiner "")
+	if [[ -n $profile ]]; then
+		"$karabiner_cli" --select-profile "$profile" >/dev/null 2>&1
+		.guest-mode-log "Karabiner: profile -> \"$profile\""
+	fi
+
+	if [[ $(.guest-mode-get aerospace 0) == 1 ]]; then
+		"$aerospace_bin" enable on >/dev/null 2>&1
+		.guest-mode-log "AeroSpace: window management on"
+	fi
+
+	if [[ $(.guest-mode-get soundsource 0) == 1 ]]; then
+		open -a SoundSource
+		.guest-mode-log "SoundSource: on"
+	fi
+
+	if [[ $(.guest-mode-get km 0) == 1 ]]; then
+		open -a "Keyboard Maestro Engine"
+		.guest-mode-log "Keyboard Maestro Engine: on"
+	fi
+
+	case $(.guest-mode-get borders 0) in
+	launchd)
+		launchctl bootstrap "gui/$(id -u)" "$borders_agent" 2>/dev/null
+		sleep 0.5
+		.guest-mode-log "borders: on (launch agent loaded)"
+		;;
+	process | 1)
+		"$borders_bin" >/dev/null 2>&1 &
+		sleep 0.3
+		.guest-mode-log "borders: on"
+		;;
+	esac
+	if pgrep -x borders >/dev/null && [[ -x "$HOME/.config/borders/border-focus.sh" ]]; then
+		"$HOME/.config/borders/border-focus.sh"
+	fi
+
+	rm -f "$state_file"
+	print "Done."
+}
+
+.guest-mode-cleanup() {
+	unfunction .guest-mode-log .guest-mode-put .guest-mode-get \
+		.guest-mode-ensure-profile .guest-mode-off .guest-mode-on \
+		.guest-mode-cleanup 2>/dev/null
+}
+
+if [[ ${1:-} == --restore ]]; then
+	# With no state file, assume that everything ran before.
+	if [[ ! -f $state_file ]]; then
+		: >"$state_file"
+		if launchctl print "$borders_label" >/dev/null 2>&1; then
+			.guest-mode-put borders 0
+		else
+			.guest-mode-put borders launchd
+		fi
+		.guest-mode-put km 1
+		.guest-mode-put soundsource 1
+		.guest-mode-put aerospace 1
+		.guest-mode-put karabiner "$("$karabiner_cli" --list-profile-names 2>/dev/null | grep -vx "$guest_profile" | head -1)"
+	fi
+	.guest-mode-on
+	.guest-mode-cleanup
+	return 0
+fi
+
+# The handler also kills the pending sleep, in case zsh exits on the signal.
+trap '.guest-mode-on; kill $sleep_pid 2>/dev/null; stop=1' INT TERM HUP
+
+.guest-mode-off
+print ""
+print "Guest mode is on. Press Ctrl-C to turn everything back on."
+while (( ! stop )); do
+	sleep 3600 &
+	sleep_pid=$!
+	wait $sleep_pid 2>/dev/null
+done
+kill $sleep_pid 2>/dev/null
+trap - INT TERM HUP
+.guest-mode-cleanup
+return 0
