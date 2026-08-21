@@ -54,6 +54,11 @@ def test_the_remaining_minutes_round_to_the_nearest_minute():
     assert kind == "live"
     assert remaining == 30
 
+def test_exactly_one_minute_left_counts_as_retro():
+    # The boundary: remaining must be MORE than 60 seconds to stay live.
+    kind, _ = classify(datetime(2026, 8, 20, 13, 1), 60, NOW)
+    assert kind == "retro"
+
 
 NOTE = """---
 tags:
@@ -108,6 +113,7 @@ if __name__ == "__main__":
         test_a_finished_block_is_retro,
         test_less_than_a_minute_left_counts_as_retro,
         test_the_remaining_minutes_round_to_the_nearest_minute,
+        test_exactly_one_minute_left_counts_as_retro,
         test_the_note_times_are_read_from_the_frontmatter,
         test_a_note_with_no_times_gives_nothing,
         test_a_covering_block_overlaps,

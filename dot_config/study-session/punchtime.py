@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 """Pure time logic for the retroactive start. No I/O lives here."""
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 
 
