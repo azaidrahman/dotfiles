@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+# Guest mode: turn off the window and keyboard automation for a short time.
+#
+# The script stops these things:
+#   - borders            (window border highlight)
+#   - Keyboard Maestro Engine
+#   - SoundSource
+#   - AeroSpace          (tiling stays off, windows keep their place)
+#   - Karabiner-Elements (switches to an empty "Guest" profile)
+#
+# The script waits. If you press Ctrl-C, it turns each thing back on.
+# It only turns on the things that ran before.
+#
+# Usage:
+#   guest-mode            Turn guest mode on. Press Ctrl-C to end it.
+#   guest-mode --restore  Turn everything on again. Use this if the
+#                         script died and could not clean up.
+
+set -uo pipefail
+
+BORDERS_BIN=/opt/homebrew/opt/borders/bin/borders
+BORDERS_AGENT="$HOME/Library/LaunchAgents/homebrew.mxcl.borders.plist"
+BORDERS_LABEL="gui/$(id -u)/homebrew.mxcl.borders"
+AEROSPACE_BIN=/opt/homebrew/bin/aerospace
+KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
+KARABINER_JSON="$HOME/.config/karabiner/karabiner.json"
+GUEST_PROFILE=Guest
+STATE_FILE="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/guest-mode.state"
+
+log() { printf '  %s\n' "$*"; }
+
+# --- state ------------------------------------------------------------------
+
+save_state() { printf '%s=%s\n' "$1" "$2" >>"$STATE_FILE"; }
+
+read_state() {
+	local key=$1 default=$2 value
+	value=$(grep -m1 "^${key}=" "$STATE_FILE" 2>/dev/null | cut -d= -f2-)
+	printf '%s\n' "${value:-$default}"
+}
+
+# --- karabiner --------------------------------------------------------------
+
+ensure_guest_profile() {
+	if "$KARABINER_CLI" --list-profile-names 2>/dev/null | grep -qx "$GUEST_PROFILE"; then
+		return 0
+	fi
+	log "Karabiner: making the empty \"$GUEST_PROFILE\" profile"
+	python3 - "$KARABINER_JSON" "$GUEST_PROFILE" <<'PY'
+import json, sys
+
+path, name = sys.argv[1], sys.argv[2]
+with open(path) as handle:
+    config = json.load(handle)
+
+profiles = config.setdefault("profiles", [])
+if not any(profile.get("name") == name for profile in profiles):
+    profiles.append({
+        "name": name,
+        "selected": False,
+        "simple_modifications": [],
+        "complex_modifications": {"rules": []},
+        "devices": [],
+        "virtual_hid_keyboard": {"keyboard_type_v2": "ansi"},
+    })
+    with open(path, "w") as handle:
+        json.dump(config, handle, indent=4)
+        handle.write("\n")
+PY
+}
+
+# --- turn off ---------------------------------------------------------------
+
+guest_on() {
+	: >"$STATE_FILE"
+	echo "Guest mode: turning things off"
+
+	if pgrep -x borders >/dev/null; then
+		# launchd restarts borders after a plain kill, so unload the agent.
+		if launchctl print "$BORDERS_LABEL" >/dev/null 2>&1; then
+			save_state borders launchd
+			launchctl bootout "$BORDERS_LABEL" 2>/dev/null
+			log "borders: off (launch agent unloaded)"
+		else
+			save_state borders process
+			killall borders 2>/dev/null
+			log "borders: off"
+		fi
+	else
+		save_state borders 0
+		log "borders: was already off"
+	fi
+
+	if pgrep -f "Keyboard Maestro Engine" >/dev/null; then
+		save_state km 1
+		osascript -e 'tell application "Keyboard Maestro Engine" to quit' >/dev/null 2>&1
+		log "Keyboard Maestro Engine: off"
+	else
+		save_state km 0
+		log "Keyboard Maestro Engine: was already off"
+	fi
+
+	if pgrep -x SoundSource >/dev/null; then
+		save_state soundsource 1
+		osascript -e 'tell application "SoundSource" to quit' >/dev/null 2>&1
+		log "SoundSource: off"
+	else
+		save_state soundsource 0
+		log "SoundSource: was already off"
+	fi
+
+	if [[ -x $AEROSPACE_BIN ]] && pgrep -x AeroSpace >/dev/null; then
+		save_state aerospace 1
+		"$AEROSPACE_BIN" enable off >/dev/null 2>&1
+		log "AeroSpace: window management off"
+	else
+		save_state aerospace 0
+		log "AeroSpace: not running"
+	fi
+
+	if [[ -x $KARABINER_CLI ]]; then
+		local current
+		current=$("$KARABINER_CLI" --show-current-profile-name 2>/dev/null)
+		if [[ -n $current && $current != "$GUEST_PROFILE" ]]; then
+			ensure_guest_profile
+			save_state karabiner "$current"
+			"$KARABINER_CLI" --select-profile "$GUEST_PROFILE" >/dev/null 2>&1
+			log "Karabiner: profile \"$current\" -> \"$GUEST_PROFILE\""
+		else
+			save_state karabiner ""
+			log "Karabiner: no change"
+		fi
+	else
+		save_state karabiner ""
+		log "Karabiner: CLI not found"
+	fi
+}
+
+# --- turn on ----------------------------------------------------------------
+
+guest_off() {
+	echo
+	echo "Guest mode: turning things back on"
+
+	if [[ $(read_state karabiner "") != "" ]]; then
+		local profile
+		profile=$(read_state karabiner "")
+		"$KARABINER_CLI" --select-profile "$profile" >/dev/null 2>&1
+		log "Karabiner: profile -> \"$profile\""
+	fi
+
+	if [[ $(read_state aerospace 0) == 1 ]]; then
+		"$AEROSPACE_BIN" enable on >/dev/null 2>&1
+		log "AeroSpace: window management on"
+	fi
+
+	if [[ $(read_state soundsource 0) == 1 ]]; then
+		open -a SoundSource
+		log "SoundSource: on"
+	fi
+
+	if [[ $(read_state km 0) == 1 ]]; then
+		open -a "Keyboard Maestro Engine"
+		log "Keyboard Maestro Engine: on"
+	fi
+
+	case $(read_state borders 0) in
+	launchd)
+		launchctl bootstrap "gui/$(id -u)" "$BORDERS_AGENT" 2>/dev/null
+		sleep 0.5
+		log "borders: on (launch agent loaded)"
+		;;
+	process | 1)
+		"$BORDERS_BIN" >/dev/null 2>&1 &
+		sleep 0.3
+		log "borders: on"
+		;;
+	esac
+	if pgrep -x borders >/dev/null && [[ -x "$HOME/.config/borders/border-focus.sh" ]]; then
+		"$HOME/.config/borders/border-focus.sh"
+	fi
+
+	rm -f "$STATE_FILE"
+	echo "Done."
+}
+
+# --- main -------------------------------------------------------------------
+
+if [[ ${1:-} == --restore ]]; then
+	# With no state file, assume everything was on before.
+	if [[ ! -f $STATE_FILE ]]; then
+		: >"$STATE_FILE"
+		if launchctl print "$BORDERS_LABEL" >/dev/null 2>&1; then
+			save_state borders 0
+		else
+			save_state borders launchd
+		fi
+		save_state km 1
+		save_state soundsource 1
+		save_state aerospace 1
+		save_state karabiner "$(python3 -c "
+import json,sys
+config = json.load(open('$KARABINER_JSON'))
+names = [p.get('name') for p in config['profiles'] if p.get('name') != '$GUEST_PROFILE']
+print(names[0] if names else '')
+" 2>/dev/null)"
+	fi
+	guest_off
+	exit 0
+fi
+
+trap 'guest_off; exit 0' INT TERM HUP
+
+guest_on
+echo
+echo "Guest mode is on. Press Ctrl-C to turn everything back on."
+while true; do
+	sleep 3600 &
+	wait $!
+done
