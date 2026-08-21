@@ -31,4 +31,4 @@ app:
   - n | ino | Inoreader
   - m | spotify | Spotify
   - x | mixlet | Mixlet
-  - d | t3code | T3 Code (Alpha)
+  - d | t3code | sh:$HOME/.config/karabiner/scripts/launch-t3code.sh
