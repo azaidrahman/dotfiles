@@ -11,15 +11,10 @@ are pulled at runtime from 1Password and the macOS Keychain (see below).
 
 Config is multi-machine and branches on hostname where it matters:
 
-| Host   | Role             |
-| ------ | ---------------- |
-| `aqua` | home server      |
-| `onyx` | work laptop      |
-
 Templates use `{{ .chezmoi.hostname }}` to pick per-machine values (e.g. the
-LiteLLM base URL points at `localhost` on `onyx` and `onyx` over the tailnet
+LiteLLM base URL points at `localhost` over the tailnet
 elsewhere), and 1Password item names are derived from each device's
-`LocalHostName` (e.g. `AQUA.PAT.GH`, `ONYX.PAT.GH`).
+`LocalHostName` (e.g. `FOO.PAT.GH`, `BAR.PAT.GH`).
 
 ## Secret handling
 
