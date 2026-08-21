@@ -15,6 +15,13 @@ set -euo pipefail
 # Not in tmux → nothing to rename.
 [ -n "${TMUX:-}" ] || exit 0
 
+# T3 Code drives its own tmux window naming, and this pane may already carry
+# a real name it set (e.g. a project name) that just isn't tracked via our
+# @claude_base/@claude_autoname_done options. Don't nag to rename those.
+if [ "${__CFBundleIdentifier:-}" = "com.t3tools.t3code" ] || env | grep -q '^T3CODE_'; then
+    exit 0
+fi
+
 PANE="${TMUX_PANE:-}"
 
 # Name already settled by notify-tmux.sh (manual or auto) → don't touch it.
