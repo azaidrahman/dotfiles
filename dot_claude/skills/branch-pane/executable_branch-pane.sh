@@ -7,10 +7,8 @@
 set -euo pipefail
 
 # 1. Must be inside tmux
-if [ -z "${TMUX:-}" ]; then
-  echo "branch-pane: not inside tmux — nothing to do." >&2
-  exit 1
-fi
+. "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/tmux-lib.sh"
+tmux_require 1 "branch-pane: not inside tmux — nothing to do."
 
 # 2. Find the current session id (Claude Code exports it; fall back to newest
 #    session file for this project directory just in case it's unset).

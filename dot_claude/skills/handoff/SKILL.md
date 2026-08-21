@@ -36,6 +36,7 @@ Harvest each of these, or write "none" for it:
 | **Ruled out** | Dead ends, so the next window does not re-walk them. |
 | **Touched** | Files changed, commands that mutated anything, resources applied. |
 | **Next step** | The single first action for the new window. |
+| **Verification** | How the new window can confirm the thread is closed — a test to run or a behavior to check. |
 
 **Done when:** every row is filled, and every claim in **Established** carries its evidence. A claim without evidence is a theory — move it.
 
@@ -83,6 +84,9 @@ Handed off: <YYYY-MM-DD> from a session on <what that session was doing>
 
 ## Touched
 - <file or resource> — <what changed>
+
+## Verification
+<how to confirm the thread is closed — the test to run or the behavior to check>
 ```
 
 **Done when:** the file exists and someone who did not attend this session could take the **Next step** from it alone.

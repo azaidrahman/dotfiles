@@ -6,17 +6,9 @@ set -u
 EVENT="${1:-}"
 PANE="${TMUX_PANE:-}"
 
-# Query tmux about *this* Claude pane's window, not the attached client's active
-# window. Bare `display-message -p` reports whatever window the user is currently
-# looking at — if they've switched away, that's the wrong window. -t "$TMUX_PANE"
-# always resolves to the pane this hook's process lives in.
-tq() {
-    if [ -n "$PANE" ]; then
-        tmux display-message -p -t "$PANE" "$1" 2>/dev/null
-    else
-        tmux display-message -p "$1" 2>/dev/null
-    fi
-}
+# tq comes from the shared library: it queries *this* Claude pane's window, not
+# the attached client's active window.
+. "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/tmux-lib.sh"
 
 SESSION=$(tq '#{session_name}'); SESSION=${SESSION:-unknown}
 WINDOW=$(tq '#{window_index}'); WINDOW=${WINDOW:-0}
