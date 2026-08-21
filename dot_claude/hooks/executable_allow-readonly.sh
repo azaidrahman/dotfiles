@@ -38,7 +38,7 @@ is_readonly_segment() {
       local sub
       sub=$(echo "$trimmed" | awk '{print $2}')
       case "$sub" in
-        plan|show|output|validate|fmt|version|providers|graph|init)
+        plan|show|output|validate|fmt|version|providers|graph)
           return 0 ;;
         state)
           sub2=$(echo "$trimmed" | awk '{print $3}')

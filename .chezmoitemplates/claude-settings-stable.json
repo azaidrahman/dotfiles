@@ -26,11 +26,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/rename-window-on-start.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
             "command": "bash ~/.claude/hooks/tag-pane-session.sh",
             "timeout": 5
           }

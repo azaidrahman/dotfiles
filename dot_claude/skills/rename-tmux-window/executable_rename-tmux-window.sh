@@ -16,14 +16,15 @@
 # Exit:   0 ok | 2 not in tmux / no pane / no name
 set -euo pipefail
 
+. "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/tmux-lib.sh"
+
 NAME=${1:-}
 [ -n "$NAME" ]          || { echo "usage: $0 \"<name>\"" >&2; exit 2; }
-[ -n "${TMUX:-}" ]      || { echo "not inside tmux (\$TMUX unset)" >&2; exit 2; }
-PANE=${TMUX_PANE:-}
-[ -n "$PANE" ]          || { echo "\$TMUX_PANE unset — cannot target Claude's window" >&2; exit 2; }
+tmux_require      2 "not inside tmux (\$TMUX unset)"
+tmux_require_pane 2 "\$TMUX_PANE unset — cannot target Claude's window"
 
-WID=$(tmux display-message -p -t "$PANE" '#{window_id}')
-CUR=$(tmux display-message -p -t "$PANE" '#{window_name}')
+WID=$(tq '#{window_id}')
+CUR=$(tq '#{window_name}')
 GLYPH=$(printf '%s' "$CUR" | grep -oE '^[●⚠⏸✓]' || true)
 
 tmux set-option -w -t "$WID" @claude_base "$NAME"

@@ -31,7 +31,8 @@
 # Idempotent: every event just overwrites.
 set -euo pipefail
 
-[ -n "${TMUX_PANE:-}" ] || exit 0
+. "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/tmux-lib.sh"
+tmux_require_pane 0
 
 INPUT=$(cat 2>/dev/null || true)
 
@@ -48,10 +49,9 @@ CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)
 
 STATE_DIR="${CLAUDE_RESURRECT_STATE_DIR:-$HOME/.local/state/claude-resurrect}"
 
-# Ask tmux about *this* pane. A bare `display-message -p` reports the attached
-# client's active window, which is whatever the user happens to be looking at.
-coords=$(tmux display-message -p -t "$TMUX_PANE" \
-    '#{session_name}#{l:|}#{window_index}#{l:|}#{pane_index}#{l:|}#{@claude_base}' 2>/dev/null) || exit 0
+# Ask tmux about *this* pane (tq targets $TMUX_PANE, never the attached
+# client's active window).
+coords=$(tq '#{session_name}#{l:|}#{window_index}#{l:|}#{pane_index}#{l:|}#{@claude_base}') || exit 0
 IFS='|' read -r sname widx pidx label <<<"$coords"
 [ -n "$sname" ] && [ -n "$widx" ] && [ -n "$pidx" ] || exit 0
 
@@ -61,8 +61,8 @@ IFS='|' read -r sname widx pidx label <<<"$coords"
 safe_sname=$(printf '%s' "$sname" | tr -c 'A-Za-z0-9_-' '_')
 KEY="${safe_sname}__${widx}__${pidx}"
 
-[ -n "$CWD" ] || CWD=$(tmux display-message -p -t "$TMUX_PANE" '#{pane_current_path}' 2>/dev/null || true)
-[ -n "$label" ] || label=$(tmux display-message -p -t "$TMUX_PANE" '#{window_name}' 2>/dev/null || true)
+[ -n "$CWD" ] || CWD=$(tq '#{pane_current_path}' || true)
+[ -n "$label" ] || label=$(tq '#{window_name}' || true)
 
 mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
 

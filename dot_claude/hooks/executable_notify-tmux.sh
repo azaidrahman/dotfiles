@@ -6,17 +6,9 @@ set -u
 EVENT="${1:-}"
 PANE="${TMUX_PANE:-}"
 
-# Query tmux about *this* Claude pane's window, not the attached client's active
-# window. Bare `display-message -p` reports whatever window the user is currently
-# looking at — if they've switched away, that's the wrong window. -t "$TMUX_PANE"
-# always resolves to the pane this hook's process lives in.
-tq() {
-    if [ -n "$PANE" ]; then
-        tmux display-message -p -t "$PANE" "$1" 2>/dev/null
-    else
-        tmux display-message -p "$1" 2>/dev/null
-    fi
-}
+# tq comes from the shared library: it queries *this* Claude pane's window, not
+# the attached client's active window.
+. "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/tmux-lib.sh"
 
 SESSION=$(tq '#{session_name}'); SESSION=${SESSION:-unknown}
 WINDOW=$(tq '#{window_index}'); WINDOW=${WINDOW:-0}
@@ -134,7 +126,12 @@ autoname_capture() {
 recompute_window_state() {
     [ -n "$WIN_ID" ] || return 0
     local best="" rank=0 pid cmd st r
-    while IFS=' ' read -r pid cmd st; do
+    while IFS=' ' read -r pid cmd; do
+        # Read the pane option directly. The #{@claude_state} format falls back
+        # to the WINDOW option when the pane option is unset, so a just-cleared
+        # pane would echo the window's own stale value back and the state would
+        # never clear.
+        st=$(tmux show-options -pqv -t "$pid" @claude_state 2>/dev/null)
         [ -n "$st" ] || continue
         case "$cmd" in
             claude|node) : ;;
@@ -149,7 +146,7 @@ recompute_window_state() {
             *)          r=0 ;;
         esac
         [ "$r" -gt "$rank" ] && { rank=$r; best=$st; }
-    done < <(tmux list-panes -t "$WIN_ID" -F '#{pane_id} #{pane_current_command} #{@claude_state}' 2>/dev/null)
+    done < <(tmux list-panes -t "$WIN_ID" -F '#{pane_id} #{pane_current_command}' 2>/dev/null)
     if [ -n "$best" ]; then
         tmux set-option -w -t "$WIN_ID" @claude_state "$best" 2>/dev/null
         dlog "recompute: window state -> $best"
