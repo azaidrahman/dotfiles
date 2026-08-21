@@ -95,7 +95,7 @@ func readTimers() -> [TimerInfo] {
     return out.sorted { $0.remaining < $1.remaining }
 }
 
-// The study-session tracker writes its state as a naive local datetime, with
+// The punch tracker writes its state as a naive local datetime, with
 // no timezone suffix and optional fractional seconds. ISO8601DateFormatter
 // rejects that string, so use a plain DateFormatter instead.
 let sessionDateFormatterFrac = DateFormatter()
@@ -111,13 +111,13 @@ struct SessionInfo {
     let start: Date
 }
 
-// The tracker writes study-session.json while a session is open, and renames
-// it to study-session.ending.json while it closes out. Show the session in
+// The tracker writes punch.json while a session is open, and renames
+// it to punch.ending.json while it closes out. Show the session in
 // both cases so the HUD does not blink out right as the session ends.
 func readSession() -> SessionInfo? {
     let paths = [
-        "~/.local/state/study-session.json",
-        "~/.local/state/study-session.ending.json",
+        "~/.local/state/punch.json",
+        "~/.local/state/punch.ending.json",
     ]
     for path in paths {
         let expanded = (path as NSString).expandingTildeInPath
@@ -163,7 +163,7 @@ func hudFont(ofSize size: CGFloat, weight: NSFont.Weight) -> NSFont {
 }
 
 // Toast mode: a short bottom-center message, no timer plist, no ticker.
-// The study-session tracker uses this because Notification Center drops
+// The punch tracker uses this because Notification Center drops
 // its notifications on this machine.
 if CommandLine.arguments.count >= 3 && CommandLine.arguments[1] == "toast" {
     let text = CommandLine.arguments[2]
@@ -945,7 +945,7 @@ func refresh() {
     if !first.title.isEmpty { sub = "\(first.title) — \(sub)" }
     subLabel.stringValue = sub
 
-    // The study session may still be open while a Clock.app timer runs, so
+    // The punch session may still be open while a Clock.app timer runs, so
     // show the topic here too. This is the primary case: the macro starts a
     // timer, and the user checks the HUD while the session is active.
     if let s = readSession() {

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Decide how a study session ended."""
+"""Decide how a punch session ended."""
 from datetime import datetime, timedelta
 
 # A fired date must fall near the planned end. Clock.app can hold old timers.

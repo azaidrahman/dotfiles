@@ -1,5 +1,5 @@
-from session import (parse_distraction, parse_score,
-                     parse_pick, AWAY_DISTRACTION)
+from punch import (parse_distraction, parse_score,
+                    parse_pick, AWAY_DISTRACTION)
 
 OPTIONS = ["Kubernetes", "Terraform", "Go"]
 

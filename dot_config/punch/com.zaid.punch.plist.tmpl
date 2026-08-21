@@ -3,11 +3,11 @@
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.zaid.study-session</string>
+  <key>Label</key><string>com.zaid.punch</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>{{ .chezmoi.homeDir }}/.config/study-session/session.py</string>
+    <string>{{ .chezmoi.homeDir }}/.config/punch/punch.py</string>
     <string>check</string>
   </array>
   <!-- Clock.app rewrites this plist when a timer stops or is dismissed.
@@ -20,6 +20,6 @@
   <key>StartInterval</key><integer>60</integer>
   <key>RunAtLoad</key><true/>
   <key>StandardErrorPath</key>
-  <string>/tmp/study-session.err</string>
+  <string>/tmp/punch.err</string>
 </dict>
 </plist>

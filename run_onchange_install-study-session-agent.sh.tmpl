@@ -1,6 +1,0 @@
-#!/bin/bash
-# plist hash: {{ include "dot_config/study-session/com.zaid.study-session.plist.tmpl" | sha256sum }}
-set -e
-cp ~/.config/study-session/com.zaid.study-session.plist ~/Library/LaunchAgents/
-launchctl bootout gui/$(id -u)/com.zaid.study-session 2>/dev/null || true
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.zaid.study-session.plist

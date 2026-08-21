@@ -1,0 +1,6 @@
+#!/bin/bash
+# plist hash: {{ include "dot_config/punch/com.zaid.punch.plist.tmpl" | sha256sum }}
+set -e
+cp ~/.config/punch/com.zaid.punch.plist ~/Library/LaunchAgents/
+launchctl bootout gui/$(id -u)/com.zaid.punch 2>/dev/null || true
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.zaid.punch.plist

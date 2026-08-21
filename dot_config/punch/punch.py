@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Start and end a study session."""
+"""Start and end a punch session."""
 import argparse
 import json
 import logging
@@ -8,16 +8,16 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import cal
 import note
 import outcome
 import punchtime
-import studycal
 import timers
 
-log = logging.getLogger("study-session")
+log = logging.getLogger("punch")
 
-LOG_PATH = Path.home() / ".local/state/study-session.log"
-STATE = Path.home() / ".local/state/study-session.json"
+LOG_PATH = Path.home() / ".local/state/punch.log"
+STATE = Path.home() / ".local/state/punch.json"
 # check() renames STATE to this while it ends the session. A crash during
 # the distraction dialog can leave the claim behind, so every reader looks
 # at both files.
@@ -161,7 +161,7 @@ def start_live(topic: str, minutes: int, start_at: datetime) -> None:
                 "the timer never showed up in the Clock.app plist. Check "
                 f"that the shortcut '{SHORTCUT}' exists on this machine.")
 
-        uid = studycal.create_event(topic, start_at, planned_end)
+        uid = cal.create_event(topic, start_at, planned_end)
     except Exception as e:
         log.error("session tracking failed after the timer started: %s",
                   e, exc_info=True)
@@ -191,7 +191,7 @@ def log_retro(topic: str, minutes: int, start_at: datetime) -> None:
                                       day_notes(start_at.date()))
 
     try:
-        studycal.create_event(topic, start_at, end_at)
+        cal.create_event(topic, start_at, end_at)
     except Exception as e:
         log.warning("calendar event failed for the retro session: %s", e)
 
@@ -263,7 +263,7 @@ def choose_native(prompt: str, options: list[str]):
     lst = ", ".join(f'"{o}"' for o in safe)
     script = ('tell application "System Events"\n'
               'activate\n'
-              f'choose from list {{{lst}}} with title "Study session" '
+              f'choose from list {{{lst}}} with title "Punch" '
               f'with prompt "{prompt}" default items {{"{safe[0]}"}}\n'
               'end tell')
     r = subprocess.run(["osascript", "-e", script],
@@ -279,7 +279,7 @@ def ask_text_native(prompt: str):
     script = ('tell application "System Events"\n'
               'activate\n'
               f'display dialog "{prompt}" default answer "" '
-              'with title "Study session"\n'
+              'with title "Punch"\n'
               'end tell')
     r = subprocess.run(["osascript", "-e", script],
                        capture_output=True, text=True)
@@ -416,7 +416,7 @@ def ask_distraction_dialog(topic: str):
         'activate\n'
         f'display dialog "How distracted were you during {topic}?\\n'
         '1 is no interruptions. 10 is never more than 15 clear minutes." '
-        'default answer "" with title "Study session" '
+        'default answer "" with title "Punch" '
         f'giving up after {DIALOG_TIMEOUT}\n'
         'end tell')
     r = subprocess.run(["osascript", "-e", script],
@@ -470,7 +470,7 @@ def finish(s: dict, status: str, end_at: datetime, distraction) -> None:
 
     if status == "cancelled":
         try:
-            result = studycal.mark_cancelled(s["event_uid"], s["topic"])
+            result = cal.mark_cancelled(s["event_uid"], s["topic"])
             if result == "missing":
                 log.warning("calendar event %s not found", s["event_uid"])
         except Exception as e:
