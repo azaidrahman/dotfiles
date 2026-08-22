@@ -5,3 +5,4 @@ brew claude-code@latest
 cask google-drive
 cask multipass
 cask virtualbox
+cask "alienator88-sentinel"
