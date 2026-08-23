@@ -1,0 +1,597 @@
+<title>REPLACE Page Name</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<!--
+  DESIGN RECORD TEMPLATE
+  Fill the slots. Do not rebuild the shell.
+
+  The ONLY visual freedom is --accent / --accent-2 / --wash, in both themes.
+  Keep the type pairing, the layout, the spacing, and the class names.
+
+  Each <section> needs: id, data-num, data-label.
+  Add data-apx="1" to appendix sections. The index builds itself.
+-->
+
+<style>
+  :root {
+    --bg:        #F7F8FA;
+    --surface:   #FFFFFF;
+    --surface-2: #EEF1F5;
+    --ink:       #131820;
+    --ink-2:     #39424E;
+    --muted:     #626C7A;
+    --line:      #DEE3EA;
+    --line-2:    #C6CED9;
+
+    /* ---- CHANGE THESE THREE FOR THE SUBJECT ---- */
+    --accent:    #0F6E6A;
+    --accent-2:  #0A4D4A;
+    --wash:      #E3F0EF;
+
+    /* semantic state, separate from the accent - do not repurpose */
+    --blocked: #A8501C;
+    --failed:  #9C2A2A;
+    --review:  #7A6015;
+    --running: #2A6595;
+    --done:    #3A6F4A;
+
+    --measured:  var(--accent);
+    --narrative: #7A6015;
+    --opinion:   #626C7A;
+
+    --shadow: 0 1px 2px rgba(19,24,32,.05), 0 3px 12px rgba(19,24,32,.035);
+
+    --display: "Instrument Serif", Georgia, serif;
+    --body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0F1317;
+      --surface:   #161B21;
+      --surface-2: #1C232B;
+      --ink:       #E8ECF2;
+      --ink-2:     #C4CCD7;
+      --muted:     #93A0B0;
+      --line:      #262E38;
+      --line-2:    #37424F;
+
+      /* ---- AND THESE THREE ---- */
+      --accent:    #55CCC5;
+      --accent-2:  #82DED8;
+      --wash:      #133230;
+
+      --blocked: #E39258;
+      --failed:  #E37272;
+      --review:  #D6B75F;
+      --running: #6CACDE;
+      --done:    #74B889;
+
+      --narrative: #D6B75F;
+      --opinion:   #93A0B0;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 3px 12px rgba(0,0,0,.25);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0F1317;
+    --surface:   #161B21;
+    --surface-2: #1C232B;
+    --ink:       #E8ECF2;
+    --ink-2:     #C4CCD7;
+    --muted:     #93A0B0;
+    --line:      #262E38;
+    --line-2:    #37424F;
+
+    --accent:    #55CCC5;
+    --accent-2:  #82DED8;
+    --wash:      #133230;
+
+    --blocked: #E39258;
+    --failed:  #E37272;
+    --review:  #D6B75F;
+    --running: #6CACDE;
+    --done:    #74B889;
+
+    --narrative: #D6B75F;
+    --opinion:   #93A0B0;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 3px 12px rgba(0,0,0,.25);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--body); font-size: 17px; line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- shell ---------- */
+  .shell {
+    max-width: 1180px; margin: 0 auto;
+    padding: 0 clamp(18px, 4vw, 44px);
+    display: grid; grid-template-columns: 218px minmax(0, 1fr);
+    gap: clamp(32px, 6vw, 78px); align-items: start;
+  }
+
+  /* ---------- sticky index ---------- */
+  nav.index {
+    position: sticky; top: 0; max-height: 100vh; overflow-y: auto;
+    padding: 40px 0; font-size: 14.5px;
+  }
+  .index-label {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted);
+    margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  .index ol { list-style: none; margin: 0; padding: 0; }
+  .index a {
+    display: grid; grid-template-columns: 20px 1fr; gap: 8px;
+    padding: 8px 0 8px 11px; margin-left: -13px;
+    color: var(--muted); text-decoration: none;
+    border-left: 2px solid transparent; line-height: 1.35;
+    transition: color .12s ease, border-color .12s ease;
+  }
+  .index a .n { font-family: var(--mono); font-size: 11.5px; padding-top: 2px; }
+  .index a:hover { color: var(--ink); }
+  .index a[aria-current="true"] {
+    color: var(--accent); border-left-color: var(--accent); font-weight: 500;
+  }
+  .index a[aria-current="true"] .n { color: var(--accent); }
+  .index li.gap { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .index .apx-label {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px;
+  }
+  .index-foot {
+    margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.75;
+  }
+
+  .mobile-bar { display: none; }
+  @media (max-width: 880px) {
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    nav.index { display: none; }
+    .mobile-bar {
+      display: block; position: sticky; top: 0; z-index: 20;
+      background: var(--bg); border-bottom: 1px solid var(--line);
+      padding: 10px clamp(18px, 4vw, 44px) 0;
+    }
+    .mobile-bar .row { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+    .mobile-bar .here {
+      font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--accent); flex: 1;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mobile-bar select {
+      font-family: var(--body); font-size: 13px; background: var(--surface);
+      color: var(--ink); border: 1px solid var(--line-2);
+      border-radius: 5px; padding: 5px 8px; max-width: 48%;
+    }
+    .progress { height: 2px; background: var(--line); margin-top: 9px; }
+    .progress > i { display: block; height: 100%; background: var(--accent); width: 0; }
+  }
+
+  /* ---------- type ---------- */
+  main { padding-bottom: 110px; }
+  header.mast { padding: clamp(44px, 8vw, 86px) 0 0; }
+  .kicker {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 400;
+    font-size: clamp(44px, 7.5vw, 74px); line-height: 1.02;
+    letter-spacing: -.012em; margin: 0 0 20px; text-wrap: balance;
+  }
+  .lede {
+    font-size: clamp(18px, 2.2vw, 21px); line-height: 1.55;
+    color: var(--ink-2); max-width: 34ch; margin: 0; text-wrap: pretty;
+  }
+  section { padding: 74px 0 0; scroll-margin-top: 84px; }
+  section.apx { padding-top: 60px; }
+  .part-n {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 12px;
+  }
+  .apx .part-n { color: var(--muted); }
+  h2 {
+    font-family: var(--display); font-weight: 400;
+    font-size: clamp(30px, 3.8vw, 40px); line-height: 1.12;
+    letter-spacing: -.008em; margin: 0 0 18px; max-width: 26ch; text-wrap: balance;
+  }
+  h3 { font-size: 17.5px; font-weight: 600; margin: 34px 0 8px; letter-spacing: -.004em; }
+  p { margin: 0 0 20px; max-width: 62ch; }
+  p:last-child { margin-bottom: 0; }
+  .big { font-size: 19.5px; line-height: 1.58; color: var(--ink-2); max-width: 52ch; }
+  a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  a:focus-visible, button:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px;
+  }
+  strong { font-weight: 600; color: var(--ink); }
+  code {
+    font-family: var(--mono); font-size: .87em; background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 3px; padding: .08em .32em;
+  }
+  ul { margin: 0 0 20px; padding-left: 20px; max-width: 62ch; }
+  li { margin-bottom: 10px; }
+  li::marker { color: var(--muted); }
+
+  /* ---------- figures ---------- */
+  figure {
+    margin: 30px 0 34px; padding: 26px 26px 20px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: var(--shadow);
+  }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--ink-2); }
+  figcaption {
+    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line);
+    font-size: 14px; color: var(--muted); max-width: 60ch;
+  }
+  .svg-label { font-family: "IBM Plex Sans", sans-serif; font-size: 12.5px; fill: currentColor; }
+  .svg-mono  { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; fill: currentColor; }
+  .svg-em    { fill: var(--accent); }
+  .svg-dim   { fill: var(--muted); }
+  .box       { fill: var(--surface-2); stroke: var(--line-2); stroke-width: 1; }
+  .box-em    { fill: var(--wash); stroke: var(--accent); stroke-width: 1.5; }
+  .edge      { stroke: currentColor; stroke-width: 1.4; fill: none; }
+  .edge-em   { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+  .edge-no   { stroke: var(--failed); stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; }
+
+  /* ---------- evidence ---------- */
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .09em;
+    text-transform: uppercase; padding: 2px 6px;
+    border: 1px solid currentColor; border-radius: 3px; white-space: nowrap;
+  }
+  .chip::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+  .chip.m { color: var(--measured); }
+  .chip.n { color: var(--narrative); }
+  .chip.o { color: var(--opinion); }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; margin: 0 0 22px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 640px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted); font-weight: 500;
+    border-bottom: 1px solid var(--line-2); white-space: nowrap;
+  }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  td.src { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ---------- UI mock ----------
+     Show an interface as real elements, never as text in a pre tag.
+     Rows: .mock-r holds spans in the order given by grid-template-columns.
+     State colour comes from .s-* which map to the semantic tokens.        */
+  .mock {
+    background: var(--surface); border: 1px solid var(--line-2);
+    border-radius: 8px; overflow: hidden; box-shadow: var(--shadow);
+    margin: 30px 0 12px; font-family: var(--mono); font-size: 12.5px;
+  }
+  .mock-top {
+    display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline;
+    padding: 13px 18px; background: var(--surface-2); border-bottom: 1px solid var(--line);
+  }
+  .mock-top b { font-family: var(--body); font-size: 13px; letter-spacing: .04em; }
+  .mock-top span { color: var(--muted); font-size: 11.5px; }
+  .mock-counts {
+    display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 18px;
+    border-bottom: 1px solid var(--line); font-size: 11.5px;
+  }
+  .mock-counts i { font-style: normal; }
+  .mock-rows { padding: 6px 0; }
+  .mock-r {
+    display: grid;
+    grid-template-columns: 92px 96px minmax(0, 1fr) 44px 92px;
+    gap: 14px; padding: 7px 18px; align-items: baseline;
+  }
+  .mock-r:hover { background: var(--surface-2); }
+  .mock-r .st { font-size: 11.5px; }
+  .mock-r .id { color: var(--ink); }
+  .mock-r .msg { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mock-r .t, .mock-r .last { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .mock-r.dim { opacity: .5; }
+  .mock-foot {
+    padding: 11px 18px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 11px;
+  }
+  .s-blocked { color: var(--blocked); }
+  .s-failed  { color: var(--failed); }
+  .s-review  { color: var(--review); }
+  .s-running { color: var(--running); }
+  .s-done    { color: var(--done); }
+
+  @media (max-width: 700px) {
+    .mock-r { grid-template-columns: 80px 1fr 40px; }
+    .mock-r .msg, .mock-r .last { display: none; }
+  }
+
+  /* ---------- code ---------- */
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.75;
+    white-space: pre; background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 18px 20px; margin: 0 0 14px; overflow-x: auto; box-shadow: var(--shadow);
+  }
+  pre b { color: var(--accent); font-weight: 500; }
+  pre i { color: var(--muted); font-style: normal; }
+  .cap { font-size: 13.5px; color: var(--muted); max-width: 60ch; margin: 0 0 26px; }
+
+  /* ---------- decisions ---------- */
+  .dec { display: grid; gap: 0; margin: 26px 0 0; }
+  .dec-row {
+    display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 18px;
+    padding: 18px 0; border-top: 1px solid var(--line);
+  }
+  .dec-row:last-child { border-bottom: 1px solid var(--line); }
+  .dec-row .id { font-family: var(--mono); font-size: 11.5px; color: var(--accent); padding-top: 3px; }
+  .dec-row h3 { margin: 0 0 5px; font-size: 16.5px; }
+  .dec-row p { margin: 0; font-size: 15.5px; color: var(--ink-2); max-width: 56ch; }
+  .dec-row .why { margin-top: 6px; font-size: 14.5px; color: var(--muted); }
+  .dec-head {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); margin: 40px 0 0;
+  }
+
+  /* ---------- note ---------- */
+  .note {
+    background: var(--wash); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 22px 24px; margin: 26px 0;
+  }
+  .note p { color: var(--ink-2); font-size: 15.5px; }
+  .note .kicker { color: var(--accent-2); margin-bottom: 10px; }
+
+  /* ---------- open questions ---------- */
+  .open { display: grid; gap: 12px; max-width: 62ch; margin-top: 26px; }
+  .open div {
+    border: 1px solid var(--line); border-left: 3px solid var(--line-2);
+    border-radius: 0 6px 6px 0; padding: 15px 18px; background: var(--surface);
+  }
+  .open h3 { margin: 0 0 4px; font-size: 15.5px; }
+  .open p { margin: 0; font-size: 14.5px; color: var(--muted); }
+
+  /* ---------- sources ---------- */
+  .src-list { columns: 2; column-gap: 36px; font-size: 14px; padding-left: 18px; }
+  .src-list li { break-inside: avoid; margin-bottom: 9px; }
+  @media (max-width: 700px) { .src-list { columns: 1; } }
+
+  footer {
+    margin-top: 62px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  }
+</style>
+
+<div class="mobile-bar">
+  <div class="row">
+    <span class="here" id="mHere">REPLACE Name</span>
+    <select id="mJump" aria-label="Jump to section"></select>
+  </div>
+  <div class="progress"><i id="mProg"></i></div>
+</div>
+
+<div class="shell">
+
+  <nav class="index" aria-label="Contents">
+    <p class="index-label">Contents</p>
+    <ol id="toc"></ol>
+    <div class="index-foot">
+      REPLACE status line<br>
+      REPLACE decision range<br>
+      Draft &middot; REPLACE date
+    </div>
+  </nav>
+
+  <main>
+
+    <header class="mast">
+      <p class="kicker">Design record &middot; draft for review</p>
+      <h1>REPLACE Name</h1>
+      <p class="lede">REPLACE one sentence saying what this is.</p>
+    </header>
+
+    <!-- ===== PART 1 - ALWAYS THE PROBLEM ===== -->
+    <section id="s-problem" data-num="1" data-label="The problem">
+      <p class="part-n">Part one</p>
+      <h2>REPLACE the problem as a claim, not a category</h2>
+
+      <p class="big">REPLACE the one sentence that frames everything.</p>
+      <p>REPLACE what hurts, and what it costs. Give a number if one exists.</p>
+    </section>
+
+    <!-- ===== MIDDLE PARTS - THE MECHANISM (1 to 3 of them) ===== -->
+    <section id="s-mechanism" data-num="2" data-label="REPLACE label">
+      <p class="part-n">Part two</p>
+      <h2>REPLACE the mechanism as a claim</h2>
+
+      <p>REPLACE the mechanism in plain words.</p>
+
+      <figure>
+        <svg viewBox="0 0 660 200" role="img" aria-label="REPLACE the claim this figure makes.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="arEm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+            </marker>
+          </defs>
+
+          <rect class="box-em" x="16" y="70" width="150" height="60" rx="6"/>
+          <text class="svg-label svg-em" x="91" y="96" text-anchor="middle">the important one</text>
+          <text class="svg-mono svg-dim" x="91" y="115" text-anchor="middle">a detail</text>
+
+          <line class="edge-em" x1="166" y1="100" x2="250" y2="100" marker-end="url(#arEm)"/>
+          <text class="svg-mono svg-dim" x="208" y="90" text-anchor="middle">label the arrow</text>
+
+          <rect class="box" x="254" y="70" width="150" height="60" rx="6"/>
+          <text class="svg-label" x="329" y="96" text-anchor="middle">a plain one</text>
+        </svg>
+        <figcaption>REPLACE the one claim this figure makes.</figcaption>
+      </figure>
+
+      <p class="dec-head">Decisions in this part</p>
+      <div class="dec">
+        <div class="dec-row">
+          <span class="id">D-01</span>
+          <div>
+            <h3>REPLACE the decision as an imperative claim</h3>
+            <p>REPLACE what was decided.</p>
+            <p class="why"><b>Why:</b> REPLACE the reason. If it stops holding, the decision reopens.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== LAST PART - ALWAYS THE PLAN ===== -->
+    <section id="s-plan" data-num="3" data-label="The plan">
+      <p class="part-n">Part three</p>
+      <h2>REPLACE the ordering principle</h2>
+
+      <p>REPLACE what gets built, and in what order.</p>
+
+      <h3>Still open</h3>
+      <div class="open">
+        <div><h3>REPLACE question</h3><p>REPLACE the two sides of it.</p></div>
+      </div>
+    </section>
+
+    <!-- ===== APPENDIX - ALWAYS THESE THREE ===== -->
+    <section id="s-evidence" class="apx" data-num="A" data-label="Evidence table" data-apx="1">
+      <p class="part-n">Appendix</p>
+      <h2>Every claim, and how strong it is</h2>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Strength</th><th>Claim</th><th>The number</th><th>Source</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="chip m">measured</span></td><td>REPLACE</td><td class="num">REPLACE</td><td class="src">REPLACE</td></tr>
+            <tr><td><span class="chip n">narrative</span></td><td>REPLACE</td><td class="num">no result published</td><td class="src">REPLACE</td></tr>
+            <tr><td><span class="chip o">opinion</span></td><td>REPLACE</td><td class="num">unmeasured</td><td class="src">reasoning only</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="s-limits" class="apx" data-num="B" data-label="Limits" data-apx="1">
+      <p class="part-n">Appendix</p>
+      <h2>Limits of this research</h2>
+      <div class="note">
+        <p class="kicker">Read before trusting the above</p>
+        <p>REPLACE what could not be reached, which citations are unverified, and which load-bearing claims are unmeasured. This section is not optional.</p>
+      </div>
+    </section>
+
+    <section id="s-sources" class="apx" data-num="C" data-label="Sources" data-apx="1">
+      <p class="part-n">Appendix</p>
+      <h2>Sources</h2>
+      <ul class="src-list">
+        <li><a href="#">REPLACE</a></li>
+      </ul>
+    </section>
+
+    <footer>
+      REPLACE name &middot; REPLACE date &middot; REPLACE status
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  (function () {
+    var secs = Array.prototype.slice.call(document.querySelectorAll('main section'));
+    var toc = document.getElementById('toc');
+    var jump = document.getElementById('mJump');
+    var here = document.getElementById('mHere');
+    var prog = document.getElementById('mProg');
+    var links = {};
+    var firstApx = true;
+
+    secs.forEach(function (s) {
+      var num = s.getAttribute('data-num') || '';
+      var label = s.getAttribute('data-label') || '';
+      var isApx = s.hasAttribute('data-apx');
+
+      var li = document.createElement('li');
+      if (isApx && firstApx) {
+        li.className = 'gap';
+        var tag = document.createElement('span');
+        tag.className = 'apx-label';
+        tag.textContent = 'Appendix';
+        li.appendChild(tag);
+        firstApx = false;
+      }
+
+      var a = document.createElement('a');
+      a.href = '#' + s.id;
+      var n = document.createElement('span');
+      n.className = 'n';
+      n.textContent = num;
+      var t = document.createElement('span');
+      t.textContent = label;
+      a.appendChild(n);
+      a.appendChild(t);
+      li.appendChild(a);
+      toc.appendChild(li);
+      links[s.id] = a;
+
+      var o = document.createElement('option');
+      o.value = s.id;
+      o.textContent = num + '  ' + label;
+      jump.appendChild(o);
+    });
+
+    jump.addEventListener('change', function () {
+      var el = document.getElementById(jump.value);
+      if (el) el.scrollIntoView({ block: 'start' });
+    });
+
+    function setActive(id) {
+      Object.keys(links).forEach(function (k) {
+        links[k].setAttribute('aria-current', k === id ? 'true' : 'false');
+      });
+      var s = document.getElementById(id);
+      if (s && here) here.textContent = s.getAttribute('data-label') || '';
+      if (jump && jump.value !== id) jump.value = id;
+    }
+
+    if ('IntersectionObserver' in window) {
+      var seen = {};
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting ? e.intersectionRatio : 0; });
+        var best = null, top = -1;
+        secs.forEach(function (s) {
+          var v = seen[s.id] || 0;
+          if (v > top) { top = v; best = s.id; }
+        });
+        if (best && top > 0) setActive(best);
+      }, { rootMargin: '-76px 0px -55% 0px', threshold: [0, 0.15, 0.4, 0.75, 1] });
+      secs.forEach(function (s) { io.observe(s); });
+    }
+
+    function onScroll() {
+      if (!prog) return;
+      var h = document.documentElement;
+      var max = h.scrollHeight - h.clientHeight;
+      prog.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    if (secs.length) setActive(secs[0].id);
+  })();
+</script>
