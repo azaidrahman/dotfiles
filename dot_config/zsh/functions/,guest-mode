@@ -15,6 +15,10 @@
 #                 ,guest-mode            Turn guest mode on. Ctrl-C ends it.
 #                 ,guest-mode --restore  Turn everything on again. Use this if
 #                                        the shell died and could not clean up.
+#
+#               Ctrl-C, `kill`, and a closed terminal all turn things on again.
+#               `kill -9` and a power loss cannot. In that case the state file
+#               stays in $XDG_STATE_HOME, and --restore reads it.
 
 emulate -L zsh
 setopt local_options
@@ -26,7 +30,8 @@ local aerospace_bin=/opt/homebrew/bin/aerospace
 local karabiner_cli="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
 local karabiner_json="$HOME/.config/karabiner/karabiner.json"
 local guest_profile=Guest
-local state_file="${TMPDIR:-/tmp}/guest-mode.state"
+local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+local state_file="$state_dir/guest-mode.state"
 local stop=0 sleep_pid=
 
 .guest-mode-log() { print -r -- "  $*" }
@@ -67,6 +72,7 @@ PY
 }
 
 .guest-mode-off() {
+	mkdir -p "$state_dir"
 	: >"$state_file"
 	print "Guest mode: turning things off"
 
@@ -200,11 +206,18 @@ if [[ ${1:-} == --restore ]]; then
 fi
 
 # The handler also kills the pending sleep, in case zsh exits on the signal.
+if [[ -f $state_file ]]; then
+	print -u 2 "Guest mode is already on, or an earlier run could not clean up."
+	print -u 2 "Run ',guest-mode --restore' to turn everything on again."
+	return 1
+fi
+
 trap '.guest-mode-on; kill $sleep_pid 2>/dev/null; stop=1' INT TERM HUP
 
 .guest-mode-off
 print ""
 print "Guest mode is on. Press Ctrl-C to turn everything back on."
+print "If this shell dies, run: ,guest-mode --restore"
 while (( ! stop )); do
 	sleep 3600 &
 	sleep_pid=$!
