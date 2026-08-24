@@ -367,7 +367,84 @@ mv "$BASE/lib/push-telegram.sh" "$TMPD/mod.hidden" 2>/dev/null && {
   mv "$TMPD/mod.hidden" "$BASE/lib/push-telegram.sh"
 }
 
-present; creds_off
+# --- the local Mac notification can be switched off --------------------------
+# The phone now rings for everything, so the Mac banner and its cue are a second
+# alert for the same event. CLAUDE_NOTIFY_LOCAL=0 drops both. The tmux tab colour
+# and the window name are unaffected — they are the ambient signal at the desk.
+creds_on; away
+run_push permission_prompt '{"message":"x"}' CLAUDE_NOTIFY_LOCAL=0
+check "local off: no terminal-notifier" "0"   "$(calls)"
+check "local off: no sound"             "(none)" "$(played)"
+check "local off: phone still pushed"   "yes" "$(pushed)"
+run_push stop "{\"transcript_path\":\"$ST\"}" CLAUDE_NOTIFY_LOCAL=0
+check "local off: done is silent too"   "(none)" "$(played)"
+check "local off: done no banner"       "0"   "$(calls)"
+# Default must stay ON, so clearing the export restores the old behaviour.
+run_push permission_prompt '{"message":"x"}'
+check "local on by default"             "1"   "$(calls)"
+
+# --- done pushes only for slow turns -----------------------------------------
+# A finished turn is worth a message only if you were away long enough to have
+# stopped watching. Short turns you saw happen. The turn clock starts on the first
+# `working` of a turn and is cleared by `stop`.
+turn_reset() { rm -f "$TMPD/home/.claude/turn"/* 2>/dev/null; }
+# Start a turn, then age its clock by rewriting the recorded start time.
+age_turn() { # seconds
+  local f
+  f=$(ls "$TMPD/home/.claude/turn"/* 2>/dev/null | head -1)
+  [ -n "$f" ] && printf '%s' "$(( $(date +%s) - $1 ))" > "$f"
+}
+
+turn_reset
+run working '{}'                      # turn begins
+run_push stop "{\"transcript_path\":\"$ST\"}"
+check "fast turn: no done push"       "no"  "$(pushed)"
+
+turn_reset
+run working '{}'
+age_turn 300
+run_push stop "{\"transcript_path\":\"$ST\"}"
+check "slow turn: done pushed"        "yes" "$(pushed)"
+
+# The threshold is tunable.
+turn_reset
+run working '{}'
+age_turn 30
+run_push stop "{\"transcript_path\":\"$ST\"}"
+check "30s turn under default 60s"    "no"  "$(pushed)"
+turn_reset
+run working '{}'
+age_turn 30
+run_push stop "{\"transcript_path\":\"$ST\"}" CLAUDE_PUSH_DONE_MIN_SECS=10
+check "30s turn over a 10s threshold" "yes" "$(pushed)"
+
+# A blocked session must ALWAYS reach the phone. Being quick is not a reason to
+# leave you stuck, so the duration gate applies to `done` only.
+turn_reset
+run working '{}'
+run_push permission_prompt '{"message":"x"}'
+check "fast turn: attn still pushes"  "yes" "$(pushed)"
+turn_reset
+run working '{}'
+run_push stop "{\"transcript_path\":\"$QT\"}"
+check "fast turn: question still pushes" "yes" "$(pushed)"
+
+# The clock must not restart on every tool call. PreToolUse fires `working` too, so
+# a long turn full of tool calls would otherwise always look brand new.
+turn_reset
+run working '{}'
+age_turn 300
+run working '{}'                      # a tool call mid-turn
+run working '{}'
+run_push stop "{\"transcript_path\":\"$ST\"}"
+check "tool calls do not reset the clock" "yes" "$(pushed)"
+
+# With no clock at all (hook restarted mid-turn), push rather than swallow it.
+turn_reset
+run_push stop "{\"transcript_path\":\"$ST\"}"
+check "no clock -> push anyway"       "yes" "$(pushed)"
+
+turn_reset; present; creds_off
 
 echo
 [ "$fail" -eq 0 ] && echo "All notify-tmux tests passed." || echo "Some notify-tmux tests FAILED."

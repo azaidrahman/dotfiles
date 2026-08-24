@@ -27,6 +27,9 @@ LOGO="$HOME/.claude/claude-logo.png"
 LOG_ALERT="$HOME/.tmux/scripts/log-alert.sh"
 FOCUS_DB="$HOME/Library/DoNotDisturb/DB/Assertions.json"
 
+# Seconds the finished turn ran, set once by the stop handler. Empty when unknown.
+TURN_ELAPSED=""
+
 # Focus modes in which an audible cue is unwelcome regardless of how blocked the
 # session is. Everything else (Work, Personal, Do Not Disturb, Reduce Interruptions)
 # still gets the attention sound — the point is to reach you while you're working,
@@ -280,6 +283,65 @@ user_is_away() {
     [ "$idle" -ge "$threshold" ]
 }
 
+# Where this turn's start time is recorded. One file for each Claude session, so
+# concurrent sessions keep separate clocks. session_id comes from the hook payload;
+# the pane id and the parent pid are fallbacks for when it is absent.
+turn_clock_file() {
+    local key
+    key=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+    [ -n "$key" ] || key="${PANE:-$PPID}"
+    key=$(printf '%s' "$key" | tr -c 'A-Za-z0-9_-' '_')
+    mkdir -p "$HOME/.claude/turn" 2>/dev/null
+    printf '%s/.claude/turn/%s' "$HOME" "$key"
+}
+
+# Start the clock for this turn. Runs on `working`, which fires both when you send a
+# prompt and on every tool call. Only the first one records a time, so a long turn
+# full of tool calls does not keep looking brand new.
+turn_start() {
+    local f; f=$(turn_clock_file)
+    [ -f "$f" ] && return 0
+    date +%s > "$f" 2>/dev/null
+    dlog "turn: clock started"
+}
+
+# Seconds this turn has run, empty when no clock exists. Clears the clock.
+turn_elapsed() {
+    local f start; f=$(turn_clock_file)
+    [ -f "$f" ] || return 0
+    start=$(cat "$f" 2>/dev/null)
+    rm -f "$f" 2>/dev/null
+    case "$start" in ''|*[!0-9]*) return 0 ;; esac
+    printf '%s' "$(( $(date +%s) - start ))"
+}
+
+# Should a FINISHED turn reach the phone? Only when it ran long enough that you
+# stopped watching it. A turn that took three seconds finished while you were
+# reading it, and a message about it is noise — at roughly 40 turns a day, that
+# noise is what buries the messages that matter.
+#
+# This gates `done` only. A blocked session always reaches you, however quick it
+# was, because being quick is no reason to leave you stuck.
+#
+# With no clock at all — the hook was added mid-turn, or the file was cleared — push
+# rather than swallow it. Failing toward a message is the safer direction here,
+# unlike the away-gate, where a false push is the annoying outcome.
+# Reads $TURN_ELAPSED rather than calling turn_elapsed itself. The stop handler
+# clears the clock exactly once, before it decides anything, so a turn that is not
+# pushed still ends its clock. Otherwise a suppressed turn would leave its start
+# time behind and make the NEXT turn look long enough to push.
+done_is_worth_pushing() {
+    local elapsed threshold
+    threshold="${CLAUDE_PUSH_DONE_MIN_SECS:-60}"
+    elapsed="$TURN_ELAPSED"
+    if [ -z "$elapsed" ]; then
+        dlog "turn: no clock -> push anyway"
+        return 0
+    fi
+    dlog "turn: ran ${elapsed}s, threshold ${threshold}s"
+    [ "$elapsed" -ge "$threshold" ]
+}
+
 # Play an alert sound ourselves instead of asking terminal-notifier to do it.
 #
 # This exists because a Focus mode suppresses notification *presentation* — banner and
@@ -344,10 +406,23 @@ notify() {
         host="${CLAUDE_PUSH_HOST:-$(hostname -s 2>/dev/null)}"
         push_sub="$sub"
         [ -n "$host" ] && push_sub="$host · $sub"
-        dlog "push: away -> phone, tier=$tier host=$host"
-        push_telegram "$tier" "$title" "$push_sub" "$msg"
+        if [ "$tier" = "attn" ] || done_is_worth_pushing; then
+            dlog "push: away -> phone, tier=$tier host=$host"
+            push_telegram "$tier" "$title" "$push_sub" "$msg"
+        else
+            dlog "push: done but the turn was short, skipping"
+        fi
     else
         dlog "push: present -> Mac only, tier=$tier"
+    fi
+
+    # The Mac banner and its cue are optional. Once the phone rings for everything,
+    # they are a second alert for the same event. CLAUDE_NOTIFY_LOCAL=0 drops both.
+    # The tmux tab colour and the window name still change, and those are the ambient
+    # signal at the desk — this only removes the interruption.
+    if [ "${CLAUDE_NOTIFY_LOCAL:-1}" = "0" ]; then
+        dlog "local: suppressed by CLAUDE_NOTIFY_LOCAL=0"
+        return 0
     fi
 
     command -v terminal-notifier >/dev/null || return 0
@@ -404,6 +479,7 @@ dlog "event fired (session=$SESSION wname=[$WNAME])"
 case "$EVENT" in
     working)
         autoname_protect
+        turn_start
         window_status working
         ;;
     permission_prompt)
@@ -422,6 +498,7 @@ case "$EVENT" in
         # subtitle. Notifying before capture left the very first notification of a
         # session with no topic label.
         autoname_capture
+        TURN_ELAPSED=$(turn_elapsed)
         if ends_with_question; then
             dlog "stop: turn ended with a question -> question state"
             notify attn 'Claude asked you a question'
