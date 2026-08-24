@@ -21,6 +21,19 @@ export TERMINAL="Ghostty"
 export FZF_DEFAULT_COMMAND='rg --files --hidden -g !.git/'
 export GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn"
 
+# === Claude Code phone notifications ===
+# Send every notification to the phone, and do not wait until you leave the Mac.
+# ~/.claude/hooks/notify-tmux.sh sends to the phone only when you are away. This
+# turns that gate off, because you want the phone to ring for a finished turn as
+# well, not only for a session that you left behind.
+#
+# The attn tier rings. The done tier arrives without a sound, so a finished turn
+# lands quietly in the chat and you read it when you want to.
+#
+# Set this to empty to get the away-gate back. Claude Code reads the value when
+# it starts, so a change applies to the next session, not to a running one.
+export CLAUDE_PUSH_ALWAYS=1
+
 # === Pyenv (interactive init) ===
 # Shims dir is already on PATH via .zshenv; this sets up the `pyenv` shell
 # function + completion. Cached to avoid the slow `pyenv init` on every shell;
