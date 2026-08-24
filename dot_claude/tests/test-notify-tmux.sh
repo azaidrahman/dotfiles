@@ -29,7 +29,8 @@ bash -n "$HOOK" || { echo "FAIL - hook has a syntax error"; exit 1; }
 TMPD=$(mktemp -d)
 trap 'rm -rf "$TMPD"' EXIT
 STUB="$TMPD/bin"; ARGS="$TMPD/argv"; PLAYED="$TMPD/played"
-mkdir -p "$STUB" "$TMPD/home/Library/DoNotDisturb/DB"
+PUSHED="$TMPD/pushed"; KC="$TMPD/kc"
+mkdir -p "$STUB" "$KC" "$TMPD/home/Library/DoNotDisturb/DB"
 
 # afplay stub: records which sound file play_sound tried to play. The attn tier plays
 # its cue this way rather than via -sound, because Focus does not gate afplay.
@@ -55,6 +56,48 @@ printf '%s\n' "\$@" >> "$ARGS"
 EOF
 chmod +x "$STUB/terminal-notifier"
 
+# curl stub: records the phone push argv NUL-delimited, so a message containing
+# newlines or quotes cannot corrupt the record boundaries.
+cat > "$STUB/curl" <<EOF
+#!/usr/bin/env bash
+printf '%s\0' "\$@" >> "$PUSHED"
+EOF
+chmod +x "$STUB/curl"
+
+# security stub: serves whatever the test placed in $KC/<service>, so the real
+# keychain is never touched. No file means a non-zero exit, exactly as the real
+# command reports an absent entry. Credentials start ABSENT — tests that expect a
+# push call creds_on first.
+cat > "$STUB/security" <<EOF
+#!/usr/bin/env bash
+svc=""
+while [ \$# -gt 0 ]; do
+  case "\$1" in -s) svc="\${2:-}"; shift 2 ;; *) shift ;; esac
+done
+f="$KC/\$svc"
+[ -f "\$f" ] || exit 44
+cat "\$f"
+EOF
+chmod +x "$STUB/security"
+
+# ioreg stub: drives the away-gate deterministically. Without it the gate would read
+# the real machine, and a test run would pass or fail depending on whether the user
+# happened to be touching the keyboard. \$TMPD/idle holds HID idle seconds; the
+# presence of \$TMPD/locked means the screen is locked.
+cat > "$STUB/ioreg" <<EOF
+#!/usr/bin/env bash
+idle=\$(cat "$TMPD/idle" 2>/dev/null || echo 0)
+case " \$* " in
+  *" -c IOHIDSystem "*)
+    printf '    "HIDIdleTime" = %s\n' "\$(( idle * 1000000000 ))" ;;
+  *)
+    if [ -f "$TMPD/locked" ]; then
+      printf '        <key>CGSSessionScreenIsLocked</key>\n        <true/>\n'
+    fi ;;
+esac
+EOF
+chmod +x "$STUB/ioreg"
+
 # A tmux stub that always fails. Unsetting \$TMUX is NOT enough to isolate: the tmux
 # CLI happily connects to the default server anyway, so tq() would resolve to the
 # attached client's *active* window — making assertions depend on whatever window the
@@ -69,13 +112,35 @@ chmod +x "$STUB/tmux"
 # run <event> <stdin-json> [VAR=val ...] — capture the argv of one notify() call.
 run() {
   local event="$1" json="$2"; shift 2
-  : > "$ARGS"; : > "$PLAYED"
+  : > "$ARGS"; : > "$PLAYED"; : > "$PUSHED"
   printf '%s' "$json" | env -u TMUX -u TMUX_PANE HOME="$TMPD/home" \
     PATH="$STUB:$(dirname "$(command -v bash)"):/usr/bin:/bin:/usr/sbin:/sbin" \
     "$@" bash "$HOOK" "$event" >/dev/null 2>&1
   # play_sound backgrounds afplay, so give the detached child a moment to record.
   for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$PLAYED" ] && break; sleep 0.1; done
 }
+
+# Presence controls for the away-gate. Default: at the keyboard, screen unlocked.
+present()  { printf '0'   > "$TMPD/idle"; rm -f "$TMPD/locked"; }
+away()     { printf '900' > "$TMPD/idle"; rm -f "$TMPD/locked"; }
+locked()   { printf '0'   > "$TMPD/idle"; : > "$TMPD/locked"; }
+creds_on() { printf 'BOTTOKEN123' > "$KC/telegram-claude-bot-token"
+             printf '99887766'    > "$KC/telegram-claude-chat-id"; }
+creds_off(){ rm -f "$KC"/*; }
+present; creds_off
+
+# run_push <event> <json> [ENV=val ...] — like run(), but waits on the detached curl
+# rather than on afplay, so push assertions are not racy.
+run_push() {
+  run "$@"
+  for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$PUSHED" ] && break; sleep 0.1; done
+}
+pushed()   { [ -s "$PUSHED" ] && echo yes || echo no; }
+pushval()  { local p="$1" a; while IFS= read -r -d '' a; do
+               case "$a" in "$p"*) printf '%s' "${a#"$p"}"; return 0 ;; esac
+             done < "$PUSHED"; printf '(absent)'; }
+pushhas()  { local p="$1" a; while IFS= read -r -d '' a; do
+               [ "$a" = "$p" ] && { echo yes; return; }; done < "$PUSHED"; echo no; }
 val()  { awk -v f="$1" '$0==f{getline; print; exit}' "$ARGS"; }        # value after a flag
 has()  { grep -qxF -- "$1" "$ARGS" && echo yes || echo no; }           # flag present?
 calls(){ grep -cxF -- '-title' "$ARGS"; }                              # notify() invocations
@@ -207,6 +272,92 @@ run permission_prompt ''
 check "permission: survives empty stdin" "1"            "$(calls)"
 run stop '{"transcript_path":"/nonexistent/path.jsonl"}'
 check "stop: missing transcript -> done" "Claude Code"  "$(val -title)"
+
+# --- phone push: the away-gate ----------------------------------------------
+# A phone that buzzes while you are sitting at the terminal is noise, and noise is
+# how a topic ends up muted. The Mac notification is enough while you are present.
+creds_on
+present
+run_push permission_prompt '{"message":"Bash wants to run rm"}'
+check "present: no push"              "no"  "$(pushed)"
+check "present: still notifies Mac"   "1"   "$(calls)"
+
+away
+run_push permission_prompt '{"message":"Bash wants to run rm"}'
+check "away: pushes to phone"         "yes" "$(pushed)"
+
+# Locking and walking away leaves idle time at zero for the first few minutes —
+# exactly the window where the push matters most. A lock must count as away.
+locked
+run_push permission_prompt '{"message":"x"}'
+check "locked: pushes despite idle=0" "yes" "$(pushed)"
+
+# The threshold is tunable, like CLAUDE_NOTIFY_SILENT_MODES.
+present; printf '90' > "$TMPD/idle"
+run_push permission_prompt '{"message":"x"}'
+check "90s idle under default 300s"   "no"  "$(pushed)"
+run_push permission_prompt '{"message":"x"}' CLAUDE_PUSH_IDLE_SECS=60
+check "90s idle over a 60s threshold" "yes" "$(pushed)"
+
+# An escape hatch for verifying a new bot without waiting out the threshold.
+present
+run_push permission_prompt '{"message":"x"}' CLAUDE_PUSH_ALWAYS=1
+check "CLAUDE_PUSH_ALWAYS overrides"  "yes" "$(pushed)"
+
+# If the idle probe cannot be read, assume the user is present. A missed push costs
+# less than a phone buzzing on the desk, and the Mac notification already fired.
+away
+run_push permission_prompt '{"message":"x"}' CLAUDE_PUSH_IOREG=/nonexistent/ioreg
+check "no idle probe -> no push"      "no"  "$(pushed)"
+
+# --- phone push: tiers and content ------------------------------------------
+away
+run_push permission_prompt '{"message":"Bash wants to run rm -rf /tmp/x"}'
+check "attn push: audible"            "no"  "$(pushhas 'disable_notification=true')"
+check "attn push: body carried"       "yes" \
+      "$(case "$(pushval 'text=')" in *'rm -rf /tmp/x'*) echo yes;; *) echo no;; esac)"
+check "attn push: title carried"      "yes" \
+      "$(case "$(pushval 'text=')" in *'needs you'*) echo yes;; *) echo no;; esac)"
+check "attn push: session carried"    "yes" \
+      "$(case "$(pushval 'text=')" in *unknown*) echo yes;; *) echo no;; esac)"
+
+run_push stop "{\"transcript_path\":\"$ST\"}"
+check "done push: silent"             "yes" "$(pushhas 'disable_notification=true')"
+run_push stop "{\"transcript_path\":\"$QT\"}"
+check "question push: audible"        "no"  "$(pushhas 'disable_notification=true')"
+
+# --- phone push: gates ------------------------------------------------------
+run_push permission_prompt '{"message":"x"}' CLAUDE_PUSH_DISABLE=1
+check "CLAUDE_PUSH_DISABLE -> no push" "no" "$(pushed)"
+creds_off
+run_push permission_prompt '{"message":"x"}'
+check "no credentials -> no push"     "no"  "$(pushed)"
+check "no credentials still notifies" "1"   "$(calls)"
+creds_on
+
+# Events that carry no notification must carry no push either.
+run_push working '{}'
+check "working: no push"              "no"  "$(pushed)"
+run_push exit '{}'
+check "exit: no push"                 "no"  "$(pushed)"
+
+# The phone sink must not depend on terminal-notifier. These are independent
+# transports, and a machine without that cask should still reach you.
+mv "$STUB/terminal-notifier" "$TMPD/tn.hidden"
+run_push permission_prompt '{"message":"x"}'
+check "pushes without terminal-notifier" "yes" "$(pushed)"
+mv "$TMPD/tn.hidden" "$STUB/terminal-notifier"
+
+# A missing module must not break the hook — chezmoi could apply the hook first.
+away
+mv "$BASE/lib/push-telegram.sh" "$TMPD/mod.hidden" 2>/dev/null && {
+  run_push permission_prompt '{"message":"x"}'
+  check "absent module: no push"      "no"  "$(pushed)"
+  check "absent module: hook survives" "1"  "$(calls)"
+  mv "$TMPD/mod.hidden" "$BASE/lib/push-telegram.sh"
+}
+
+present; creds_off
 
 echo
 [ "$fail" -eq 0 ] && echo "All notify-tmux tests passed." || echo "Some notify-tmux tests FAILED."

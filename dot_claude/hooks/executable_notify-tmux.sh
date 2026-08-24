@@ -8,7 +8,16 @@ PANE="${TMUX_PANE:-}"
 
 # tq comes from the shared library: it queries *this* Claude pane's window, not
 # the attached client's active window.
-. "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/tmux-lib.sh"
+HOOK_LIB="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib"
+. "$HOOK_LIB/tmux-lib.sh"
+
+# The phone sink is optional. chezmoi could apply this hook before the library, so a
+# missing module degrades to a no-op instead of breaking every notification.
+if [ -f "$HOOK_LIB/push-telegram.sh" ]; then
+    . "$HOOK_LIB/push-telegram.sh"
+else
+    push_telegram() { :; }
+fi
 
 SESSION=$(tq '#{session_name}'); SESSION=${SESSION:-unknown}
 WINDOW=$(tq '#{window_index}'); WINDOW=${WINDOW:-0}
@@ -234,6 +243,43 @@ active_focus_mode() {
         "$FOCUS_DB" 2>/dev/null | head -n 1
 }
 
+# Seconds since the last keyboard or mouse input, empty if the probe fails. IOKit
+# reports this in nanoseconds. $CLAUDE_PUSH_IOREG exists so the tests can point the
+# probe at a path that does not exist.
+hid_idle_secs() {
+    "${CLAUDE_PUSH_IOREG:-ioreg}" -c IOHIDSystem 2>/dev/null \
+        | awk '/HIDIdleTime/ { print int($NF / 1000000000); exit }'
+}
+
+# True when the screen is locked. The key is absent while unlocked, and some macOS
+# versions report it as false instead, so test the value rather than the key.
+screen_locked() {
+    "${CLAUDE_PUSH_IOREG:-ioreg}" -n Root -d1 -a 2>/dev/null \
+        | grep -A1 'CGSSessionScreenIsLocked' \
+        | grep -q '<true/>'
+}
+
+# True when you are away from this Mac, which is the only time the phone should ring.
+# While you are at the keyboard the Mac notification already has your attention, and
+# a second buzz in your pocket is pure noise — which is how a topic ends up muted.
+#
+# A lock counts as away on its own. If you lock the screen and walk off, idle time is
+# still near zero for the next few minutes, and that is exactly the window where the
+# push matters most.
+#
+# If the probe fails we report present, so nothing is pushed. That is deliberate: a
+# missed push costs you less than a phone buzzing on the desk, and the local
+# notification has already fired either way.
+user_is_away() {
+    [ -n "${CLAUDE_PUSH_ALWAYS:-}" ] && return 0
+    screen_locked && return 0
+    local idle threshold
+    threshold="${CLAUDE_PUSH_IDLE_SECS:-300}"
+    idle=$(hid_idle_secs)
+    [ -n "$idle" ] || { dlog "away-gate: no idle reading -> assume present"; return 1; }
+    [ "$idle" -ge "$threshold" ]
+}
+
 # Play an alert sound ourselves instead of asking terminal-notifier to do it.
 #
 # This exists because a Focus mode suppresses notification *presentation* — banner and
@@ -262,7 +308,6 @@ play_sound() {
 }
 
 notify() {
-    command -v terminal-notifier >/dev/null || return 0
     local tier="$1" msg="$2"
     # Subtitle = session + the window's topic, so concurrent sessions are easy to
     # tell apart. Prefer @claude_base (the clean auto-named topic, no status glyph);
@@ -284,6 +329,19 @@ notify() {
         # audible (peak -8.8 dB) rather than one of the near-inaudible ones.
         *)    title='Claude Code';             sound="${CLAUDE_NOTIFY_SOUND_DONE:-Tink}"; via_afplay='' ;;
     esac
+
+    # The phone, but only when you are not here to see the Mac. This runs BEFORE the
+    # terminal-notifier guard below on purpose: the two sinks are independent, and a
+    # machine without that cask installed should still be able to reach you.
+    # push_telegram detaches its own request, so this cannot block the stop path.
+    if user_is_away; then
+        dlog "push: away -> phone, tier=$tier"
+        push_telegram "$tier" "$title" "$sub" "$msg"
+    else
+        dlog "push: present -> Mac only, tier=$tier"
+    fi
+
+    command -v terminal-notifier >/dev/null || return 0
 
     set -- \
         -title "$title" \
