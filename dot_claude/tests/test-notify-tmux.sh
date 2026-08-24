@@ -321,6 +321,16 @@ check "attn push: title carried"      "yes" \
 check "attn push: session carried"    "yes" \
       "$(case "$(pushval 'text=')" in *unknown*) echo yes;; *) echo no;; esac)"
 
+# One Telegram chat aggregates every machine, so the push must name the machine that
+# is asking. Without this, aqua and onyx are indistinguishable in your pocket.
+run_push permission_prompt '{"message":"x"}' CLAUDE_PUSH_HOST=onyx
+check "push names the machine"        "yes" \
+      "$(case "$(pushval 'text=')" in *'onyx · '*) echo yes;; *) echo no;; esac)"
+# The local notification must stay clean. You are looking at that Mac, so repeating
+# its name in the subtitle is noise.
+check "Mac subtitle omits hostname"   "no" \
+      "$(case "$(val -subtitle)" in *onyx*) echo yes;; *) echo no;; esac)"
+
 run_push stop "{\"transcript_path\":\"$ST\"}"
 check "done push: silent"             "yes" "$(pushhas 'disable_notification=true')"
 run_push stop "{\"transcript_path\":\"$QT\"}"

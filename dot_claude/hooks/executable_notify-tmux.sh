@@ -334,9 +334,18 @@ notify() {
     # terminal-notifier guard below on purpose: the two sinks are independent, and a
     # machine without that cask installed should still be able to reach you.
     # push_telegram detaches its own request, so this cannot block the stop path.
+    #
+    # The push names the machine; the local notification does not. One Telegram chat
+    # collects every machine, so a buzz that does not say `aqua` or `onyx` cannot tell
+    # you which one is blocked. On the Mac itself the name is noise — you are looking
+    # at it. Set $CLAUDE_PUSH_HOST to override the label.
     if user_is_away; then
-        dlog "push: away -> phone, tier=$tier"
-        push_telegram "$tier" "$title" "$sub" "$msg"
+        local host push_sub
+        host="${CLAUDE_PUSH_HOST:-$(hostname -s 2>/dev/null)}"
+        push_sub="$sub"
+        [ -n "$host" ] && push_sub="$host · $sub"
+        dlog "push: away -> phone, tier=$tier host=$host"
+        push_telegram "$tier" "$title" "$push_sub" "$msg"
     else
         dlog "push: present -> Mac only, tier=$tier"
     fi
