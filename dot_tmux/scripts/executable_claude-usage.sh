@@ -84,10 +84,11 @@ to_countdown() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "in 2h 15m" (empty on 
   fi
 }
 
-to_clock() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "4:00PM Jun 22" (empty on parse failure)
+to_clock() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "4:00PM SUN 22-JUN" (empty on parse failure)
   local s=$1 epoch
   epoch=$(to_epoch "$s"); [ -n "$epoch" ] || return
-  date -r "$epoch" '+%I:%M%p %b %d' 2>/dev/null | sed -E 's/^0//'
+  date -r "$epoch" '+%I:%M%p %a %d-%b' 2>/dev/null \
+    | tr '[:lower:]' '[:upper:]' | sed -E 's/^0//'
 }
 
 # term_width : the popup's real column count. `tput cols` first — inside a
@@ -255,14 +256,25 @@ provider_tag() {
 }
 
 LABEL_W=26   # width of the label column; the marker note aligns against it
+BAR_CAP=70   # the bar never grows past this, however wide the terminal is
+
+# ROW_FIXED_W : every cell of a usage row except the bar itself. The popup
+# width comes from this sum, so a change to the reset format widens the box
+# instead of wrapping the last characters onto the next line.
+#   2  indent
+#  +LABEL_W +1  the label column and the space after it
+#  +5  " 100%"
+#  +6  " ▲+100"
+#  +37 " resets in Xh Xm (H:MMPM DDD DD-MON)"
+ROW_FIXED_W=$(( 2 + LABEL_W + 1 + 5 + 6 + 37 ))
 
 bar() { # label pct reset
   local label=$1 pct=$2 reset=$3
   (( pct > 100 )) && pct=100
   local width=$(term_width)
-  local bar_w=$(( width - 74 ))   # 74 = label(29) + pct(5) + pace(5) + "resets in Xh Xm (H:MMAM Mon DD)"(35)
+  local bar_w=$(( width - ROW_FIXED_W ))
   (( bar_w < 10 )) && bar_w=10
-  (( bar_w > 70 )) && bar_w=70
+  (( bar_w > BAR_CAP )) && bar_w=$BAR_CAP
   local fill=$(( pct * bar_w / 100 ))
   local col; col=$(color_for "$pct")
 
@@ -359,7 +371,8 @@ usage_main() {
 # needs. Instead we size the popup ourselves, in cells, to whichever view
 # (usage vs cost) this pane is about to render.
 
-USAGE_POPUP_W=146   # fits a full-cap 70-char bar (see the -74 offset in bar())
+# +2 for the popup border, which eats a column on each side.
+USAGE_POPUP_W=$(( ROW_FIXED_W + BAR_CAP + 2 ))   # fits a full-cap bar plus its row
 COST_POPUP_W=90      # fits a full-cap 45-char bar (see the -42 offset in render_cost)
 
 # rows_for_usage : number of metric rows the cached /usage text will render.
