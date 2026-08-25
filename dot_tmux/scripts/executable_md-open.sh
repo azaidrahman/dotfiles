@@ -5,8 +5,9 @@
 # md-preview.sh) and the pane .md picker (prefix+) / pane-md-preview.sh + md-pick.sh).
 #
 # Usage: md-open.sh [--no-confirm] <file> [src_window] [src_dir]
-#   --no-confirm  skip the bat preview + y/N gate and open in nvim immediately
-#                 (used when the caller — e.g. the fzf picker — already previewed).
+#   --no-confirm  skip the bat preview + y/N gate and open in nvim immediately.
+#                 md-pick.sh always passes this flag, because its fzf preview
+#                 pane already shows the file.
 #
 # <file>       — markdown file to preview/open
 # [src_window] — source window name (the new window is named md-<name>)

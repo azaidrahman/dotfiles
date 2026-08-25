@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # prefix+) viewer: scan a pane (visible + scrollback) for every .md file path it
-# mentions, then preview one via md-open.sh (the shared bat -> nvim
-# MarkdownPreview flow). One existing hit opens straight into the preview;
-# multiple hits hand off to md-pick.sh for an fzf picker (with a bat preview
-# pane) so you can scroll and choose. Handy for jumping from a path Claude
+# mentions, then hand the hits to md-pick.sh. That script shows a two-pane fzf
+# picker — the list of files on the left, a bat render on the right — and opens
+# your choice in nvim through md-open.sh. Handy for jumping from a path Claude
 # printed — plans, specs, READMEs, … — into a rendered view.
 #
 # Invoked via run-shell so tmux expands the #{...} formats into the args below.
