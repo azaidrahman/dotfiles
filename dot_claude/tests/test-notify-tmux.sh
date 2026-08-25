@@ -332,8 +332,11 @@ check "attn push: audible"            "no"  "$(pushhas 'disable_notification=tru
 check "attn push: body carried"       "yes" \
       "$(case "$(pushval 'text=')" in *'rm -rf /tmp/x'*) echo yes;; *) echo no;; esac)"
 # The phone gets one collapsed line to work with, so the status leads. "Claude Code"
-# is redundant there — the message already comes from the Claude bot.
-check "attn push: status leads"       "PERMISSION" "$(pushval 'text=' | head -1)"
+# is redundant there — the message already comes from the Claude bot. A colored dot
+# leads the status word: Telegram has no colored text, and the lock screen drops
+# bold, so an emoji is the only color that reaches the notification. Each color is
+# the one the tmux window turns for that state.
+check "attn push: status leads"       "🔴 PERMISSION" "$(pushval 'text=' | head -1)"
 check "attn push: session carried"    "yes" \
       "$(case "$(pushval 'text=')" in *unknown*) echo yes;; *) echo no;; esac)"
 
@@ -349,10 +352,12 @@ check "Mac subtitle omits hostname"   "no" \
 
 run_push stop "{\"transcript_path\":\"$ST\"}"
 check "done push: silent"             "yes" "$(pushhas 'disable_notification=true')"
-check "done push: status leads"       "DONE" "$(pushval 'text=' | head -1)"
+check "done push: status leads"       "🟢 DONE" "$(pushval 'text=' | head -1)"
 run_push stop "{\"transcript_path\":\"$QT\"}"
 check "question push: audible"        "no"  "$(pushhas 'disable_notification=true')"
-check "question push: status leads"   "QUESTION" "$(pushval 'text=' | head -1)"
+check "question push: status leads"   "🟣 QUESTION" "$(pushval 'text=' | head -1)"
+run_push idle_prompt '{"message":"x"}'
+check "idle push: status leads"       "🟡 INPUT" "$(pushval 'text=' | head -1)"
 
 # --- phone push: gates ------------------------------------------------------
 run_push permission_prompt '{"message":"x"}' CLAUDE_PUSH_DISABLE=1

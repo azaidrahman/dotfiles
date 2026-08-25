@@ -380,6 +380,20 @@ play_sound() {
     ( afplay "$f" >/dev/null 2>&1 & ) >/dev/null 2>&1
 }
 
+# Map a status word to the colored dot that leads the push. The colors are the
+# same ones the tmux window turns for that state (see @claude_state in
+# visual.conf), so a red dot on the phone and a red tab on the Mac mean one
+# thing. Telegram has no colored text, and the phone strips bold from the lock
+# screen, so an emoji is the only color that survives into the notification.
+push_glyph() {
+    case "$1" in
+        PERMISSION) printf '\360\237\224\264' ;;  # red    — blocked on your approval
+        QUESTION)   printf '\360\237\237\243' ;;  # purple — Claude asked you something
+        INPUT)      printf '\360\237\237\241' ;;  # yellow — idle, waiting on you
+        DONE)       printf '\360\237\237\242' ;;  # green  — turn finished
+    esac
+}
+
 notify() {
     # $3 is the status word for the phone: the push leads with it, because a
     # collapsed Telegram notification gives you one line to decide whether to pick
@@ -423,6 +437,9 @@ notify() {
         [ -n "$host" ] && push_sub="$host · $sub"
         if [ "$tier" = "attn" ] || done_is_worth_pushing; then
             dlog "push: away -> phone, tier=$tier host=$host"
+            local glyph
+            glyph=$(push_glyph "$status")
+            [ -n "$glyph" ] && status="$glyph $status"
             push_telegram "$tier" "$status" "$push_sub" "$msg"
         else
             dlog "push: done but the turn was short, skipping"
