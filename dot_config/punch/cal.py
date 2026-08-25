@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Write the study block to Calendar.app.
+"""Write the session to Calendar.app.
 
 Calendar.app syncs to Google and Dot.app reads the same store, so this needs no
 API credentials.
@@ -7,7 +7,7 @@ API credentials.
 import subprocess
 from datetime import datetime
 
-CALENDAR = "Study"
+CALENDAR = "Task Punch"
 
 _CREATE = '''
 on run argv
@@ -45,7 +45,13 @@ end run
 
 def _osascript(script: str, *args: str) -> str:
     r = subprocess.run(["osascript", "-", *args], input=script,
-                       capture_output=True, text=True, check=True)
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        # osascript writes the reason to stderr. Keep it, or the caller
+        # sees an exit code and no cause.
+        raise RuntimeError(
+            f"osascript failed with status {r.returncode}: "
+            f"{r.stderr.strip() or 'no output'}")
     return r.stdout.strip()
 
 

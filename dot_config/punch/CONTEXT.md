@@ -54,5 +54,5 @@ _Avoid_: dialog, popup, overlay, panel
   of a session. The first design said the opposite. See ADR 0001.
 - A retro session is still a session. The `source` field keeps the data honest,
   so the dashboard can leave retro sessions out of a completion rate.
-- Punch tracks focused work of any kind. Study and work are topics. The name
-  `Study` on the calendar is older than this model. See the spec.
+- Punch tracks focused work of any kind. Study and work are topics. The
+  calendar is `Task Punch`. An older name, `Study`, is from the first design.
