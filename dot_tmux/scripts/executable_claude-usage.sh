@@ -1,17 +1,47 @@
 #!/bin/bash
-# prefix+u : render `claude -p /usage` as labeled TUI percentage bars.
-# Parses each "Label: N% used · resets ..." line into a colored bar.
+# prefix+u : show how much of an AI subscription or budget is gone, as bars.
 #
-# `claude -p /usage` cold-boots the CLI + a network call (~1.5-2s), so:
-#   1. if a cached render exists, draw it instantly (marked stale),
-#   2. otherwise show a "Loading…" line,
-#   3. then fetch fresh, overwrite the cache, and redraw.
+# The script has three layers. Keep them separate.
+#   1. A provider fetches its own data and prints a canonical blob.
+#   2. A view renders one blob shape. There are two views: quota and cost.
+#   3. The popup sizes itself from the blob that is already in the cache.
+#
+# A provider never draws, and a view never fetches. To add a subscription you
+# write the provider only.
+#
+# CANONICAL BLOB
+# Every line is one record. The fields are separated by a tab character.
+#   QUOTA <label> <pct> <epoch|-> <window-seconds|->   one bar in the quota view
+#   MODEL <usd> <name>                                 one bar in the cost view
+#   TOTAL <all|7d|mtd|ytd> <usd>                       one total in the cost view
+#   NOTE  <text>                                       a message for the reader
+# The blob holds absolute epoch seconds, never a countdown. The countdown is
+# recomputed at draw time, so a cached blob stays correct as the clock moves.
+#
+# HOW TO ADD A PROVIDER
+# Write these functions, with the id of the provider as the prefix. Then add
+# the id to PROVIDERS and map the pane marker to it in resolve_provider.
+#   p_<id>_view       prints "quota" or "cost"
+#   p_<id>_title      prints the header of the popup
+#   p_<id>_tag        prints the colored name of the provider
+#   p_<id>_fetch      prints the raw text of the source
+#   p_<id>_normalize  reads the raw text on stdin, prints a canonical blob
+# A provider that cannot split the fetch from the parse writes p_<id>_blob
+# instead. The default p_<id>_blob is "fetch | normalize".
+#
+# A fetch is slow (`claude -p /usage` cold-boots the CLI, ~1.5-2s), so:
+#   1. if a cached blob exists, draw it at once and mark it stale,
+#   2. if not, show a "Loading…" line,
+#   3. then fetch, overwrite the cache, and draw again.
 
 set -u
 
-CACHE="${TMPDIR:-/tmp}/claude-usage.cache"
+PROVIDERS='claude litellm'
 
+TAB=$'\t'
 c_reset=$'\033[0m'; c_dim=$'\033[2m'; c_bold=$'\033[1m'
+
+# --- shared helpers ------------------------------------------------------
 
 color_for() { # pct -> green/yellow/red
   local p=$1
@@ -21,74 +51,10 @@ color_for() { # pct -> green/yellow/red
   fi
 }
 
-to_epoch() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> epoch seconds (empty on parse failure)
-  local s=$1 raw mday t yr epoch now
-  raw=${s%% (*}        # drop trailing " (tz)"
-  raw=${raw/ at / }    # "Jun 22 4pm"
-  mday=${raw% *}       # "Jun 22"
-  t=${raw##* }         # "4pm" or "11:30am"
-  [[ $t != *:* ]] && t=$(printf '%s' "$t" | sed -E 's/^([0-9]+)(am|pm)$/\1:00\2/')  # 4pm -> 4:00pm
-  yr=$(date +%Y)
-  epoch=$(date -j -f "%b %d %Y %I:%M%p" "$mday $yr $t" +%s 2>/dev/null) || return
-  [ -z "$epoch" ] && return
-  now=$(date +%s)
-  (( epoch < now - 86400 )) && epoch=$(date -j -f "%b %d %Y %I:%M%p" "$mday $((yr+1)) $t" +%s 2>/dev/null)  # year wrap
-  printf '%s' "$epoch"
-}
-
-# window_len <label> : the full length of a limit window, in seconds. The API
-# reports only the reset time, so the length comes from the label: a session
-# window is 5 hours, a weekly window is 7 days. Empty for an unknown label.
-window_len() {
-  local l; l=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
-  case "$l" in
-    *session*) printf '18000'  ;;   # 5h
-    *week*)    printf '604800' ;;   # 7d
-  esac
-}
-
-# window_noun <label> : the word for the window, used in the elapsed-time note.
-window_noun() {
-  local l; l=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
-  case "$l" in
-    *session*) printf 'session' ;;
-    *week*)    printf 'week'    ;;
-    *)         printf 'window'  ;;
-  esac
-}
-
-# elapsed_pct <label> <reset-string> : how much of the window is gone, 0-100.
-# Empty if the label or the reset time cannot be parsed.
-elapsed_pct() {
-  local len epoch now left p
-  len=$(window_len "$1"); [ -n "$len" ] || return
-  epoch=$(to_epoch "$2"); [ -n "$epoch" ] || return
-  now=$(date +%s)
-  left=$(( epoch - now ))
-  (( left < 0 )) && left=0
-  (( left > len )) && left=$len
-  p=$(( (len - left) * 100 / len ))
-  printf '%s' "$p"
-}
-
-to_countdown() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "in 2h 15m" (empty on parse failure)
-  local s=$1 epoch now diff d h m
-  epoch=$(to_epoch "$s"); [ -n "$epoch" ] || return
-  now=$(date +%s)
-  diff=$(( epoch - now ))
-  (( diff <= 0 )) && { printf 'now'; return; }
-  d=$(( diff / 86400 )); h=$(( (diff % 86400) / 3600 )); m=$(( (diff % 3600) / 60 ))
-  if   (( d > 0 )); then printf 'in %dd %dh' "$d" "$h"
-  elif (( h > 0 )); then printf 'in %dh %dm' "$h" "$m"
-  else                   printf 'in %dm' "$m"
-  fi
-}
-
-to_clock() { # "Jun 22 at 4pm (Asia/Kuala_Lumpur)" -> "4:00PM SUN 22-JUN" (empty on parse failure)
-  local s=$1 epoch
-  epoch=$(to_epoch "$s"); [ -n "$epoch" ] || return
-  date -r "$epoch" '+%I:%M%p %a %d-%b' 2>/dev/null \
-    | tr '[:lower:]' '[:upper:]' | sed -E 's/^0//'
+repeat() { # char count -> char repeated count times (0-safe)
+  local ch=$1 n=$2 out=''
+  while (( n-- > 0 )); do out+=$ch; done
+  printf '%s' "$out"
 }
 
 # term_width : the popup's real column count. `tput cols` first — inside a
@@ -105,160 +71,81 @@ term_width() {
   printf '80'
 }
 
-repeat() { # char count -> char repeated count times (0-safe)
-  local ch=$1 n=$2 out=''
-  while (( n-- > 0 )); do out+=$ch; done
-  printf '%s' "$out"
+# now_epoch : the current time. A test overrides it with FAKE_NOW to get a
+# fixed clock, because a countdown that moves cannot be checked.
+now_epoch() { printf '%s' "${FAKE_NOW:-$(date +%s)}"; }
+
+# window_len <label> : the full length of a limit window, in seconds. Most
+# sources report the reset time but not the length, so the length comes from
+# the label: a session window is 5 hours, a weekly window is 7 days. Empty for
+# an unknown label. A provider may print its own length instead.
+window_len() {
+  local l; l=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$l" in
+    *session*|*5h*) printf '18000'  ;;   # 5h
+    *week*)         printf '604800' ;;   # 7d
+    *month*)        printf '2592000';;   # 30d
+  esac
 }
 
-# litellm_key : the proxy master key. Prefer the env var (present when sourced
-# from a zsh that read ~/.zshenv); fall back to extracting it from secrets.zsh,
-# because this popup runs as a fresh bash shell that never sourced ~/.zshenv.
-litellm_key() {
-  if [ -n "${LITELLM_MASTER_KEY:-}" ]; then printf '%s' "$LITELLM_MASTER_KEY"; return; fi
-  local f="$HOME/.config/zsh/secrets.zsh"
-  [ -r "$f" ] || return
-  grep -E '^export[[:space:]]+LITELLM_MASTER_KEY=' "$f" | head -1 \
-    | sed -E 's/^export[[:space:]]+LITELLM_MASTER_KEY=//; s/^["'\'']//; s/["'\'']$//'
+# window_noun <label> : the word for the window, used in the elapsed-time note.
+window_noun() {
+  local l; l=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$l" in
+    *session*|*5h*) printf 'session' ;;
+    *week*)         printf 'week'    ;;
+    *month*)        printf 'month'   ;;
+    *)              printf 'window'  ;;
+  esac
 }
 
-# litellm_curl <base> <key> <path> : authenticated GET against the proxy.
-litellm_curl() {
-  curl -fsS -m 5 -H "Authorization: Bearer $2" "$1$3" 2>/dev/null
+# --- date helpers for normalizers ----------------------------------------
+# Each helper turns one dialect of reset time into epoch seconds, and prints
+# nothing if it cannot parse the input. A provider picks the helper that fits
+# its own source.
+
+# epoch_from_ampm <"Jun 22 at 4pm (Asia/Kuala_Lumpur)"> : the Claude phrasing.
+epoch_from_ampm() {
+  local s=$1 raw mday t yr epoch now
+  raw=${s%% (*}        # drop trailing " (tz)"
+  raw=${raw/ at / }    # "Jun 22 4pm"
+  mday=${raw% *}       # "Jun 22"
+  t=${raw##* }         # "4pm" or "11:30am"
+  [[ $t != *:* ]] && t=$(printf '%s' "$t" | sed -E 's/^([0-9]+)(am|pm)$/\1:00\2/')  # 4pm -> 4:00pm
+  yr=$(date +%Y)
+  epoch=$(date -j -f "%b %d %Y %I:%M%p" "$mday $yr $t" +%s 2>/dev/null) || return
+  [ -z "$epoch" ] && return
+  now=$(now_epoch)
+  (( epoch < now - 86400 )) && epoch=$(date -j -f "%b %d %Y %I:%M%p" "$mday $((yr+1)) $t" +%s 2>/dev/null)  # year wrap
+  printf '%s' "$epoch"
 }
 
-# cost_blob <models_json> <spend_json> <logs_json> <cut7d> <cutMTD> <cutYTD> :
-# fold the proxy's real ledger into a cacheable, render-ready blob (pure; no
-# network). The three cutoffs are inclusive YYYY-MM-DD lower bounds summed from
-# the daily logs.
-#   TOTALALL <usd>            grand total across all logged requests
-#   TOTAL7D  <usd>            spend on/after <cut7d>
-#   TOTALMTD <usd>            spend on/after <cutMTD> (first of this month)
-#   TOTALYTD <usd>            spend on/after <cutYTD> (first of this year)
-#   MODEL    <usd>\t<model>   per-model spend, one line each
-cost_blob() {
-  local mj=$1 sj=$2 lj=$3 cut=$4 cutm=$5 cuty=$6 all
-  all=$(printf '%s' "$sj"  | jq -r '.spend // 0' 2>/dev/null); all=${all:-0}
-  # sum the daily logs on/after an inclusive YYYY-MM-DD cutoff (0 on failure)
-  sum_since() { local s; s=$(printf '%s' "$lj" | jq -r --arg c "$1" \
-    '[.[] | select(.date >= $c) | .spend] | add // 0' 2>/dev/null); printf '%s' "${s:-0}"; }
-  printf 'TOTALALL %s\nTOTAL7D %s\nTOTALMTD %s\nTOTALYTD %s\n' \
-    "$all" "$(sum_since "$cut")" "$(sum_since "$cutm")" "$(sum_since "$cuty")"
-  # only models with real spend; drop the "vertex_ai/" provider prefix for width
-  printf '%s' "$mj" | jq -r '
-    [.[] | select((.total_spend // 0) > 0)] | sort_by(-.total_spend)[]
-    | "MODEL \(.total_spend)\t\(.model | sub("^[a-z_]+/"; ""))"' 2>/dev/null
+# epoch_from_clock <"16:30"> : the next time the clock reads HH:MM.
+epoch_from_clock() {
+  local hm=$1 now today epoch
+  now=$(now_epoch)
+  today=$(date -r "$now" +%Y-%m-%d 2>/dev/null) || return
+  epoch=$(date -j -f "%Y-%m-%d %H:%M" "$today $hm" +%s 2>/dev/null) || return
+  [ -z "$epoch" ] && return
+  (( epoch < now )) && epoch=$(( epoch + 86400 ))   # already past, so tomorrow
+  printf '%s' "$epoch"
 }
 
-# render_cost <blob> : draw the LiteLLM ledger — one bar per model (all-time
-# spend), then last-7-day / month-to-date / year-to-date / all-time totals.
-# <blob> is cost_blob's output.
-render_cost() {
-  local blob=$1 total_all total7d totalmtd totalytd models
-  total_all=$(printf '%s\n' "$blob" | awk '$1=="TOTALALL"{print $2; exit}')
-  total7d=$( printf '%s\n' "$blob" | awk '$1=="TOTAL7D"{print $2; exit}')
-  totalmtd=$(printf '%s\n' "$blob" | awk '$1=="TOTALMTD"{print $2; exit}')
-  totalytd=$(printf '%s\n' "$blob" | awk '$1=="TOTALYTD"{print $2; exit}')
-  models=$(  printf '%s\n' "$blob" | sed -n 's/^MODEL //p')   # lines: "<spend>\t<model>"
-
-  clear 2>/dev/null
-  echo
-  printf '  %sCost · LiteLLM ledger%s\n' "$c_bold" "$c_reset"
-  printf '  provider: %s\n\n' "$(provider_tag)"
-
-  if [ -z "$models" ]; then
-    printf '  %sno spend recorded by the proxy%s\n' "$c_dim" "$c_reset"
-    return
-  fi
-
-  local max; max=$(printf '%s\n' "$models" | awk -F'\t' \
-    'BEGIN{m=0}{if($1+0>m)m=$1+0}END{if(m<=0)m=1; print m}')
-  local width=$(term_width)
-  local bar_w=$(( width - 42 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 45 )) && bar_w=45
-
-  local spend model pct fill empty
-  while IFS=$'\t' read -r spend model; do
-    [ -z "$model" ] && continue
-    pct=$(awk -v v="$spend" -v m="$max" 'BEGIN{printf "%d", (v/m)*100}')
-    fill=$(( pct * bar_w / 100 )); (( fill < 0 )) && fill=0; (( fill > bar_w )) && fill=bar_w
-    empty=$(( bar_w - fill ))
-    printf '  %-24s %s%s%s%s%s %s$%0.2f%s\n' \
-      "${model:0:24}" "$(color_for "$pct")" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" \
-      "$c_reset" "$c_bold" "$spend" "$c_reset"
-  done <<< "$models"
-
-  printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 26 )))" "$c_reset"
-  printf '  %-24s %*s%s$%0.2f%s\n'      "Total · last 7 days" "$bar_w" "" "$c_bold" "${total7d:-0}" "$c_reset"
-  printf '  %-24s %*s$%0.2f\n'          "month to date" "$bar_w" "" "${totalmtd:-0}"
-  printf '  %-24s %*s$%0.2f\n'          "year to date"  "$bar_w" "" "${totalytd:-0}"
-  printf '  %s%-24s %*s$%0.2f%s\n' "$c_dim" "all-time" "$bar_w" "" "${total_all:-0}" "$c_reset"
+# epoch_from_iso <"2026-08-25T13:59:00Z"> : an ISO 8601 instant, UTC or local.
+epoch_from_iso() {
+  local s=$1 epoch
+  epoch=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$s" +%s 2>/dev/null) \
+    || epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${s%%[+-][0-9][0-9]:[0-9][0-9]}" +%s 2>/dev/null) \
+    || return
+  printf '%s' "$epoch"
 }
 
-COST_CACHE="${TMPDIR:-/tmp}/claude-cost.cache"
-
-cost_main() {
-  # instant draw from cache (the render-ready blob is what we cache)
-  if [[ -s $COST_CACHE ]]; then
-    render_cost "$(cat "$COST_CACHE")"
-    printf '\n  %s(cached — refreshing…)%s\n' "$c_dim" "$c_reset"
-  else
-    clear 2>/dev/null
-    echo
-    printf '  %sCost · LiteLLM ledger%s\n\n  %sLoading…%s\n' "$c_bold" "$c_reset" "$c_dim" "$c_reset"
-  fi
-
-  # fresh pull from the proxy's own ledger (the real spend it logged)
-  local base key cutoff cutoff_m cutoff_y mj sj lj
-  base=$(litellm_base); key=$(litellm_key)
-  cutoff=$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d)
-  cutoff_m=$(date +%Y-%m-01)   # first of this month (BSD + GNU)
-  cutoff_y=$(date +%Y-01-01)   # first of this year
-  mj=$(litellm_curl "$base" "$key" "/global/spend/models")
-  sj=$(litellm_curl "$base" "$key" "/global/spend")
-  lj=$(litellm_curl "$base" "$key" "/global/spend/logs")
-
-  if [ -z "$mj" ] && [ -z "$sj" ]; then
-    clear 2>/dev/null
-    echo
-    printf '  %sCost · LiteLLM ledger%s\n' "$c_bold" "$c_reset"
-    printf '  provider: %s\n\n' "$(provider_tag)"
-    printf '  %sproxy unreachable — could not fetch spend%s\n' "$c_dim" "$c_reset"
-  else
-    local fresh; fresh=$(cost_blob "$mj" "$sj" "$lj" "$cutoff" "$cutoff_m" "$cutoff_y")
-    printf '%s\n' "$fresh" > "$COST_CACHE"
-    render_cost "$fresh"
-  fi
-
-  echo
-  printf '  %s[any key to close]%s' "$c_dim" "$c_reset"
-  local old_stty; old_stty=$(stty -g 2>/dev/null)
-  stty -echo -icanon min 1 time 0 2>/dev/null
-  dd bs=1 count=1 >/dev/null 2>&1
-  [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
-}
-
-# session_provider : what the invoking pane's claude is routing through, read
-# from the per-pane @claude_provider marker that `cv` sets. Empty if unknown.
-# SRC_PANE is the pane id passed by the keybinding (see keys.conf).
-session_provider() {
-  [ -n "${SRC_PANE:-}" ] || return
-  tmux show-options -pqv -t "$SRC_PANE" @claude_provider 2>/dev/null
-}
-
-provider_tag() {
-  if [ "$(session_provider)" = "litellm" ]; then
-    printf '\033[35mLiteLLM\033[0m \033[2m(%s)\033[0m' "$(litellm_base)"
-  elif [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; then
-    printf '\033[34mVertex AI (direct)\033[0m'
-  else
-    printf '\033[36mAnthropic API\033[0m'
-  fi
-}
+# --- the quota view ------------------------------------------------------
 
 LABEL_W=26   # width of the label column; the marker note aligns against it
 BAR_CAP=70   # the bar never grows past this, however wide the terminal is
 
-# ROW_FIXED_W : every cell of a usage row except the bar itself. The popup
+# ROW_FIXED_W : every cell of a quota row except the bar itself. The popup
 # width comes from this sum, so a change to the reset format widens the box
 # instead of wrapping the last characters onto the next line.
 #   2  indent
@@ -268,10 +155,44 @@ BAR_CAP=70   # the bar never grows past this, however wide the terminal is
 #  +37 " resets in Xh Xm (H:MMPM DDD DD-MON)"
 ROW_FIXED_W=$(( 2 + LABEL_W + 1 + 5 + 6 + 37 ))
 
-bar() { # label pct reset
-  local label=$1 pct=$2 reset=$3
+# elapsed_pct <epoch> <window> : how much of the window is gone, 0-100. Empty
+# if either input is missing.
+elapsed_pct() {
+  local epoch=$1 len=$2 now left
+  [[ $epoch =~ ^[0-9]+$ ]] || return
+  [[ $len   =~ ^[0-9]+$ ]] || return
+  (( len > 0 )) || return
+  now=$(now_epoch)
+  left=$(( epoch - now ))
+  (( left < 0 )) && left=0
+  (( left > len )) && left=$len
+  printf '%s' "$(( (len - left) * 100 / len ))"
+}
+
+to_countdown() { # epoch -> "in 2h 15m" ("now" once it is due)
+  local epoch=$1 now diff d h m
+  [[ $epoch =~ ^[0-9]+$ ]] || return
+  now=$(now_epoch)
+  diff=$(( epoch - now ))
+  (( diff <= 0 )) && { printf 'now'; return; }
+  d=$(( diff / 86400 )); h=$(( (diff % 86400) / 3600 )); m=$(( (diff % 3600) / 60 ))
+  if   (( d > 0 )); then printf 'in %dd %dh' "$d" "$h"
+  elif (( h > 0 )); then printf 'in %dh %dm' "$h" "$m"
+  else                   printf 'in %dm' "$m"
+  fi
+}
+
+to_clock() { # epoch -> "4:00PM SUN 22-JUN"
+  local epoch=$1
+  [[ $epoch =~ ^[0-9]+$ ]] || return
+  date -r "$epoch" '+%I:%M%p %a %d-%b' 2>/dev/null \
+    | tr '[:lower:]' '[:upper:]' | sed -E 's/^0//'
+}
+
+bar() { # label pct epoch window
+  local label=$1 pct=$2 epoch=$3 win=$4
   (( pct > 100 )) && pct=100
-  local width=$(term_width)
+  local width; width=$(term_width)
   local bar_w=$(( width - ROW_FIXED_W ))
   (( bar_w < 10 )) && bar_w=10
   (( bar_w > BAR_CAP )) && bar_w=$BAR_CAP
@@ -281,7 +202,7 @@ bar() { # label pct reset
   # elapsed : how much of the window has passed. It marks the "on pace" point —
   # if the fill is past the marker, you burn the budget faster than the clock.
   local elapsed mark=-1
-  elapsed=$(elapsed_pct "$label" "$reset")
+  elapsed=$(elapsed_pct "$epoch" "$win")
   if [ -n "$elapsed" ]; then
     mark=$(( elapsed * bar_w / 100 ))
     (( mark > bar_w - 1 )) && mark=$(( bar_w - 1 ))
@@ -308,13 +229,10 @@ bar() { # label pct reset
     fi
   fi
 
-  if [ -n "$reset" ]; then
-    local cd clk; cd=$(to_countdown "$reset"); clk=$(to_clock "$reset")
-    if [ -n "$cd" ]; then
-      if [ -n "$clk" ]; then printf ' %sresets %s (%s)%s' "$c_dim" "$cd" "$clk" "$c_reset"
-      else                   printf ' %sresets %s%s' "$c_dim" "$cd" "$c_reset"
-      fi
-    else                     printf ' %sresets %s%s' "$c_dim" "$reset" "$c_reset"
+  if [[ $epoch =~ ^[0-9]+$ ]]; then
+    local cd clk; cd=$(to_countdown "$epoch"); clk=$(to_clock "$epoch")
+    if [ -n "$clk" ]; then printf ' %sresets %s (%s)%s' "$c_dim" "$cd" "$clk" "$c_reset"
+    else                   printf ' %sresets %s%s' "$c_dim" "$cd" "$c_reset"
     fi
   fi
   printf '\n'
@@ -326,85 +244,262 @@ bar() { # label pct reset
   fi
 }
 
-render() { # raw-text status-note
-  local raw=$1 note=$2 found=0 line
+# render_quota <blob> <note> : one bar per QUOTA record. NOTE records print
+# only when no bar parsed, so an error page or a login prompt is still readable.
+render_quota() {
+  local blob=$1 note=$2 kind f2 f3 f4 f5 bars=0 notes=''
   clear 2>/dev/null
   echo
-  printf '  %sClaude Code usage%s  %s%s%s\n' "$c_bold" "$c_reset" "$c_dim" "$note" "$c_reset"
-  printf '  provider: %s\n\n' "$(provider_tag)"
-  while IFS= read -r line; do
-    if [[ $line =~ ^(.+):\ *([0-9]+)%\ used(\ *·\ *resets\ (.*))?$ ]]; then
-      bar "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[4]:-}"
-      found=1
-    fi
-  done <<< "$raw"
-  (( found )) || printf '%s\n' "$raw"
+  printf '  %s%s%s  %s%s%s\n' "$c_bold" "$(provider_hook title)" "$c_reset" "$c_dim" "$note" "$c_reset"
+  printf '  provider: %s\n\n' "$(provider_hook tag)"
+  while IFS="$TAB" read -r kind f2 f3 f4 f5; do
+    case "$kind" in
+      QUOTA) bar "$f2" "$f3" "${f4:--}" "${f5:--}"; bars=$(( bars + 1 )) ;;
+      NOTE)  notes+="  $f2"$'\n' ;;
+    esac
+  done <<< "$blob"
+  (( bars )) || printf '%s' "$notes"
 }
 
-usage_main() {
-  # 1. instant draw from cache (or a loading placeholder)
-  if [[ -s $CACHE ]]; then
-    render "$(cat "$CACHE")" "(cached — refreshing…)"
+# --- the cost view -------------------------------------------------------
+
+# render_cost <blob> <note> : one bar per model, scaled against the biggest
+# spender, then the totals. NOTE records print above the bars.
+render_cost() {
+  local blob=$1 note=$2 kind f2 f3 models='' notes=''
+  local t_all=0 t_7d=0 t_mtd=0 t_ytd=0
+  while IFS="$TAB" read -r kind f2 f3; do
+    case "$kind" in
+      MODEL) models+="$f2$TAB$f3"$'\n' ;;
+      NOTE)  notes+="  $f2"$'\n' ;;
+      TOTAL) case "$f2" in
+               all) t_all=$f3 ;; 7d) t_7d=$f3 ;; mtd) t_mtd=$f3 ;; ytd) t_ytd=$f3 ;;
+             esac ;;
+    esac
+  done <<< "$blob"
+
+  clear 2>/dev/null
+  echo
+  printf '  %s%s%s  %s%s%s\n' "$c_bold" "$(provider_hook title)" "$c_reset" "$c_dim" "$note" "$c_reset"
+  printf '  provider: %s\n\n' "$(provider_hook tag)"
+  [ -n "$notes" ] && printf '%s' "$notes"
+
+  if [ -z "$models" ]; then
+    [ -n "$notes" ] || printf '  %sno spend recorded%s\n' "$c_dim" "$c_reset"
+    return
+  fi
+
+  local max; max=$(printf '%s' "$models" | awk -F"$TAB" \
+    'BEGIN{m=0}{if($1+0>m)m=$1+0}END{if(m<=0)m=1; print m}')
+  local width; width=$(term_width)
+  local bar_w=$(( width - 42 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 45 )) && bar_w=45
+
+  local spend model pct fill empty
+  while IFS="$TAB" read -r spend model; do
+    [ -z "$model" ] && continue
+    pct=$(awk -v v="$spend" -v m="$max" 'BEGIN{printf "%d", (v/m)*100}')
+    fill=$(( pct * bar_w / 100 )); (( fill < 0 )) && fill=0; (( fill > bar_w )) && fill=bar_w
+    empty=$(( bar_w - fill ))
+    printf '  %-24s %s%s%s%s%s %s$%0.2f%s\n' \
+      "${model:0:24}" "$(color_for "$pct")" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" \
+      "$c_reset" "$c_bold" "$spend" "$c_reset"
+  done <<< "$models"
+
+  printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 26 )))" "$c_reset"
+  printf '  %-24s %*s%s$%0.2f%s\n'      "Total · last 7 days" "$bar_w" "" "$c_bold" "${t_7d:-0}" "$c_reset"
+  printf '  %-24s %*s$%0.2f\n'          "month to date" "$bar_w" "" "${t_mtd:-0}"
+  printf '  %-24s %*s$%0.2f\n'          "year to date"  "$bar_w" "" "${t_ytd:-0}"
+  printf '  %s%-24s %*s$%0.2f%s\n' "$c_dim" "all-time" "$bar_w" "" "${t_all:-0}" "$c_reset"
+}
+
+# --- provider : claude ---------------------------------------------------
+
+p_claude_view()  { printf 'quota'; }
+p_claude_title() { printf 'Claude Code usage'; }
+p_claude_tag() {
+  if [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; then printf '\033[34mVertex AI (direct)\033[0m'
+  else                                          printf '\033[36mAnthropic API\033[0m'
+  fi
+}
+p_claude_fetch() { claude -p /usage 2>&1; }
+
+# The CLI prints lines like "Current session: 12% used · resets Jun 22 at 4pm
+# (Asia/Kuala_Lumpur)". Anything else becomes a NOTE.
+p_claude_normalize() {
+  local line epoch win
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ $line =~ ^(.+):\ *([0-9]+)%\ used(\ *·\ *resets\ (.*))?$ ]]; then
+      epoch=''; [ -n "${BASH_REMATCH[4]:-}" ] && epoch=$(epoch_from_ampm "${BASH_REMATCH[4]}")
+      win=$(window_len "${BASH_REMATCH[1]}")
+      printf 'QUOTA\t%s\t%s\t%s\t%s\n' \
+        "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${epoch:--}" "${win:--}"
+    elif [ -n "${line// /}" ]; then
+      printf 'NOTE\t%s\n' "$line"
+    fi
+  done
+}
+
+# --- provider : litellm --------------------------------------------------
+
+p_litellm_view()  { printf 'cost'; }
+p_litellm_title() { printf 'Cost · LiteLLM ledger'; }
+p_litellm_tag()   { printf '\033[35mLiteLLM\033[0m \033[2m(%s)\033[0m' "$(litellm_base)"; }
+
+litellm_base() {
+  if [[ "$(hostname -s)" == onyx* ]]; then
+    printf 'http://localhost:4000'
+  else
+    printf 'http://onyx.tail5d740c.ts.net:4000'
+  fi
+}
+
+# litellm_key : the proxy master key. Prefer the env var (present when sourced
+# from a zsh that read ~/.zshenv); fall back to extracting it from secrets.zsh,
+# because this popup runs as a fresh bash shell that never sourced ~/.zshenv.
+litellm_key() {
+  if [ -n "${LITELLM_MASTER_KEY:-}" ]; then printf '%s' "$LITELLM_MASTER_KEY"; return; fi
+  local f="$HOME/.config/zsh/secrets.zsh"
+  [ -r "$f" ] || return
+  grep -E '^export[[:space:]]+LITELLM_MASTER_KEY=' "$f" | head -1 \
+    | sed -E 's/^export[[:space:]]+LITELLM_MASTER_KEY=//; s/^["'\'']//; s/["'\'']$//'
+}
+
+# litellm_curl <base> <key> <path> : authenticated GET against the proxy.
+litellm_curl() {
+  curl -fsS -m 5 -H "Authorization: Bearer $2" "$1$3" 2>/dev/null
+}
+
+# litellm_blob <models_json> <spend_json> <logs_json> <cut7d> <cutMTD> <cutYTD> :
+# fold the ledger of the proxy into a canonical blob (pure; no network). The
+# three cutoffs are inclusive YYYY-MM-DD lower bounds summed from the daily
+# logs. The model name loses its provider prefix, to save width.
+litellm_blob() {
+  local mj=$1 sj=$2 lj=$3 cut=$4 cutm=$5 cuty=$6 all
+  all=$(printf '%s' "$sj"  | jq -r '.spend // 0' 2>/dev/null); all=${all:-0}
+  # sum the daily logs on/after an inclusive YYYY-MM-DD cutoff (0 on failure)
+  sum_since() { local s; s=$(printf '%s' "$lj" | jq -r --arg c "$1" \
+    '[.[] | select(.date >= $c) | .spend] | add // 0' 2>/dev/null); printf '%s' "${s:-0}"; }
+  printf 'TOTAL\tall\t%s\nTOTAL\t7d\t%s\nTOTAL\tmtd\t%s\nTOTAL\tytd\t%s\n' \
+    "$all" "$(sum_since "$cut")" "$(sum_since "$cutm")" "$(sum_since "$cuty")"
+  printf '%s' "$mj" | jq -r '
+    [.[] | select((.total_spend // 0) > 0)] | sort_by(-.total_spend)[]
+    | "MODEL\t\(.total_spend)\t\(.model | sub("^[a-z_]+/"; ""))"' 2>/dev/null
+}
+
+# The proxy needs three calls and the cutoffs of today, so this provider
+# builds the blob in one step instead of a fetch plus a normalize.
+p_litellm_blob() {
+  local base key cut cutm cuty mj sj lj
+  base=$(litellm_base); key=$(litellm_key)
+  cut=$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d)
+  cutm=$(date +%Y-%m-01)   # first of this month (BSD + GNU)
+  cuty=$(date +%Y-01-01)   # first of this year
+  mj=$(litellm_curl "$base" "$key" "/global/spend/models")
+  sj=$(litellm_curl "$base" "$key" "/global/spend")
+  lj=$(litellm_curl "$base" "$key" "/global/spend/logs")
+  if [ -z "$mj" ] && [ -z "$sj" ]; then
+    printf 'NOTE\tproxy unreachable — could not fetch spend\n'
+    return
+  fi
+  litellm_blob "$mj" "$sj" "$lj" "$cut" "$cutm" "$cuty"
+}
+
+# --- provider dispatch ---------------------------------------------------
+
+# resolve_provider : the id of the provider for the invoking pane. The marker
+# @claude_provider is set per pane by `cv`. An unknown or absent marker means
+# a plain Claude subscription.
+resolve_provider() {
+  local m=''
+  [ -n "${SRC_PANE:-}" ] && m=$(tmux show-options -pqv -t "$SRC_PANE" @claude_provider 2>/dev/null)
+  local id
+  for id in $PROVIDERS; do
+    [ "$m" = "$id" ] && { printf '%s' "$id"; return; }
+  done
+  printf 'claude'
+}
+
+# provider_hook <hook> [args] : call the hook of the current provider. PROVIDER
+# is set once by main, or by a test. A missing p_<id>_blob falls back to
+# "fetch | normalize", which is what a one-command provider wants.
+provider_hook() {
+  local hook=$1; shift
+  local fn="p_${PROVIDER}_${hook}"
+  if declare -F "$fn" >/dev/null 2>&1; then "$fn" "$@"; return; fi
+  case "$hook" in
+    blob) "p_${PROVIDER}_fetch" | "p_${PROVIDER}_normalize" ;;
+    view) printf 'quota' ;;
+    title) printf '%s usage' "$PROVIDER" ;;
+    tag)  printf '%s' "$PROVIDER" ;;
+  esac
+}
+
+cache_path() { printf '%s/claude-usage.%s.cache' "${TMPDIR:-/tmp}" "$1"; }
+
+# render_view <blob> <note> : hand the blob to the view of the provider.
+render_view() {
+  case "$(provider_hook view)" in
+    cost) render_cost "$1" "$2" ;;
+    *)    render_quota "$1" "$2" ;;
+  esac
+}
+
+# view_main : draw the cache, fetch, then draw again. It knows nothing about
+# any single provider.
+view_main() {
+  local cache; cache=$(cache_path "$PROVIDER")
+  if [[ -s $cache ]]; then
+    render_view "$(cat "$cache")" "(cached — refreshing…)"
   else
     clear 2>/dev/null
     echo
-    printf '  %sClaude Code usage%s\n\n  %sLoading…%s\n' "$c_bold" "$c_reset" "$c_dim" "$c_reset"
+    printf '  %s%s%s\n\n  %sLoading…%s\n' \
+      "$c_bold" "$(provider_hook title)" "$c_reset" "$c_dim" "$c_reset"
   fi
 
-  # 2. fetch fresh, cache, redraw
-  FRESH=$(claude -p /usage 2>&1)
-  printf '%s\n' "$FRESH" > "$CACHE"
-  render "$FRESH" ""
+  local fresh; fresh=$(provider_hook blob)
+  if [ -n "$fresh" ]; then
+    printf '%s\n' "$fresh" > "$cache"
+    render_view "$fresh" ""
+  fi
 
   echo
   printf '  %s[any key to close]%s' "$c_dim" "$c_reset"
-  old_stty=$(stty -g 2>/dev/null)
+  local old_stty; old_stty=$(stty -g 2>/dev/null)
   stty -echo -icanon min 1 time 0 2>/dev/null
   dd bs=1 count=1 >/dev/null 2>&1
-  [ -n "$old_stty" ] && stty "$old_stty" 2>/dev/null
+  if [ -n "$old_stty" ]; then stty "$old_stty" 2>/dev/null; fi
 }
 
 # --- popup sizing --------------------------------------------------------
-# `prefix+u` opens a fixed-content popup (a handful of bars, or a handful of
-# model rows) but tmux's own -w/-h only understand terminal percentages, so a
-# wide/tall terminal used to blow the popup up far past what the content
-# needs. Instead we size the popup ourselves, in cells, to whichever view
-# (usage vs cost) this pane is about to render.
+# `prefix+u` opens a popup with fixed content (a few bars), but the -w/-h of
+# tmux only understand percentages of the terminal, so a wide terminal used to
+# blow the popup far past what the content needs. The size comes from the blob
+# in the cache instead. A view that nobody has opened yet uses a guess.
 
 # +2 for the popup border, which eats a column on each side.
 USAGE_POPUP_W=$(( ROW_FIXED_W + BAR_CAP + 2 ))   # fits a full-cap bar plus its row
 COST_POPUP_W=90      # fits a full-cap 45-char bar (see the -42 offset in render_cost)
 
-# rows_for_usage : number of metric rows the cached /usage text will render.
-# Falls back to 3 (session + week-all-models + one per-model line) with no
-# cache yet, i.e. before the first fetch has ever completed.
-rows_for_usage() {
-  if [[ -s $CACHE ]]; then
-    grep -cE '^.+: *[0-9]+% used' "$CACHE" 2>/dev/null || printf '3'
-  else
-    printf '3'
+# rows_in_cache <provider> <record> <fallback> : how many records of one kind
+# the cached blob holds.
+rows_in_cache() {
+  local f; f=$(cache_path "$1")
+  if [[ -s $f ]]; then
+    local n; n=$(grep -c "^$2$TAB" "$f" 2>/dev/null)
+    [[ $n =~ ^[0-9]+$ ]] && (( n > 0 )) && { printf '%s' "$n"; return; }
   fi
+  printf '%s' "$3"
 }
 
-# rows_for_cost : number of model bars the cached ledger will render. Falls
-# back to 6 with no cache yet.
-rows_for_cost() {
-  if [[ -s $COST_CACHE ]]; then
-    local n; n=$(grep -c '^MODEL ' "$COST_CACHE" 2>/dev/null)
-    printf '%s' "${n:-6}"
-  else
-    printf '6'
-  fi
-}
-
-# size_for <pane_id> : "WxH" popup dimensions for whichever view this pane
-# will render.
+# size_for <pane_id> : "WxH" for the view that this pane is about to draw.
 size_for() {
   SRC_PANE=$1
-  if [ "$(session_provider)" = "litellm" ]; then
-    printf '%dx%d' "$COST_POPUP_W" "$(( $(rows_for_cost) + 13 ))"
+  PROVIDER=$(resolve_provider)
+  if [ "$(provider_hook view)" = cost ]; then
+    printf '%dx%d' "$COST_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" MODEL 6) + 13 ))"
   else
-    printf '%dx%d' "$USAGE_POPUP_W" "$(( $(rows_for_usage) * 2 + 8 ))"
+    printf '%dx%d' "$USAGE_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" QUOTA 3) * 2 + 8 ))"
   fi
 }
 
@@ -417,18 +512,9 @@ popup_main() {
   tmux display-popup -E -w "$w" -h "$h" -d "$cwd" -T ' Usage ' "$0 $pane"
 }
 
-litellm_base() {
-  if [[ "$(hostname -s)" == onyx* ]]; then
-    printf 'http://localhost:4000'
-  else
-    printf 'http://onyx.tail5d740c.ts.net:4000'
-  fi
-}
-
-# Decide the view by whether THIS session routes through LiteLLM (per-pane
-# marker), NOT by whether the proxy happens to be alive — the proxy is always
-# reachable over Tailscale, so liveness would show cost even for a plain
-# subscription session.
+# Pick the provider from the per-pane marker, NOT from what happens to be
+# reachable — the LiteLLM proxy answers over Tailscale at all times, so a test
+# of liveness would show cost even for a plain subscription session.
 main() {
   SRC_PANE="${1:-}"
   # display-popup does NOT expand formats in its command string, so the
@@ -439,11 +525,8 @@ main() {
     %[0-9]*) ;;
     *) SRC_PANE=$(tmux display-message -p '#{pane_id}' 2>/dev/null) ;;
   esac
-  if [ "$(session_provider)" = "litellm" ]; then
-    cost_main
-  else
-    usage_main
-  fi
+  PROVIDER=$(resolve_provider)
+  view_main
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
