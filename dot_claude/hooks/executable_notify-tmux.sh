@@ -220,7 +220,7 @@ clear_pane_state() {
     recompute_window_state
 }
 
-# notify <tier> <message> — tier is `attn` (Claude needs you) or `done` (turn
+# notify <tier> <message> <status> — tier is `attn` (Claude needs you) or `done` (turn
 # finished). The tier decides three things:
 #
 #   sound  — both tiers chime, but with deliberately dissimilar samples so the two
@@ -381,7 +381,11 @@ play_sound() {
 }
 
 notify() {
-    local tier="$1" msg="$2"
+    # $3 is the status word for the phone: the push leads with it, because a
+    # collapsed Telegram notification gives you one line to decide whether to pick
+    # the phone up. The Mac banner keeps the tier title — there the app name is the
+    # first thing you read, so the status has to follow it, not replace it.
+    local tier="$1" msg="$2" status="$3"
     # Subtitle = session + the window's topic, so concurrent sessions are easy to
     # tell apart. Prefer @claude_base (the clean auto-named topic, no status glyph);
     # fall back to the window name with any leading glyph/spaces stripped.
@@ -419,7 +423,7 @@ notify() {
         [ -n "$host" ] && push_sub="$host · $sub"
         if [ "$tier" = "attn" ] || done_is_worth_pushing; then
             dlog "push: away -> phone, tier=$tier host=$host"
-            push_telegram "$tier" "$title" "$push_sub" "$msg"
+            push_telegram "$tier" "$status" "$push_sub" "$msg"
         else
             dlog "push: done but the turn was short, skipping"
         fi
@@ -495,12 +499,12 @@ case "$EVENT" in
         ;;
     permission_prompt)
         MSG=$(read_message)
-        notify attn "${MSG:-Permission requested}"
+        notify attn "${MSG:-Permission requested}" PERMISSION
         window_status permission
         ;;
     idle_prompt)
         MSG=$(read_message)
-        notify attn "${MSG:-Claude is idle}"
+        notify attn "${MSG:-Claude is idle}" INPUT
         window_status idle
         alert_tmux
         ;;
@@ -512,10 +516,10 @@ case "$EVENT" in
         TURN_ELAPSED=$(turn_elapsed)
         if ends_with_question; then
             dlog "stop: turn ended with a question -> question state"
-            notify attn 'Claude asked you a question'
+            notify attn 'Claude asked you a question' QUESTION
             window_status question
         else
-            notify done 'Claude finished'
+            notify done 'Claude finished' DONE
             window_status done
         fi
         alert_tmux

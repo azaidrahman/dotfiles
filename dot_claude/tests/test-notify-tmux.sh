@@ -331,8 +331,9 @@ run_push permission_prompt '{"message":"Bash wants to run rm -rf /tmp/x"}'
 check "attn push: audible"            "no"  "$(pushhas 'disable_notification=true')"
 check "attn push: body carried"       "yes" \
       "$(case "$(pushval 'text=')" in *'rm -rf /tmp/x'*) echo yes;; *) echo no;; esac)"
-check "attn push: title carried"      "yes" \
-      "$(case "$(pushval 'text=')" in *'needs you'*) echo yes;; *) echo no;; esac)"
+# The phone gets one collapsed line to work with, so the status leads. "Claude Code"
+# is redundant there — the message already comes from the Claude bot.
+check "attn push: status leads"       "PERMISSION" "$(pushval 'text=' | head -1)"
 check "attn push: session carried"    "yes" \
       "$(case "$(pushval 'text=')" in *unknown*) echo yes;; *) echo no;; esac)"
 
@@ -348,8 +349,10 @@ check "Mac subtitle omits hostname"   "no" \
 
 run_push stop "{\"transcript_path\":\"$ST\"}"
 check "done push: silent"             "yes" "$(pushhas 'disable_notification=true')"
+check "done push: status leads"       "DONE" "$(pushval 'text=' | head -1)"
 run_push stop "{\"transcript_path\":\"$QT\"}"
 check "question push: audible"        "no"  "$(pushhas 'disable_notification=true')"
+check "question push: status leads"   "QUESTION" "$(pushval 'text=' | head -1)"
 
 # --- phone push: gates ------------------------------------------------------
 run_push permission_prompt '{"message":"x"}' CLAUDE_PUSH_DISABLE=1
