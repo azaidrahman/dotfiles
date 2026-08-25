@@ -110,10 +110,25 @@ EOF
 chmod +x "$STUB/tmux"
 
 # run <event> <stdin-json> [VAR=val ...] — capture the argv of one notify() call.
+# Every CLAUDE_* variable in the caller's environment, as `env -u` arguments.
+#
+# The real settings live in ~/.config/zsh/exports.zsh, so a developer shell exports
+# CLAUDE_NOTIFY_LOCAL=0 and friends. Without this, those leak into the hook and the
+# suite asserts against the developer's preferences instead of the hook's defaults —
+# it passed on a machine that had not applied the exports yet and failed on one that
+# had. Strip the whole prefix rather than a hand-written list, so a variable added
+# later cannot reintroduce the same failure.
+CLEAN_ENV=()
+while IFS='=' read -r k _; do
+  case "$k" in CLAUDE_*) CLEAN_ENV+=(-u "$k") ;; esac
+done < <(env)
+
 run() {
   local event="$1" json="$2"; shift 2
   : > "$ARGS"; : > "$PLAYED"; : > "$PUSHED"
-  printf '%s' "$json" | env -u TMUX -u TMUX_PANE HOME="$TMPD/home" \
+  printf '%s' "$json" | env -u TMUX -u TMUX_PANE \
+    ${CLEAN_ENV[@]+"${CLEAN_ENV[@]}"} \
+    HOME="$TMPD/home" \
     PATH="$STUB:$(dirname "$(command -v bash)"):/usr/bin:/bin:/usr/sbin:/sbin" \
     "$@" bash "$HOOK" "$event" >/dev/null 2>&1
   # play_sound backgrounds afplay, so give the detached child a moment to record.
