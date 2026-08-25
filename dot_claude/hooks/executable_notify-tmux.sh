@@ -305,6 +305,17 @@ turn_start() {
     dlog "turn: clock started"
 }
 
+# Drop this session's clock, and age out any that were orphaned. A crash skips
+# SessionEnd, so those clocks are never cleared by their own session — the next
+# clean exit removes anything left from a previous day. Pruning here rather than in
+# turn_start matters: turn_start runs on every tool call, and a find on that path
+# would be paid thousands of times a day.
+turn_clear() {
+    rm -f "$(turn_clock_file)" 2>/dev/null
+    find "$HOME/.claude/turn" -type f -mtime +1 -delete 2>/dev/null
+    dlog "turn: clock cleared, stale clocks pruned"
+}
+
 # Seconds this turn has run, empty when no clock exists. Clears the clock.
 turn_elapsed() {
     local f start; f=$(turn_clock_file)
@@ -511,6 +522,7 @@ case "$EVENT" in
         ;;
     exit)
         clear_pane_state
+        turn_clear
         ;;
     *)
         echo "notify-tmux.sh: unknown event '$EVENT'" >&2

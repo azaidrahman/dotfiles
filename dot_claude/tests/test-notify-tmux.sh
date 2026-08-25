@@ -444,6 +444,27 @@ turn_reset
 run_push stop "{\"transcript_path\":\"$ST\"}"
 check "no clock -> push anyway"       "yes" "$(pushed)"
 
+# A session that never reaches `stop` — a crash, or SessionEnd — must not leave its
+# clock behind. At ~187 sessions a week these would accumulate forever.
+turn_reset
+run working '{"session_id":"leaky"}'
+check "working creates a clock"       "1" "$(ls "$TMPD/home/.claude/turn" 2>/dev/null | wc -l | tr -d ' ')"
+run exit '{"session_id":"leaky"}'
+check "exit clears its own clock"     "0" "$(ls "$TMPD/home/.claude/turn" 2>/dev/null | wc -l | tr -d ' ')"
+
+# A crash skips SessionEnd entirely, so old clocks must also age out. The next clean
+# exit prunes them.
+turn_reset
+mkdir -p "$TMPD/home/.claude/turn"
+printf '123' > "$TMPD/home/.claude/turn/ancient"
+touch -t 202001010000 "$TMPD/home/.claude/turn/ancient"
+printf '456' > "$TMPD/home/.claude/turn/fresh"
+run exit '{"session_id":"other"}'
+check "exit prunes stale clocks"      "0" \
+      "$(ls "$TMPD/home/.claude/turn/ancient" 2>/dev/null | wc -l | tr -d ' ')"
+check "exit keeps a fresh clock"      "1" \
+      "$(ls "$TMPD/home/.claude/turn/fresh" 2>/dev/null | wc -l | tr -d ' ')"
+
 turn_reset; present; creds_off
 
 echo
