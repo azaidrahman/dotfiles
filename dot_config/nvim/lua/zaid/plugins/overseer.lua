@@ -12,6 +12,11 @@ return {
 			desc = "Run current file, errors -> quickfix",
 		},
 		{ "<leader>qt", "<cmd>OverseerToggle<CR>", desc = "Toggle Overseer task list" },
+		{
+			"<leader>qT",
+			function() require("overseer").run_task({ name = "go test" }) end,
+			desc = "go test ./... in current dir, errors -> quickfix",
+		},
 	},
 	opts = {
 		task_list = {
@@ -58,6 +63,25 @@ return {
 			end,
 			condition = {
 				filetype = { "go", "python", "javascript", "typescript", "rust", "sh", "bash" },
+			},
+		})
+
+		-- Runs the whole package (exercism puts one exercise per dir), not just
+		-- the current file, since Go tests live in a separate _test.go file.
+		overseer.register_template({
+			name = "go test",
+			builder = function()
+				return {
+					cmd = { "go", "test", "./...", "-v" },
+					cwd = vim.fn.expand("%:p:h"),
+					components = {
+						{ "on_output_quickfix", open = true, open_height = 12, set_diagnostics = true },
+						"default",
+					},
+				}
+			end,
+			condition = {
+				filetype = { "go" },
 			},
 		})
 	end,
