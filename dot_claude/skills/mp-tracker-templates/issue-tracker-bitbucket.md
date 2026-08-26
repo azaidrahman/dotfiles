@@ -69,6 +69,7 @@ remaining Bitbucket-native issue path, and `twg` has no
 | Link a blocker | `twg jira workitem link workitem --id <BLOCKER> --target-id <BLOCKED> --link-type-id <id>` |
 | List link types | `twg jira workitem link-types query` |
 | List projects | `twg jira space query` |
+| Delete an issue | `twg jira workitem delete <KEY>` — no confirmation gate |
 
 Traps, all of them things that fail quietly:
 
@@ -102,9 +103,14 @@ Traps, all of them things that fail quietly:
   `--dry-run`. Run the dry run first, then submit with `--yes`.
 - **`query` needs real JQL; `search` takes plain text.** Passing text to
   `--jql` fails. Passing JQL to `search` searches for the literal string.
-- **`--space` is documented as a project ID or ARI.** A project key resolves in
-  practice. If `create` rejects the key, read the numeric id off
-  `twg jira space get <PROJECT-KEY>` and pass that instead.
+- **`--space` takes a bare project key**, despite the help text saying "ID or
+  ARI". Verified against a real create: `--space GTI` lands in project `GTI`.
+- **`workitem delete` has no confirmation flag.** It takes the key as a
+  positional argument and deletes at once - there is no `--yes` gate the way
+  `create` and `bulk-transition` have one. Confirm with the user first.
+- **A new issue does not always start in a To Do status.** The workflow decides,
+  and some boards open straight into an In Progress category. Read the status
+  back rather than assuming a fresh ticket is untriaged.
 - **Paginate explicitly.** `--limit` caps the page. A frontier query over a big
   epic truncates silently, so page and say what you covered.
 
