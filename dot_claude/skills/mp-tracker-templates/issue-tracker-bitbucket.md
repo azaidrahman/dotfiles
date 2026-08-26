@@ -63,6 +63,8 @@ remaining Bitbucket-native issue path, and `twg` has no
 | Remove labels | `twg jira workitem update --id <KEY> --remove-labels <name>` |
 | List valid transitions | `twg jira workitem transitions query --id <KEY>` |
 | Transition | `twg jira workitem update --id <KEY> --status "<Status Name>" --transition-comment "..."` |
+| Transition many | `twg jira workitem bulk-transition --ids <KEY-1>,<KEY-2> --transition-id <id> --dry-run` |
+| List issue types | `twg jira workitem types query --project-key <PROJECT-KEY>` |
 | Assign / unassign | `twg jira workitem update --id <KEY> --assignee me` |
 | Link a blocker | `twg jira workitem link workitem --id <BLOCKER> --target-id <BLOCKED> --link-type-id <id>` |
 | List link types | `twg jira workitem link-types query` |
@@ -84,7 +86,20 @@ Traps, all of them things that fail quietly:
   fuzzy-match a display name. Get an account ID from `twg whoami` or
   `twg user-search`.
 - **Epics are a type, not a namespace.** There is no `epic` command. Create one
-  with `--type Epic`, then parent children with `--parent <EPIC-KEY>`.
+  with `--type Epic`, then parent children with `--parent <EPIC-KEY>`. Read the
+  type names off `twg jira workitem types query --project-key <PROJECT-KEY>`
+  rather than assuming them; that also shows each type's hierarchy level.
+- **There is no bulk parent operation.** `update --id` takes exactly one key, so
+  re-parenting a set means one call per issue. Say how many you changed.
+- **`create-bulk` is not the friendly bulk creator it sounds like.** It is a raw
+  GraphQL passthrough: `--issue-type-id` must be an **ARI**, not a name, and the
+  issue data goes in a `--fields` JSON blob. It is board-oriented (`--board-id`,
+  `--rank`, `--kanban-destination`). For a handful of tickets, loop plain
+  `create` instead — it takes readable flags and a type name.
+- **`bulk-transition` is the one real bulk command.** It takes `--ids` as a
+  comma-separated list (or a repeated `--id`), wants a `--transition-id` rather
+  than a status name, and is alone among the write commands in having
+  `--dry-run`. Run the dry run first, then submit with `--yes`.
 - **`query` needs real JQL; `search` takes plain text.** Passing text to
   `--jql` fails. Passing JQL to `search` searches for the literal string.
 - **`--space` is documented as a project ID or ARI.** A project key resolves in
