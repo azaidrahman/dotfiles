@@ -24,7 +24,5 @@ meta@gtech-skills
 platform@gtech-skills
 
 # --- third-party ---
-# bkt: the CLI itself comes from Brew; this plugin's skill is superseded
-# by gtech general/bitbucket-pr, so it stays installed but off.
-bkt@avivsinai-marketplace disabled
+# The bkt plugin was removed: Bitbucket and Jira work goes through twg now.
 revdiff@revdiff disabled

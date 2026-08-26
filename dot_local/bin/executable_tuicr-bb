@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # tuicr-bb - Review Bitbucket pull requests in tuicr, push the comments back
-#            with bkt (github.com/avivsinai/bitbucket-cli).
+#            with twg.
 #
 # tuicr has no Bitbucket forge backend: `ForgeKind` is a closed GitHub|GitLab
 # enum matched across 5 files outside src/forge/*, and a real backend is
@@ -9,8 +9,8 @@
 # zero Rust and zero patches to tuicr - it drives the two interfaces tuicr
 # already exposes:
 #
-#   read  : `bkt pr checkout` + `tuicr -r <dest>...<head>` (merge-base range)
-#   write : `tuicr review comments --session <slug>` -> JSON -> `bkt pr comment`
+#   read  : fetch + check out `pr/<id>`, then `tuicr -r <dest>...<head>`
+#   write : `tuicr review comments --session <slug>` -> JSON -> twg comment create
 #
 # Design decisions worth knowing before you edit this:
 #
@@ -30,7 +30,7 @@
 #   * Bitbucket cannot represent everything tuicr can. Nothing is ever
 #     silently dropped - unmappable comments DEGRADE visibly:
 #       - file-level (no line) -> general comment, body prefixed `path`:
-#         (bkt requires --from-line/--to-line alongside --file)
+#         (twg requires --line or --from-line alongside --path)
 #       - line ranges -> anchored at start_line, body prefixed "L12-L18: "
 #     ASCII hyphen in that prefix, not an en dash - gtech-docs lints for those.
 #
@@ -39,8 +39,12 @@
 #     session AND the ledger. Re-authored comments can post again.
 #   * Nuking ~/.local/share loses dedupe state.
 #   * True file-level comments are deferred - Bitbucket's API may accept a
-#     path-only inline anchor via `bkt api`, unverified.
-#   * Verified against bkt 0.30.0, Bitbucket Cloud. DC is untested; the jq
+#     path-only inline anchor via `twg api`, unverified.
+#   * There is no pending/draft comment mode. Every pushed comment is public
+#     the moment it lands. `twg bitbucket pull-requests comment create` has no
+#     draft flag, so the old --pending option was removed rather than silently
+#     ignored.
+#   * Verified against twg 1.2.5, Bitbucket Cloud. DC is untested; the jq
 #     paths fall back to DC field names but nothing here has been run on DC.
 #
 # Not two-way: existing Bitbucket discussion is not pulled into the TUI.
@@ -50,7 +54,11 @@
 
 set -euo pipefail
 
-VERSION="0.1.0"
+VERSION="0.2.0"
+
+# Still named tuicr-bkt after the move to twg. The directory holds the
+# already-posted comment ids, so a rename would look like an empty ledger and
+# re-post every comment of every open session. Keep the name.
 LEDGER_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/tuicr-bkt"
 
 RED='\033[0;31m'
@@ -62,14 +70,14 @@ NC='\033[0m'
 usage() {
     cat <<'EOF'
 Usage: tuicr-bb start [<pr-id>]
-       tuicr-bb push  [<pr-id>] [--push] [--force] [--no-type-prefix] [--pending]
+       tuicr-bb push  [<pr-id>] [--push] [--force] [--no-type-prefix]
 
-Review a Bitbucket pull request in tuicr, then push the comments back with bkt.
+Review a Bitbucket pull request in tuicr, then push the comments back with twg.
 
 Commands:
   start [<pr-id>]   Fetch both refs, check out the PR, open it in tuicr.
                     Reviews the merge-base range (the PR's own changes).
-  push  [<pr-id>]   Map the session's comments onto `bkt pr comment`.
+  push  [<pr-id>]   Map the session's comments onto twg comment create.
                     DRY RUN unless --push is passed.
 
   <pr-id> is inferred from the current branch (pr/<N>) when omitted.
@@ -79,8 +87,6 @@ Options (push):
   --force             Post even if the PR head moved since you reviewed.
   --no-type-prefix    Don't prepend "[TYPE] " to comment bodies.
                       (tuicr's own comment_type_prefix defaults to true.)
-  --pending           Post inline comments as pending/draft review feedback.
-                      Passed through to bkt; not applied to general comments.
 
 Options (any):
   -h, --help          Show this help
@@ -121,9 +127,9 @@ preflight() {
     need_cmd git "Install git."
     need_cmd jq "brew install jq"
     need_cmd tuicr "cargo install tuicr, or brew install tuicr"
-    need_cmd bkt "brew install avivsinai/tap/bitbucket-cli"
-    if ! bkt auth status >/dev/null 2>&1; then
-        error "bkt is not authenticated. Run: bkt auth login <host>"
+    need_cmd twg "See the twg install docs."
+    if ! twg whoami >/dev/null 2>&1; then
+        error "twg is not authenticated. Run: twg login"
     fi
     git rev-parse --git-dir >/dev/null 2>&1 || error "not inside a git repository"
 }
@@ -145,23 +151,39 @@ resolve_pr_id() {
     error "no PR id given and branch '$branch' is not pr/<N>. Pass the id explicitly."
 }
 
-# `bkt pr view <id> --json`, cached per invocation.
+# `twg -o json` writes bare JSON to stdout only when stdout is a terminal. When
+# stdout is a pipe - which it always is here - twg prints a YAML envelope and
+# puts the payload in a temp file that `output_files.stdout` names. Read the
+# envelope, then print the file it names. A bare-JSON stdout is still accepted,
+# so this keeps working if that behaviour ever changes.
+twg_json() {
+    local envelope path
+    envelope=$(twg "$@" -o json) || return 1
+    case ${envelope:0:1} in
+        '{'|'[') printf '%s' "$envelope"; return 0 ;;
+    esac
+    path=$(printf '%s' "$envelope" | sed -n 's/^  stdout: "\(.*\)"$/\1/p' | head -1)
+    [[ -n "$path" && -f "$path" ]] || return 1
+    cat "$path"
+}
+
+# The PR object, cached per invocation. twg auto-detects workspace and repo
+# from the git remote, so neither is passed.
 PR_JSON=""
 pr_json() {
     local id="$1"
     if [[ -z "$PR_JSON" ]]; then
-        PR_JSON=$(bkt pr view "$id" --json) \
-            || error "bkt pr view $id failed. Wrong repo, or no such PR?"
+        PR_JSON=$(twg_json bitbucket pull-requests get "$id") \
+            || error "twg pull-requests get $id failed. Wrong repo, or no such PR?"
     fi
     printf '%s' "$PR_JSON"
 }
 
-# `bkt pr view --json` wraps the PR in a {"pull_request": {...}} envelope, the
-# same way `pr list` wraps in "pull_requests". `.pull_request // .` unwraps it
-# and still works if a future bkt returns the object bare. Cloud field names
-# first, Data Center names as fallback.
+# twg returns the Bitbucket Cloud PR object bare. `.pull_request // .` is kept
+# so a wrapped shape would still unwrap. Cloud field names first, Data Center
+# names as fallback.
 #
-# Verified against bkt 0.30.0 / Bitbucket Cloud: source.commit.hash comes back
+# Verified against twg 1.2.5 / Bitbucket Cloud: source.commit.hash comes back
 # ABBREVIATED (12 chars), not a full 40-char SHA - the drift check truncates
 # both sides to the slug's 7-char short SHA, so this is handled.
 pr_dest_branch() {
@@ -174,27 +196,40 @@ pr_head_sha() {
         | .source.commit.hash // .fromRef.latestCommit // empty'
 }
 
+pr_src_branch() {
+    pr_json "$1" | jq -r '(.pull_request // .)
+        | .source.branch.name // .fromRef.displayId // empty'
+}
+
 cmd_start() {
     # Preflight before resolving the id, so a missing tool or an unauthenticated
-    # bkt reports itself instead of surfacing as a confusing branch-name error.
+    # twg reports itself instead of surfacing as a confusing branch-name error.
     preflight
     local id
     id=$(resolve_pr_id "${1:-}")
 
-    local dest
+    local dest src
     dest=$(pr_dest_branch "$id")
-    [[ -n "$dest" ]] || error "could not read the destination branch from 'bkt pr view $id --json'"
+    [[ -n "$dest" ]] || error "could not read the destination branch of PR $id"
+    src=$(pr_src_branch "$id")
+    [[ -n "$src" ]] || error "could not read the source branch of PR $id"
 
-    # bkt pr checkout only fetches the SOURCE branch. Without a fresh
-    # destination ref the merge-base is stale and the diff is wrong.
-    # Explicit refspec (forced) so origin/<dest> is definitely updated even if
-    # dest was force-pushed.
-    info "fetching origin/$dest"
-    git fetch --quiet origin "+${dest}:refs/remotes/origin/${dest}" \
-        || error "git fetch of origin/$dest failed"
+    # Both refs are fetched here. A stale destination ref makes the merge-base
+    # wrong, which makes the reviewed range wrong. Explicit refspecs (forced) so
+    # each remote-tracking ref is updated even after a force-push.
+    info "fetching origin/$dest and origin/$src"
+    git fetch --quiet origin \
+        "+${dest}:refs/remotes/origin/${dest}" \
+        "+${src}:refs/remotes/origin/${src}" \
+        || error "git fetch from origin failed"
 
-    info "checking out PR $id"
-    bkt pr checkout "$id" >/dev/null || error "bkt pr checkout $id failed"
+    # twg has no `pr checkout`, so the branch is created here. The name must
+    # stay pr/<id>: tuicr sanitizes it into the session anchor pr-<id>, which
+    # resolve_slug below matches on. -B repoints an existing pr/<id> at the new
+    # head instead of failing.
+    info "checking out pr/$id"
+    git checkout -q -B "pr/${id}" "refs/remotes/origin/${src}" \
+        || error "could not check out pr/$id from origin/$src"
 
     local range="origin/${dest}...pr/${id}"
     info "reviewing $range"
@@ -203,7 +238,7 @@ cmd_start() {
 
 # The session slug for this PR. Local slugs look like
 #   [<owner>/]<repo>@<anchor>/commits/<base>..<head>
-# and `bkt pr checkout` names the branch pr/<id>, which tuicr sanitizes to the
+# and cmd_start names the branch pr/<id>, which tuicr sanitizes to the
 # anchor pr-<id> (slashes become dashes).
 resolve_slug() {
     local id="$1"
@@ -256,7 +291,7 @@ check_head_drift() {
 }
 
 cmd_push() {
-    local id_arg="" do_push=0 force=0 type_prefix=1 pending=0
+    local id_arg="" do_push=0 force=0 type_prefix=1
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -264,7 +299,9 @@ cmd_push() {
             --dry-run)        do_push=0; shift ;;
             --force)          force=1; shift ;;
             --no-type-prefix) type_prefix=0; shift ;;
-            --pending)        pending=1; shift ;;
+            # --pending is gone, not ignored: twg cannot post a draft comment,
+            # so accepting the flag would make every comment public silently.
+            --pending)        error "--pending was removed: twg has no draft/pending comment mode" ;;
             -*)               error "unknown option for push: $1" ;;
             *)                id_arg="$1"; shift ;;
         esac
@@ -321,7 +358,7 @@ cmd_push() {
         local body="$content"
 
         if [[ -n "$path" && -z "$start_line" ]]; then
-            # File-level: bkt requires a line alongside --file, so this becomes
+            # File-level: twg requires a line alongside --path, so this becomes
             # a general comment carrying the path in the body.
             body="\`${path}\`: ${body}"
             degraded=$((degraded + 1))
@@ -337,20 +374,21 @@ cmd_push() {
         fi
 
         local args
-        args=(pr comment "$id" --text "$body")
+        args=(bitbucket pull-requests comment create --pull-request "$id" --text "$body")
 
         if [[ -n "$path" && -n "$start_line" ]]; then
-            args+=(--file "$path")
+            args+=(--path "$path")
+            # --from-line anchors on the pre-change side, --line on the
+            # post-change side. Same split bkt spelled --from-line/--to-line.
             if [[ "$side" == "old" ]]; then
                 args+=(--from-line "$start_line")
             else
-                args+=(--to-line "$start_line")
+                args+=(--line "$start_line")
             fi
-            [[ "$pending" -eq 1 ]] && args+=(--pending)
         fi
 
         if [[ "$do_push" -eq 0 ]]; then
-            printf 'bkt'
+            printf 'twg'
             local a
             for a in "${args[@]}"; do
                 printf ' '
@@ -363,7 +401,7 @@ cmd_push() {
 
         # Record only real successes, so a re-run finishes a partial push
         # instead of duplicating what already landed.
-        if bkt "${args[@]}" >/dev/null; then
+        if twg "${args[@]}" >/dev/null; then
             printf '%s\n' "$cid" >> "$ledger"
             posted=$((posted + 1))
         else

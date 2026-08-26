@@ -12,7 +12,7 @@
 #     exactly the second line and wants the literal '#description ' prefix.
 #     Do not insert a blank line above it.
 #
-# Both caches below exist because tab completion must feel instant. A `bkt`
+# Both caches below exist because tab completion must feel instant. A `twg`
 # call is a network round trip and merge-tree walks the whole tree; neither is
 # acceptable on every keypress. Staleness is harmless here - a completion
 # candidate that no longer applies costs a re-run, not a wrong answer.
@@ -38,11 +38,25 @@ _git-pr-conflicts_prs() {
   cache=$(_git-pr-conflicts_cachedir)/prs-$key
 
   if [[ -z ${cache}(#qN.mm-5) ]]; then
-    # stderr is dropped: bkt's zsh completion shim writes compdef warnings
-    # there, and anything on stderr during completion corrupts the display.
-    bkt pr list --state OPEN --json 2>/dev/null \
-      | jq -r '(.pull_requests // .values // .)[]
-               | "\(.id):\(.title // "" | gsub("[:\\n]"; " "))"' \
+    # stderr is dropped: anything written there during completion corrupts the
+    # display. `twg -o json` prints a YAML envelope when stdout is a pipe and
+    # writes the payload to the file that `output_files.stdout` names, so read
+    # that file. A bare-JSON stdout is accepted too, in case that changes.
+    local envelope payload
+    envelope=$(twg bitbucket pull-requests query --state OPEN --limit 50 -o json 2>/dev/null)
+    if [[ $envelope == [\{\[]* ]]; then
+      payload=$envelope
+    else
+      local f=${${(M)${(f)envelope}:#  stdout: \"*\"}[1]#  stdout: \"}
+      f=${f%\"}
+      [[ -n $f && -r $f ]] && payload=$(<$f)
+    fi
+    # twg returns a bare array; the object forms are Data Center fallbacks. The
+    # type guard is required - `.pull_requests` on an array is a jq hard error,
+    # not a null that `//` could absorb.
+    print -r -- "$payload" \
+      | jq -r 'if type == "array" then . else (.pull_requests // .values // .) end
+               | .[] | "\(.id):\(.title // "" | gsub("[:\\n]"; " "))"' \
         > $cache.$$ 2>/dev/null
     if [[ -s $cache.$$ ]]; then
       mv -f $cache.$$ $cache 2>/dev/null

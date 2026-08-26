@@ -1,6 +1,6 @@
 ---
 name: mp-tracker-templates
-description: Use when configuring the issue tracker for the mattpocock engineering skills — running /setup-matt-pocock-skills, or writing/editing a repo's docs/agents/issue-tracker.md — in a repo whose remote is Bitbucket, or whose issues live in Jira. Supplies the Bitbucket + Jira seed template that the upstream skill doesn't ship (it only covers GitHub, GitLab, and local markdown). Also use when asked how `/triage`, `/to-tickets`, `/to-spec`, `/qa`, or `/wayfinder` should reach Jira or Bitbucket.
+description: Use when configuring the issue tracker for the mattpocock engineering skills — running /setup-matt-pocock-skills, or writing/editing a repo's docs/agents/issue-tracker.md — in a repo whose remote is Bitbucket, or whose issues live in Jira. Supplies the Bitbucket + Jira seed template that the upstream skill doesn't ship (it only covers GitHub, GitLab, and local markdown), with every command written for the twg CLI. Also use when asked how `/triage`, `/to-tickets`, `/to-spec`, `/qa`, or `/wayfinder` should reach Jira or Bitbucket.
 ---
 
 # MP tracker templates
@@ -27,36 +27,31 @@ git remote get-url origin
 Copy [issue-tracker-bitbucket.md](./issue-tracker-bitbucket.md) to the repo's
 `docs/agents/issue-tracker.md`, then fill in the two placeholders:
 
-1. `<PROJECT-KEY>` — the Jira project key for this repo (e.g. `GTC`, `GTI`).
-2. **Issue home** — leave as `jira` unless this is a legacy Cloud repo that still
-   has its native tracker switched on. Probe it:
-
-   ```bash
-   bkt api repositories/<workspace>/<slug> --jq '.has_issues'
-   ```
-
-   `bkt repo view --json` does *not* carry that field — it returns a trimmed shape.
+Fill in one placeholder: `<PROJECT-KEY>` — the Jira project key for this repo
+(e.g. `GTC`, `GTI`). Confirm it resolves with `twg jira space get <PROJECT-KEY>`.
 
 Leave the **PRs as a request surface** flag off unless the user asks for external
 PRs in the triage queue.
 
 ## Why Jira and not Bitbucket Issues
 
-Bitbucket Cloud **removes native Issues on 20 August 2026**, and since April 2026
-Issues can't be enabled on repos that weren't already using them. Data Center never
-had a tracker. So `bkt issue` is a legacy path with a deadline — the template
-documents it, but routes new work to Jira.
+Bitbucket Cloud **removed native Issues on 20 August 2026**. Data Center never had
+a tracker. There is no Bitbucket-native issue path left, so Jira is the tracker on
+every Bitbucket repo — no probe, no flag.
 
 ## Tool split
 
-- **Issues** → the [`jira`](https://github.com/ankitpokhrel/jira-cli) CLI
-  (`brew install jira-cli`), with the Atlassian MCP tools as fallback.
-- **PRs, code, pipelines** → [`bkt`](https://github.com/avivsinai/bitbucket-cli)
-  (`brew install avivsinai/tap/bitbucket-cli`). `gh` does not work on Bitbucket.
+Both surfaces go through `twg`. `gh` does not work on Bitbucket, and the two
+third-party CLIs this skill used to name (`jira-cli` and `bkt`) were dropped.
+
+- **Issues** → `twg jira workitem`, with the Atlassian MCP tools as fallback.
+- **PRs, code, pipelines** → `twg bitbucket` (alias `twg bb`), which auto-detects
+  the workspace and repo from the git remote.
 
 The template carries the verified command tables for both, plus the traps that fail
-silently (`jira issue link` argument order, label removal via a leading `-`,
-`--no-input` scope, the 100-issue page limit).
+silently (`link workitem` wants a link-type **id** and takes the blocker first,
+plain `--labels` replaces the whole set, per-workflow status names, and the
+envelope that `-o json` writes when stdout is a pipe).
 
 ## House style still wins
 

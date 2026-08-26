@@ -24,7 +24,7 @@
 #     non-diff input through untouched. Marker display therefore uses bat
 #     (syntax highlighting by file extension). delta is used only in --diff
 #     mode, where the input really is a diff.
-#   * Branch names are resolved from the PR via `bkt`, not guessed. A PR's
+#   * Branch names are resolved from the PR via `twg`, not guessed. A PR's
 #     destination is frequently not the repo default branch (release trains,
 #     env branches), and merging against the wrong base invents conflicts that
 #     do not exist or hides ones that do.
@@ -36,7 +36,7 @@
 #     and a machine-readable tool should not depend on the user's config for
 #     whether it appears.
 #
-# Requires: git >= 2.38 (merge-tree --write-tree), bkt, jq. bat optional.
+# Requires: git >= 2.38 (merge-tree --write-tree), twg, jq. bat optional.
 
 set -uo pipefail
 
@@ -85,8 +85,8 @@ OPTIONS
   --cleanup           Remove the worktree and branch created by --resolve.
   --no-fetch          Skip fetching. Use only if you just fetched.
   --plain             No pager, no syntax highlighting. For piping.
-  --repo <slug>       Repository override, passed to bkt.
-  --workspace <ws>    Workspace override, passed to bkt.
+  --repo <slug>       Repository override, passed to twg.
+  --workspace <ws>    Workspace override, passed to twg.
   -h, --help          This.
 
 EXAMPLES
@@ -156,7 +156,7 @@ done
 
 [[ -n $PR_ARG ]] || { usage >&2; exit 2; }
 
-for bin in git bkt jq; do
+for bin in git twg jq; do
   command -v "$bin" >/dev/null || die "missing required command: $bin"
 done
 
@@ -200,19 +200,34 @@ if [[ -n $URL_REPO ]]; then
   fi
 fi
 
-declare -a BKT_ARGS=()
-[[ -n $REPO_OVERRIDE ]] && BKT_ARGS+=(--repo "$REPO_OVERRIDE")
-[[ -n $WS_OVERRIDE   ]] && BKT_ARGS+=(--workspace "$WS_OVERRIDE")
-[[ -z $REPO_OVERRIDE && -n $URL_REPO ]] && BKT_ARGS+=(--repo "$URL_REPO")
-[[ -z $WS_OVERRIDE   && -n $URL_WS   ]] && BKT_ARGS+=(--workspace "$URL_WS")
+declare -a TWG_ARGS=()
+[[ -n $REPO_OVERRIDE ]] && TWG_ARGS+=(--repo "$REPO_OVERRIDE")
+[[ -n $WS_OVERRIDE   ]] && TWG_ARGS+=(--workspace "$WS_OVERRIDE")
+[[ -z $REPO_OVERRIDE && -n $URL_REPO ]] && TWG_ARGS+=(--repo "$URL_REPO")
+[[ -z $WS_OVERRIDE   && -n $URL_WS   ]] && TWG_ARGS+=(--workspace "$URL_WS")
+
+# `twg -o json` writes bare JSON to stdout only when stdout is a terminal. When
+# stdout is a pipe - which it always is here - twg prints a YAML envelope and
+# puts the payload in a temp file that `output_files.stdout` names. Read the
+# envelope, then print the file it names. A bare-JSON stdout is still accepted,
+# so this keeps working if that behaviour ever changes.
+twg_json() {
+  local envelope path
+  envelope=$(twg "$@" -o json) || return 1
+  case ${envelope:0:1} in
+    '{'|'[') printf '%s' "$envelope"; return 0 ;;
+  esac
+  path=$(printf '%s' "$envelope" | sed -n 's/^  stdout: "\(.*\)"$/\1/p' | head -1)
+  [[ -n $path && -f $path ]] || return 1
+  cat "$path"
+}
 
 info "fetching PR #$PR_ID metadata..."
-# stderr is discarded: the zsh completion shim bkt installs writes compdef noise
-# there, which would otherwise corrupt nothing but confuse everything.
-pr_json=$(bkt pr view "$PR_ID" "${BKT_ARGS[@]}" --json 2>/dev/null) \
-  || die "bkt could not read PR #$PR_ID (auth? wrong repo? does it exist?)"
+pr_json=$(twg_json bitbucket pull-requests get "$PR_ID" "${TWG_ARGS[@]}" 2>/dev/null) \
+  || die "twg could not read PR #$PR_ID (auth? wrong repo? does it exist?)"
 
-# bkt nests Cloud responses under .pull_request; Data Center returns them flat.
+# twg returns the Bitbucket Cloud PR object bare. The Data Center field names
+# stay as fallbacks so a DC host keeps working.
 read -r PR_TITLE PR_STATE PR_AUTHOR SRC_BRANCH DST_BRANCH < <(
   printf '%s' "$pr_json" | jq -r '
     (.pull_request // .) as $p |

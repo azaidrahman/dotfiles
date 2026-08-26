@@ -7,5 +7,4 @@
 # silently fails if its marketplace was never added on this device.
 claude-plugins-official anthropics/claude-plugins-official
 gtech-skills https://bitbucket.org/get-rnd/gtech-skills.git
-avivsinai-marketplace avivsinai/skills-marketplace
 revdiff umputun/revdiff

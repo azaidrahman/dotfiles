@@ -37,7 +37,7 @@ git log -1 --stat <ref>            # one commit
 git diff <base>...HEAD --stat      # a branch, against its base
 git diff HEAD --stat               # uncommitted work
 gh pr diff <n>                     # a GitHub pull request
-bkt pr diff <n>                    # a Bitbucket pull request
+twg bb pull-requests diff <n>      # a Bitbucket pull request
 ```
 
 If the user says "what you just did", use the uncommitted diff and the work of
@@ -75,7 +75,7 @@ from the tool for the host:
 
 ```bash
 gh pr view <n> --json url -q .url    # GitHub
-bkt pr view <n> --json               # Bitbucket - take the URL from the output
+twg bb pull-requests get <n>         # Bitbucket - the URL is links.html.href
 ```
 
 If the branch has no pull request yet, link the ticket instead. If you find

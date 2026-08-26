@@ -19,8 +19,13 @@ appearance = "dark"
 # tuicr here is a LOCAL FORK build, not the Homebrew release:
 #   ~/.local/bin/tuicr -> ~/projects/not-mine/tuicr/target/release/tuicr
 # with the Homebrew formula deliberately unlinked (`brew unlink tuicr`). The
-# fork carries a Bitbucket Cloud forge backend (src/forge/bitbucket/, driving
-# the `bkt` CLI) that upstream does not have yet — see issue #498.
+# fork carries a Bitbucket Cloud forge backend (src/forge/bitbucket/) that
+# upstream does not have yet — see issue #498.
+#
+# That backend still shells out to the `bkt` CLI, which is why the Brewfile
+# keeps bitbucket-cli installed. Nothing else in these dotfiles uses bkt any
+# more; the shell scripts and skills all moved to twg. Porting the fork's
+# backend to twg would let bitbucket-cli go entirely.
 #
 # Add a hostname to the list above when you set the fork build up on a new box;
 # a host NOT in the list keeps its Homebrew tuicr and its update checks.

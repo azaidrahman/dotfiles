@@ -1,71 +1,100 @@
 # Issue tracker: Bitbucket
 
-This repo lives on Bitbucket. Two surfaces, two tools:
+This repo lives on Bitbucket. Both surfaces go through one tool, `twg`:
 
-- **Issues / PRDs → Jira**, via the [`jira`](https://github.com/ankitpokhrel/jira-cli) CLI (Atlassian MCP tools as fallback). Bitbucket's own issue tracker is end-of-life (see below).
-- **Pull requests, code, pipelines → the [`bkt`](https://github.com/avivsinai/bitbucket-cli) CLI.** `gh` does not work against Bitbucket.
+- **Issues / PRDs → Jira**, via `twg jira workitem`. Bitbucket's own issue tracker is gone (see below).
+- **Pull requests, code, pipelines → `twg bitbucket`.** `gh` does not work against Bitbucket.
 
 ```bash
-bkt --version && bkt auth status
+twg whoami
 ```
 
-If `bkt` isn't installed: `brew install avivsinai/tap/bitbucket-cli` (or `go install github.com/avivsinai/bitbucket-cli/cmd/bkt@latest`). If it's unauthenticated or lacks a capability, fall back to a connected Bitbucket MCP server, then to `bkt api` raw requests. Say you're falling back and why.
+If `twg` is not authenticated, run `twg login`. Do not run any setup, login, or
+credential command unless the user asks for it. Report the problem and wait.
+
+`twg bitbucket` accepts `bb` as a short alias. Both spellings appear below.
+
+## Reading twg output in a script
+
+`twg -o json` writes bare JSON to stdout only when stdout is a terminal. If
+stdout is a pipe, twg writes a YAML envelope instead and puts the payload in a
+temp file that `output_files.stdout` names. Read the envelope first, then read
+the file it names.
+
+Two shapes come back, and they differ by product:
+
+- **Bitbucket** commands return the raw Bitbucket object or a **bare array**.
+  A type guard is required: `.pull_requests` applied to an array is a hard jq
+  error, not a null that `//` absorbs.
+- **Jira** commands return a wrapper. `workitem query` puts rows in
+  `.data.issues[]`; `workitem get` puts them in `.data`, which is an **array**
+  even for one key.
+
+```bash
+# Unwrap a Jira workitem get. Test the array case FIRST - `.data.items` on an
+# array throws before the later branches are reached.
+jq 'if (.data|type) == "array" then .data[] elif .data.items then (.data.items[] | .data) else .data end'
+```
 
 ## Why Jira and not Bitbucket Issues
 
-**Bitbucket Cloud removes native Issues on 20 August 2026**, and since **April 2026** Issues can no longer be enabled on repos that weren't already using them. Bitbucket **Data Center / Server never had an issue tracker** at all. So on any Bitbucket repo, Jira is the tracker unless this specific repo is a Cloud repo that already had Issues switched on before the April cutoff.
+**Bitbucket Cloud removed native Issues on 20 August 2026.** Bitbucket
+**Data Center / Server never had an issue tracker** at all. There is no
+remaining Bitbucket-native issue path, and `twg` has no
+`bitbucket issue` command because there is nothing left to call.
 
-**Issue home: `jira`.** _(Set to `bitbucket-native` only for a legacy Cloud repo that still has its tracker on — and expect it to break after 20 Aug 2026.)_
-
-Probe which situation you're in:
-
-```bash
-bkt api repositories/<workspace>/<slug> --jq '.has_issues'    # false → Jira, no question
-bkt issue list --json                                          # 410 Gone → tracker already removed
-```
-
-`bkt repo view --json` does **not** carry `has_issues` — it returns a trimmed shape (`workspace`, `slug`, `name`, `uuid`, `web_url`, `clone_urls`). Use `bkt api` for that field.
+**Issue home: `jira`.** There is no other option.
 
 ## Issue operations (Jira)
 
 **Jira project key for this repo: `<PROJECT-KEY>`.**
 
-**Prefer the [`jira`](https://github.com/ankitpokhrel/jira-cli) CLI** (`ankitpokhrel/jira-cli`). Same posture as `bkt` for Bitbucket: cheaper per call, scriptable, and `--raw` pipes into `jq`. Probe it first; if the probe fails, fall through to MCP and say so.
-
-```bash
-jira version && jira me
-```
-
-If it isn't installed: `brew install jira-cli` (homebrew-core), or `docker run -it --rm ghcr.io/ankitpokhrel/jira-cli:latest`. First-time setup is `jira init` — pick Cloud or Local, then supply site and email. It writes `~/.config/.jira/.config.yml` with a **default project**, so `-p<PROJECT-KEY>` (a global flag) is only needed to target a different one.
-
 | Operation | Command |
 | --- | --- |
-| Create an issue | `jira issue create -tTask -s"<summary>" -b"<body>" -l<label> -yHigh --no-input` |
-| Create under an epic | `jira issue create -tStory -P<EPIC-KEY> -s"..." --no-input` |
-| Read an issue | `jira issue view <KEY> --comments 20` |
-| Query by field | `jira issue list -l needs-triage -s"To Do" -a$(jira me) --plain --no-headers` |
-| Query by JQL | `jira issue list -q '<JQL>' --raw` |
-| Comment | `jira issue comment add <KEY> "<text>"` — or pipe the body on stdin |
-| Add a label | `jira issue edit <KEY> --label <name> --no-input` |
-| Remove a label | `jira issue edit <KEY> --label -<name> --no-input` |
-| Transition | `jira issue move <KEY> "<Status Name>" [--comment "..."] [-R <resolution>]` |
-| Assign / unassign | `jira issue assign <KEY> $(jira me)` / `jira issue assign <KEY> x` |
-| Link a blocker | `jira issue link <BLOCKER> <BLOCKED> Blocks` |
-| Epics | `jira epic list`, `jira epic create -n"<name>" -s"<summary>"`, `jira epic add <EPIC-KEY> <KEY>...` |
+| Create an issue | `twg jira workitem create --space <PROJECT-KEY> --type Task --summary "<summary>" --description "<body>" --labels <a,b> --priority High` |
+| Create under a parent | `twg jira workitem create --space <PROJECT-KEY> --type Story --parent <EPIC-KEY> --summary "..."` |
+| Read an issue | `twg jira workitem get <KEY> --comments` |
+| Read several issues | `twg jira workitem get <KEY-1> <KEY-2> <KEY-3>` |
+| Fuzzy text search | `twg jira workitem search "<text>" --limit 20` |
+| Query by JQL | `twg jira workitem query --jql '<JQL>' --limit 100` |
+| Comment | `twg jira workitem comment create --issue-id <KEY> --body "<text>"` |
+| Read comments | `twg jira workitem comment query --issue-id <KEY>` |
+| Add labels | `twg jira workitem update --id <KEY> --add-labels <name>` |
+| Remove labels | `twg jira workitem update --id <KEY> --remove-labels <name>` |
+| List valid transitions | `twg jira workitem transitions query --id <KEY>` |
+| Transition | `twg jira workitem update --id <KEY> --status "<Status Name>" --transition-comment "..."` |
+| Assign / unassign | `twg jira workitem update --id <KEY> --assignee me` |
+| Link a blocker | `twg jira workitem link workitem --id <BLOCKER> --target-id <BLOCKED> --link-type-id <id>` |
+| List link types | `twg jira workitem link-types query` |
+| List projects | `twg jira space query` |
 
-Five traps, all of them things that fail quietly:
+Traps, all of them things that fail quietly:
 
-- **A leading `-` on the value removes it** — `--label -needs-triage` removes, `--label needs-triage` appends. Same convention for `--component` and `--fix-version`. There is no `--remove-label`.
-- **`--no-input` only suppresses prompts for *non-required* fields.** Required ones (type, summary) must still come from flags, or the command blocks on an interactive prompt and hangs a non-interactive session.
-- **`jira issue link` is inward-then-outward**: `jira issue link A B Blocks` means *A blocks B*. Pass the **blocker first**. Getting this backwards silently builds the dependency graph in reverse.
-- **`jira issue list` paginates at 100** (`--paginate <from>:<limit>`, default `0:100`, max 100 per call). A frontier query over a big epic truncates without saying so — page explicitly and say what you covered.
-- **`jira issue assign` needs an exact email or display-name match.** `$(jira me)` for self, `default` for the project default, `x` to unassign. It won't fuzzy-match a username.
+- **`--add-labels` and `--remove-labels` are separate flags.** Plain `--labels`
+  **replaces** the whole label set. Reach for `--labels` only when you intend
+  to overwrite every existing label.
+- **Link types are IDs, not names.** `link workitem` wants `--link-type-id`.
+  Read the id off `twg jira workitem link-types query` first — `Blocks` is
+  `10000` on some instances but you must not assume it. The link runs
+  `--id` **blocks** `--target-id`, so pass the **blocker** as `--id`.
+- **Status names are per-workflow.** Read them off
+  `twg jira workitem transitions query --id <KEY>` rather than assuming `Done`.
+  Real boards carry things like `Scheduled Tasks` and `Review`.
+- **`--assignee` takes an account ID or the literal `me`.** It does not
+  fuzzy-match a display name. Get an account ID from `twg whoami` or
+  `twg user-search`.
+- **Epics are a type, not a namespace.** There is no `epic` command. Create one
+  with `--type Epic`, then parent children with `--parent <EPIC-KEY>`.
+- **`query` needs real JQL; `search` takes plain text.** Passing text to
+  `--jql` fails. Passing JQL to `search` searches for the literal string.
+- **`--space` is documented as a project ID or ARI.** A project key resolves in
+  practice. If `create` rejects the key, read the numeric id off
+  `twg jira space get <PROJECT-KEY>` and pass that instead.
+- **Paginate explicitly.** `--limit` caps the page. A frontier query over a big
+  epic truncates silently, so page and say what you covered.
 
-Status names in `jira issue move` are per-workflow — read them off `jira issue view` rather than assuming `Done`; real boards carry things like `In Develop` and `Ready For Production`. `jira epic add` takes at most 50 issues per call. Default list order is `created` DESC (`--order-by`, `--reverse`).
-
-**Team-managed (next-gen) projects** have no separate *Epic Name* field, which is what `jira epic create -n` writes. If `-n` errors or is ignored, create the epic as a plain issue instead — `jira issue create -tEpic -s"<summary>" --no-input` — and parent children to it with `-P<EPIC-KEY>` as usual. Check with `jira project list` / the `project.type` in `~/.config/.jira/.config.yml` (`next-gen` = team-managed).
-
-**Fallback: the connected Atlassian MCP tools.** Use these when `jira` is absent or unauthenticated:
+**Fallback: the connected Atlassian MCP tools.** Use these when `twg` is absent
+or unauthenticated:
 
 - **Create an issue**: `createJiraIssue` with the project key, issue type, summary, and description.
 - **Read an issue**: `getJiraIssue` by key (e.g. `ABC-123`). Comments come back with the issue.
@@ -74,48 +103,31 @@ Status names in `jira issue move` are per-workflow — read them off `jira issue
 - **Apply / remove labels**: `editJiraIssue` on the `labels` field. Jira labels are free-form, so the five canonical triage roles work as literal label strings — no remapping needed.
 - **Close**: `transitionJiraIssue` (check `getTransitionsForJiraIssue` first — transition names are per-workflow, not universal).
 
-If neither a CLI nor an MCP server is available, use the Jira REST API via `curl` with a token, and tell the user that's what you're doing.
+`twg api <endpoint>` reaches the raw **Atlassian** REST API, so it is a last
+resort for Jira only. It does **not** reach the Bitbucket API.
 
 If this repo already has a house style for ticket titles and bodies, follow it — check for a ticket-writing skill or a convention documented in `AGENTS.md` / `CLAUDE.md` before inventing a format.
 
-## Issue operations (legacy `bkt issue`, Cloud only, until 20 Aug 2026)
-
-Only if **Issue home** above is set to `bitbucket-native`. `bkt` prints a sunset warning on every one of these calls.
-
-- **Create**: `bkt issue create -t "..." -b "..." -k task` — `--kind` defaults to `bug`, so pass it (`task`, `enhancement`, `proposal`).
-- **Read**: `bkt issue view <id> --comments`, or `--json`.
-- **List**: `bkt issue list --state open --limit 100 --json`. Filters: `--kind`, `--priority`, `--assignee`, `--milestone`, `--state`.
-- **Comment**: `bkt issue comment <id> -b "..."`; read with `--list`.
-- **Edit**: `bkt issue edit <id> --state <s> --component <c> --kind <k> --priority <p>`.
-- **Close / reopen**: `bkt issue close <id>` / `bkt issue reopen <id>`. No close-with-comment flag — comment first, then close.
-- **Your queue**: `bkt issue status` — issues assigned to you, created by you, recently updated.
-
-`bkt issue delete <id>` exists and is irreversible; it prompts unless `--confirm` is passed. Don't reach for it — close or mark `invalid` instead.
-
-Assignees are **UUIDs in braces** (`-a "{abc-123}"`), not usernames. Resolve one; don't invent it.
-
-Bitbucket Cloud issues have **no free-form labels**, so the triage roles ride on native fields:
-
-| Canonical role    | Carrier                                   | Command                                           |
-| ----------------- | ----------------------------------------- | ------------------------------------------------- |
-| `needs-triage`    | state `new` (Bitbucket's own "untriaged")  | `bkt issue edit <id> --state new`                 |
-| `needs-info`      | state `on hold`                            | `bkt issue edit <id> --state "on hold"`           |
-| `ready-for-agent` | component `ready-for-agent`                | `bkt issue edit <id> --component ready-for-agent` |
-| `ready-for-human` | component `ready-for-human`                | `bkt issue edit <id> --component ready-for-human` |
-| `wontfix`         | state `wontfix`                            | `bkt issue edit <id> --state wontfix`             |
-
-States are mutually exclusive, so the three state-carried roles can't collide — leaving triage means `--state open`. Components must **already exist** in repo settings (Bitbucket won't create them on demand the way GitHub auto-creates labels); if they don't and you can't add them, put a `Triage: ready-for-agent` marker as the first line of the issue body and read it back with `bkt issue view <id> --json --jq '.content.raw'`. Say which mechanism you used. `resolved` / `invalid` / `duplicate` are extra native states with no canonical role — use them on their own terms.
-
 ## Pull requests
 
-`bkt pr` works on **both** Cloud and Data Center, and is unaffected by the Issues sunset.
+`twg bb pull-requests` works on Cloud, and auto-detects the workspace and repo
+from the git remote. Pass `-w <slug>` / `-r <slug>` only to override it.
 
-- **Read**: `bkt pr view <id> --json`, `bkt pr comments <id>`, `bkt pr diff <id>`.
-- **List**: `bkt pr list --state OPEN --limit 50 --json` (`--mine` to scope to yourself).
-- **Create**: `bkt pr create --title "..." --body "..." --reviewer <user>`. Don't invent reviewer usernames.
-- **Comment**: `bkt pr comment <id> --text "..." [--file path --to-line N]` for inline.
-- **CI status**: `bkt pr checks <id>`, or `bkt status pr <id>` on Data Center.
-- **Merge**: `bkt pr merge <id> --strategy squash`. **Confirm with the user first** — there's no dry-run gate.
+- **Read**: `twg bb pull-requests get <id>` (add `--comments`, `--statuses`, `--diff`, or `--full`).
+- **Diff**: `twg bb pull-requests diff <id>` for the raw unified diff.
+- **List**: `twg bb pull-requests query --state OPEN --limit 50` (`--scope me` to scope to yourself, across every accessible repo).
+- **Create**: `twg bb pull-requests create --title "..." --source <branch> --dest <branch> --description "..." --reviewer <account-id>`. Don't invent reviewer accounts.
+- **Comment**: `twg bb pull-requests comment create --pull-request <id> --text "..."`. For inline, add `--path <file>` plus `--line N` (post-change side) or `--from-line N` (pre-change side).
+- **CI status**: `twg bb pull-requests get <id> --statuses`.
+- **Approve**: `twg bb pull-requests approve <id>`.
+- **Merge**: `twg bb pull-requests merge --pull-request <id> --merge-strategy squash`. **Confirm with the user first** — there's no dry-run gate.
+
+There is no `pull-requests checkout`. To review a PR locally, read
+`source.branch.name` off `pull-requests get`, then fetch and check that branch
+out yourself.
+
+There is no draft or pending comment mode. Every comment is public the moment
+it posts.
 
 ### PRs as a triage surface
 
@@ -123,26 +135,24 @@ States are mutually exclusive, so the three state-carried roles can't collide �
 
 Two differences from GitHub if you turn this on:
 
-- **No `authorAssociation`.** Bitbucket's PR payload doesn't say whether the author is a workspace member, so you can't cheaply filter external contributors the way `gh` allows. Judge by author account, or query workspace membership via `bkt api` and diff against it.
+- **No `authorAssociation`.** Bitbucket's PR payload doesn't say whether the author is a workspace member, so you can't cheaply filter external contributors the way `gh` allows. Judge by author account, or list the workspace members with `twg bb workspace member query` and diff against that.
 - **Separate number spaces.** Bitbucket PR ids are their own sequence, independent of Jira keys — no `#42` ambiguity, but always name the surface (`PR 42` vs `ABC-42`).
 
 ## When a skill says "publish to the issue tracker"
 
-Create a Jira issue in `<PROJECT-KEY>` (or a Bitbucket issue if **Issue home** is `bitbucket-native`).
+Create a Jira issue in `<PROJECT-KEY>`.
 
 ## When a skill says "fetch the relevant ticket"
 
-`jira issue view <KEY> --comments 20` (or `bkt issue view <id> --comments` for the legacy path).
+`twg jira workitem get <KEY> --comments`
 
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is one issue with **child** issues as tickets. On Jira this maps onto native structure — better than the body conventions GitHub needs:
 
-- **Map**: an Epic holding the Notes / Decisions-so-far / Fog body — `jira epic create -n"<name>" -s"<summary>"`, then `jira epic list` to find it again.
-- **Child ticket**: an issue parented to the map — `jira issue create -tTask -P<MAP-KEY> -l wayfinder:<type> --no-input`, where type is `research`/`prototype`/`grilling`/`task`. Claimed tickets are assigned to the driving dev.
-- **Blocking**: a native issue link — `jira issue link <BLOCKER> <BLOCKED> Blocks` (**blocker first** — see the traps above). A ticket is unblocked when every blocker reaches a `Done` status category. (Via MCP: `createIssueLink`, and check `getIssueLinkTypes` — link-type names vary per instance.)
-- **Frontier query**: `jira issue list -q 'parent = <MAP-KEY> AND statusCategory != Done AND assignee IS EMPTY ORDER BY rank' --raw`, then drop any with an open blocker link. Watch the 100-issue page limit on a large map.
-- **Claim**: `jira issue assign <KEY> $(jira me)` — the session's first write.
-- **Resolve**: `jira issue comment add <KEY> "<answer>"`, then `jira issue move <KEY> "<done status>"`, then append a context pointer to the map's Decisions-so-far.
-
-On the legacy Bitbucket-native path none of this exists — no sub-issues, no dependencies. Use `Part of #<map>`, `Wayfinder: <type>`, and `Blocked by: #<n>` lines at the top of issue bodies, with a task list in the map body as the ordered index.
+- **Map**: an Epic holding the Notes / Decisions-so-far / Fog body — `twg jira workitem create --space <PROJECT-KEY> --type Epic --summary "<summary>"`. Find it again with `twg jira workitem query --jql 'project = <PROJECT-KEY> AND type = Epic ORDER BY updated DESC'`.
+- **Child ticket**: an issue parented to the map — `twg jira workitem create --space <PROJECT-KEY> --type Task --parent <MAP-KEY> --labels wayfinder:<type>`, where type is `research`/`prototype`/`grilling`/`task`. Claimed tickets are assigned to the driving dev.
+- **Blocking**: a native issue link — `twg jira workitem link workitem --id <BLOCKER> --target-id <BLOCKED> --link-type-id <id>`, with the id read off `link-types query` (**blocker first** — see the traps above). A ticket is unblocked when every blocker reaches a `Done` status category. (Via MCP: `createIssueLink`, and check `getIssueLinkTypes` — link-type names vary per instance.)
+- **Frontier query**: `twg jira workitem query --jql 'parent = <MAP-KEY> AND statusCategory != Done AND assignee IS EMPTY ORDER BY rank' --limit 100`, then drop any with an open blocker link. Page explicitly on a large map.
+- **Claim**: `twg jira workitem update --id <KEY> --assignee me` — the session's first write.
+- **Resolve**: `twg jira workitem comment create --issue-id <KEY> --body "<answer>"`, then `twg jira workitem update --id <KEY> --status "<done status>"`, then append a context pointer to the map's Decisions-so-far.

@@ -68,10 +68,10 @@ compdef _gwtcd gwtcd
 
 # --- lazy tool completions -------------------------------------------------
 
+# bkt and jira had entries here. Both CLIs were replaced by twg, which ships no
+# `completion` subcommand, so there is nothing to lazy-load in their place.
 _lazy_completion argocd    'source <(argocd completion zsh)'
-_lazy_completion bkt       'source <(bkt completion zsh)'
 _lazy_completion jj        'source <(jj util completion zsh)'
-_lazy_completion jira      'source <(jira completion zsh)'
 _lazy_completion labctl    'source <(labctl completion zsh)'
 _lazy_completion exercism  'source <(exercism completion zsh)'
 _lazy_completion wacli     'source <(wacli completion zsh)'
