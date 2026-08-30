@@ -10,8 +10,11 @@
 //   tool_result quiz            -> YOU (choice) then TUTOR (grade + explanation)
 //
 // Only the session that first sees the link file may write. It records
-// "omp:<sessionId>" in ~/.config/lesson-log.session; the Claude hook reads the
-// same file and exits when the id is not its own transcript path.
+// "omp:<sessionId>:<pid>" in ~/.config/lesson-log.session; the Claude hook
+// reads the same file and exits when the id is not its own transcript path.
+// The pid lets a later session reclaim the note when a crashed omp session
+// leaves its id behind: a resume gets a new session id, so the id alone
+// would lock every later session out for good.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -53,13 +56,32 @@ export default function (pi: ExtensionAPI) {
 			}
 		}
 		if (!sessionId) return null;
-		const me = `omp:${sessionId}`;
+		const me = `omp:${sessionId}:${process.pid}`;
 		try {
 			const owner = fs.readFileSync(OWNER, "utf-8").split("\n")[0];
 			// An empty first line means a crashed writer left a zero-byte file.
 			// Do not let that lock the note forever; claim it instead.
-			if (owner !== "" && owner !== me) return null;
-			if (owner === "") fs.writeFileSync(OWNER, `${me}\n`, "utf-8");
+			if (owner === "") {
+				fs.writeFileSync(OWNER, `${me}\n`, "utf-8");
+			} else if (owner !== me) {
+				if (!owner.startsWith("omp:")) return null; // a Claude transcript path owns it
+				const pid = Number(owner.split(":").pop());
+				// Reclaim only when the recorded pid is a live omp process. A dead
+				// pid means that session crashed and left the note locked; a
+				// process.kill(pid, 0) signal-0 probe throws when no such process
+				// exists, without actually sending a signal.
+				let alive = true;
+				try {
+					process.kill(pid, 0);
+				} catch {
+					alive = false;
+				}
+				if (Number.isNaN(pid) || !alive) {
+					fs.writeFileSync(OWNER, `${me}\n`, "utf-8");
+				} else {
+					return null;
+				}
+			}
 		} catch {
 			try {
 				fs.writeFileSync(OWNER, `${me}\n`, "utf-8");
