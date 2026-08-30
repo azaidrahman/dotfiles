@@ -120,7 +120,7 @@ The lesson ends when the learner says so, or when the sink node passes its check
 2. Ask one question: "What should the loop do differently next time?" Append the answer under `## Retro`. This list is the queue of edits to this skill.
 3. Set `status: done` in the frontmatter.
 4. Score the lesson 0 to 5 with the scale in `quiz-rules.md`, from the Phase 3 checks.
-5. Look in the SRS folder for a stub whose `target` matches the topic. If one exists, update `last_reviewed`, `next_due`, `interval`, `ease`, and `last_score`, append the new weak-spot line, and keep only the last 3 `weak_spots` entries, newest last. If none exists, create this file:
+5. Look in the SRS folder for a stub whose `target` matches the note that `target` will point to (see below). If one exists, update `last_reviewed`, `next_due`, `interval`, `ease`, and `last_score`, append the new weak-spot line, and keep only the last 3 `weak_spots` entries, newest last. If none exists, create this file:
 
    ```yaml
    ---
