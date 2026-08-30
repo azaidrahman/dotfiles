@@ -48,3 +48,16 @@ status: probing
 > [!quote] YOU
 > Yes
 > No
+
+> [!quote] YOU
+> check this
+
+> [!question] Question
+> Which topics apply?
+>
+> 1. label a
+> 2. label b
+> 3. label c
+
+> [!quote] YOU
+> label a, label b
