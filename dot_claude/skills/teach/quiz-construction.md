@@ -1,6 +1,6 @@
 # Quiz construction
 
-Read this before you write any multiple-choice question with `AskUserQuestion`.
+Read this before you write any multiple-choice question with `quiz` or the question tool.
 
 ## Why a procedure
 
