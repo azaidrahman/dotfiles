@@ -26,15 +26,15 @@ import * as path from "node:path";
 
 // LiteLLM proxy base URL — baked per-host at `chezmoi apply` time, matching
 // litellm-provider.ts.tmpl: aqua reaches onyx's proxy over Tailscale, onyx
-// talks to its own local proxy, any other host skips the weekly-cost feature.
-// The key is never stored here; it is read from $LITELLM_MASTER_KEY (exported
-// by the encrypted ~/.zshenv) and expanded by the shell in the curl call.
-{{- if eq .chezmoi.hostname "aqua" }}
-const LITELLM_BASE_URL = "http://onyx:4000";
-{{- else if eq .chezmoi.hostname "onyx" }}
+// talks to its own local proxy.
+// The key is never stored here. $LITELLM_API_KEY is the 'omp' virtual key that
+// the `pi` shell wrapper exports, so /key/info reports the spend of that key
+// only (pi and omv), not the whole proxy. The figure is the key's lifetime
+// total: LiteLLM has no cheap per-week number.
+{{- if eq .chezmoi.hostname "onyx" }}
 const LITELLM_BASE_URL = "http://localhost:4000";
 {{- else }}
-const LITELLM_BASE_URL = "";
+const LITELLM_BASE_URL = "http://onyx:4000";
 {{- end }}
 
 export default function (pi: ExtensionAPI) {
@@ -44,12 +44,12 @@ export default function (pi: ExtensionAPI) {
     // callback does. Capture it so background updates can trigger a re-render.
     let tui: { requestRender: () => void } | undefined;
 
-    // Fetch the weekly cost from LiteLLM in the background. $LITELLM_MASTER_KEY
-    // is a literal here (not a JS ${} interpolation) so the shell expands it.
+    // Fetch the key total from LiteLLM in the background. $LITELLM_API_KEY is a
+    // literal here (not a JS ${} interpolation) so the shell expands it.
     const updateWeeklyCost = async () => {
-        if (!LITELLM_BASE_URL) return; // host without access to the LiteLLM proxy
+        if (!process.env.LITELLM_API_KEY) return; // launched without the proxy wrapper
         try {
-            const command = `curl -s -X GET "${LITELLM_BASE_URL}/key/info" -H "Authorization: Bearer $LITELLM_MASTER_KEY"`;
+            const command = `curl -s -X GET "${LITELLM_BASE_URL}/key/info" -H "Authorization: Bearer $LITELLM_API_KEY"`;
             const { stdout } = await execAsync(command);
             const data = JSON.parse(stdout);
 
@@ -112,7 +112,7 @@ export default function (pi: ExtensionAPI) {
 
                     const sessCostStr = colorizeCost(sessionCost, "");
                     const wkCostVal = Number(weeklyCostStr.replace('$', '')) || 0;
-                    const wkCostColorStr = colorizeCost(wkCostVal, "wk:");
+                    const wkCostColorStr = colorizeCost(wkCostVal, "omp:");
 
                     const combinedCostStr = `${sessCostStr} ${theme.fg("dim", "|")} ${wkCostColorStr}`;
 

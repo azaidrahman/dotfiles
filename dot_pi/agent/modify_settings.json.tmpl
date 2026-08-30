@@ -3,7 +3,8 @@
 # Renders the managed settings below, but PRESERVES live dynamic keys:
 #   lastChangelogVersion - updated automatically by pi on new releases
 #   defaultThinkingLevel - updated via pi settings
-# The model list comes from .chezmoidata/pi.yaml.
+# The model list comes from .chezmoidata/pi.yaml. enabledModels holds the
+# proxy models (pi.models) and the provider-native models (pi.extra_models).
 set -euo pipefail
 
 current=$(cat)
@@ -20,6 +21,9 @@ cat <<'EOF_JSON' | jq --arg changelog "$changelog" --arg thinking "$thinking" \
   "enabledModels": [
 {{- range $i, $m := .pi.models }}
     {{ if $i }}, {{ end }}{{ printf "litellm/%s" $m.id | quote }}
+{{- end }}
+{{- range .pi.extra_models }}
+    , {{ . | quote }}
 {{- end }}
   ],
   "packages": [
