@@ -62,7 +62,17 @@ pi:
   # Each id must have the form <pi-provider>/<model-id>.
   # The Codex models use the ChatGPT subscription. Log in one time on each
   # machine with /login in pi, then select "ChatGPT Plus/Pro (Codex)".
+  # pi refreshes the Codex model list from the ChatGPT backend into
+  # ~/.pi/agent/models-store.json. That store is newer than the list in the pi
+  # package, so read it to find the current ids when you add a model here.
+  #
+  # The subscription does not give access to each model in that store. These
+  # four work. gpt-5.6-sol, gpt-5.4 and gpt-5.3-codex-spark need an API key,
+  # and they answer "not supported when using Codex with a ChatGPT account".
+  # Test a new id with:
+  #   pi -p --no-session --model openai-codex/<id> "Reply with exactly: OK"
   extra_models:
+    - openai-codex/gpt-5.6-terra
+    - openai-codex/gpt-5.6-luna
     - openai-codex/gpt-5.5
-    - openai-codex/gpt-5.4
     - openai-codex/gpt-5.4-mini
