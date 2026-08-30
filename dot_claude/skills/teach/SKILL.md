@@ -1,6 +1,6 @@
 ---
 name: teach
-description: Use when the user wants to learn or understand a topic, asks "teach me X", "walk me through X", "I want to understand X", or asks for an explanation of a concept that is new to them. Runs a probe, plan, teach loop that builds understanding from unconditional truths, mirrors the lesson live to an Obsidian note, and ends with a spaced-repetition stub for spaced-recall-tutor. Not for quizzing a note the user already learned (use spaced-recall-tutor).
+description: Use when a learner asks to learn, understand, or walk through a new topic. Not for quizzing a note that the learner already knows.
 ---
 
 # Teach
@@ -15,7 +15,16 @@ This skill runs in Claude Code and in omp. The tool names differ:
 - The graded quiz tool: `quiz`, present in omp only. It takes the correct answer and an explanation, adds an `I don't know` option, and grades at once.
 - The `researcher` agent: dispatch it with the agent or task tool of the host.
 
-If the `quiz` tool exists, use it for every question that has a right answer. Use the question tool only for a question with no right answer. If `quiz` does not exist, ask graded questions with the question tool and add a literal `I don't know` option yourself.
+Present every learner question through a host-native card. Use `quiz` for a question with a right answer. If `quiz` does not exist, use the question tool and add a literal `I don't know` option. Use the question tool only for a question with no right answer. The native card provides the padded visual boundary. Do not imitate it with Markdown.
+
+| Learner interaction | Native card |
+|---|---|
+| Factual check | `quiz` |
+| Goal or retro | Question tool |
+
+### Question card mistake
+
+A chat-formatted question cannot provide the card boundary. Present the question with the selected native card.
 
 Read these two files at the start of every lesson:
 - `quiz-construction.md` in this skill's directory
@@ -90,7 +99,7 @@ For each strand that the goal depends on:
 
 1. Split the strand into bites. Use the structure of the learner's note and the researcher's map. Respect the max bites per strand.
 2. Set the scene in one or two sentences.
-3. Ask one pointed question about the next bite, in free text. Rotate the question types from `quiz-rules.md`: predict the next step, what breaks if, trace this, why does this work. Never ask "explain X".
+3. Ask one pointed question about the next bite through the correct host-native card. Rotate the question types from `quiz-rules.md`: predict the next step, what breaks if, trace this, why does this work. Never ask "explain X".
 4. Grade the bite. Right: move on, and apply the skip-ahead rule. Wrong or vague: ask one follow-up on the exact gap, record the gap, move on. Do not teach yet.
 5. Stop the strand when the edge is bracketed: one bite right and one bite wrong. All right means the bites were too easy. Go harder. One miss is not enough either. Probe around it.
 6. Classify each miss with one or two multiple-choice questions built with `quiz-construction.md`: slip, isolated gap, or misconception. Use `quiz` if you have it. If not, use the question tool and add a literal `I don't know` option. A misconception must be dislodged, not topped up.
@@ -116,7 +125,7 @@ Teach from the first missed bite of each strand onward, in the same bite size as
 1. **Motivate.** Why this node, now. What problem it solves.
 2. **Establish.** A foundation: state it plainly, no caveats. A derived step: build it from what is already established, and answer "how could I have discovered this?". When a Socratic step has a right answer, ask it as a graded question.
 3. **Connect.** Make the edge to the earlier nodes explicit.
-4. **Check.** One pointed free-text question, or one multiple-choice question. If the learner misses, fix the node before you build on it.
+4. **Check.** Ask one pointed question through the correct host-native card. If the learner misses, fix the node before you build on it.
 
 Do not front-load all the foundations and then stop checking. A new foundation in the middle of the lesson goes through the same four steps.
 
