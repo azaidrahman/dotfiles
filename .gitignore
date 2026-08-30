@@ -7,3 +7,4 @@ Brewfile.lock.json
 dot_config/wezterm/*.tmp
 __pycache__/
 /.superpowers/
+/.claude/worktrees/
