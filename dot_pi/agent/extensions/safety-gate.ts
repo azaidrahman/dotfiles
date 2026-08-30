@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { fireNotify } from "../lib/notify-hook";
 
 export default function (pi: ExtensionAPI) {
 	// List of regex patterns to match against dangerous bash commands
@@ -45,7 +46,9 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			// Interactive prompt
+			// Interactive prompt. Tell the shared hook first, so the tmux window
+			// turns red and the phone buzzes if you are away.
+			fireNotify("permission_prompt", { message: `pi wants to run: ${command}` });
 			const choice = await ctx.ui.select(
 				`⚠️ DANGEROUS COMMAND DETECTED ⚠️\n\nPattern matched: ${matchedPattern}\nCommand:\n  ${command}\n\nAllow execution?`, 
 				["No, Block It", "Yes, Allow It"]

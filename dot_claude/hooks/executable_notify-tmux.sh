@@ -5,6 +5,10 @@ set -u
 
 EVENT="${1:-}"
 PANE="${TMUX_PANE:-}"
+# Which agent is talking. Claude Code leaves this unset; the pi extension sets
+# CLAUDE_NOTIFY_AGENT=pi so banners and pushes say who finished.
+AGENT="${CLAUDE_NOTIFY_AGENT:-Claude Code}"
+AGENT_SHORT="${CLAUDE_NOTIFY_AGENT:-Claude}"
 
 # tq comes from the shared library: it queries *this* Claude pane's window, not
 # the attached client's active window.
@@ -146,7 +150,7 @@ recompute_window_state() {
         st=$(tmux show-options -pqv -t "$pid" @claude_state 2>/dev/null)
         [ -n "$st" ] || continue
         case "$cmd" in
-            claude|node) : ;;
+            claude|node|pi) : ;;
             *) tmux set-option -pu -t "$pid" @claude_state 2>/dev/null; continue ;;
         esac
         case "$st" in
@@ -491,13 +495,18 @@ read_message() {
 # whether it ends in '?' (after stripping trailing whitespace and markdown
 # punctuation). Used to colour the tab "question" (your move) vs "done" (truly
 # finished), since a turn that ends with a question isn't really done.
+# Callers without a Claude-format transcript (the pi extension) pass the final
+# assistant text as `.last_assistant_text` instead of a `transcript_path`.
 ends_with_question() {
     local tp last
-    tp=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
-    [ -n "$tp" ] && [ -f "$tp" ] || return 1
-    last=$(tail -n 50 "$tp" 2>/dev/null \
-        | jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' 2>/dev/null \
-        | tail -n 1)
+    last=$(printf '%s' "$INPUT" | jq -r '.last_assistant_text // empty' 2>/dev/null)
+    if [ -z "$last" ]; then
+        tp=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
+        [ -n "$tp" ] && [ -f "$tp" ] || return 1
+        last=$(tail -n 50 "$tp" 2>/dev/null \
+            | jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' 2>/dev/null \
+            | tail -n 1)
+    fi
     last=$(printf '%s' "$last" | sed -E 's/[[:space:]*_`")'"'"']+$//')
     case "$last" in *'?') return 0 ;; *) return 1 ;; esac
 }
@@ -521,7 +530,7 @@ case "$EVENT" in
         ;;
     idle_prompt)
         MSG=$(read_message)
-        notify attn "${MSG:-Claude is idle}" INPUT
+        notify attn "${MSG:-$AGENT_SHORT is idle}" INPUT
         window_status idle
         alert_tmux
         ;;
@@ -533,10 +542,10 @@ case "$EVENT" in
         TURN_ELAPSED=$(turn_elapsed)
         if ends_with_question; then
             dlog "stop: turn ended with a question -> question state"
-            notify attn 'Claude asked you a question' QUESTION
+            notify attn "$AGENT_SHORT asked you a question" QUESTION
             window_status question
         else
-            notify done 'Claude finished' DONE
+            notify done "$AGENT_SHORT finished" DONE
             window_status done
         fi
         alert_tmux
