@@ -26,6 +26,7 @@ Emoji\ Pack/
 
 # Test directories
 .tmux/scripts/tests
+.omp/agent/node_modules
 
 # Design docs — version-controlled in the source repo, not deployed to ~/docs
 docs/

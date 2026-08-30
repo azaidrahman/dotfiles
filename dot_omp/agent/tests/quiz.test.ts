@@ -10,8 +10,10 @@
 //   ln -sfn /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui node_modules/@earendil-works/pi-tui
 //   ln -sfn /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/typebox node_modules/@sinclair/typebox
 //
-// (node_modules/ is local scaffolding for this run only — it is not
-// committed.)
+// (node_modules/ is local scaffolding for this run only. It is not
+// committed. .chezmoiignore and .gitignore both list
+// dot_omp/agent/node_modules, so this scaffold is never deployed by
+// `chezmoi apply` and never picked up by `git add`.)
 import { describe, expect, test } from "bun:test";
 import { coerceCorrectAnswer, isCorrect, normalizeOptions, resolveCorrect, shuffleOptions } from "../extensions/quiz";
 
