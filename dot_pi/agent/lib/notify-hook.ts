@@ -27,7 +27,9 @@ export function fireNotify(event: NotifyEvent, payload: Record<string, unknown> 
 		const child = spawn("bash", [HOOK, event], {
 			stdio: ["pipe", "ignore", "ignore"],
 			detached: true,
-			env: { ...process.env, CLAUDE_NOTIFY_AGENT: "pi" },
+			// Phone only: pi skips the Mac banner and the local sound, the
+			// Telegram push is enough.
+			env: { ...process.env, CLAUDE_NOTIFY_AGENT: "pi", CLAUDE_NOTIFY_LOCAL: "0" },
 		});
 		child.on("error", () => {});
 		child.stdin?.on("error", () => {});
