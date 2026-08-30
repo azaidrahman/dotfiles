@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getEditorTheme } from "@earendil-works/pi-coding-agent";
 import {
 	Editor,
-	type EditorTheme,
 	Key,
 	Text,
 	matchesKey,
@@ -192,19 +192,6 @@ export function resolveCorrect(
 		indices.push(idx);
 	}
 	return { indices: Array.from(new Set(indices)).sort((a, b) => a - b) };
-}
-
-function createEditorTheme(theme: any): EditorTheme {
-	return {
-		borderColor: (s) => theme.fg("accent", s),
-		selectList: {
-			selectedPrefix: (t) => theme.fg("accent", t),
-			selectedText: (t) => theme.fg("accent", t),
-			description: (t) => theme.fg("muted", t),
-			scrollInfo: (t) => theme.fg("dim", t),
-			noMatch: (t) => theme.fg("warning", t),
-		},
-	};
 }
 
 function addWrapped(lines: string[], text: string, width: number, indent = ""): void {
@@ -406,13 +393,16 @@ function pushNoteField(lines: string[], theme: any, width: number, editor: Edito
 	for (const line of editor.render(width)) lines.push(line);
 }
 
+// omp's Editor reads symbols and colours from the theme. So use omp's own
+// editor theme helper, not the upstream pi one.
+//
 // Build the note Editor. `disableSubmit` is set because Enter must NOT submit
 // here: the editor's submit path clears the buffer, which would wipe the note.
 // Instead the host intercepts Enter to return focus to the options while
 // keeping the text. Ctrl+J still inserts a newline (pi convention), so
 // multi-line notes work.
 function makeNoteEditor(tui: any, theme: any): Editor {
-	const editor = new Editor(tui, createEditorTheme(theme));
+	const editor = new Editor(tui, getEditorTheme());
 	editor.focused = false;
 	editor.disableSubmit = true;
 	return editor;
