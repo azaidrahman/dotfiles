@@ -19,6 +19,11 @@ Emoji\ Pack/
 .pi/agent/git/
 .pi/agent/npm/
 
+# Atuin runtime data - keep the config, never the history or the keys.
+# .local/share/atuin/key is the encryption key, and history.db holds every
+# command. This repository is public.
+.local/share/atuin/
+
 # Test directories
 .tmux/scripts/tests
 
