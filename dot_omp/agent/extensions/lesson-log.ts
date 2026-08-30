@@ -43,10 +43,14 @@ export default function (pi: ExtensionAPI) {
 			return null;
 		}
 		if (!note || !fs.existsSync(note)) return null;
+		if (!sessionId) return null;
 		const me = `omp:${sessionId}`;
 		try {
 			const owner = fs.readFileSync(OWNER, "utf-8").split("\n")[0];
-			if (owner !== me) return null;
+			// An empty first line means a crashed writer left a zero-byte file.
+			// Do not let that lock the note forever; claim it instead.
+			if (owner !== "" && owner !== me) return null;
+			if (owner === "") fs.writeFileSync(OWNER, `${me}\n`, "utf-8");
 		} catch {
 			try {
 				fs.writeFileSync(OWNER, `${me}\n`, "utf-8");
@@ -57,23 +61,30 @@ export default function (pi: ExtensionAPI) {
 		return note;
 	}
 
-	// Appends can fire close together; keep them ordered.
+	// Appends can fire close together; keep them ordered. A rejection must
+	// never propagate, or every later append would be silently skipped.
 	let chain: Promise<void> = Promise.resolve();
 	function append(block: string, ctx: { ui?: { notify?: (m: string, t: string) => void } }): Promise<void> {
-		chain = chain.then(() => {
-			const note = noteFor();
-			if (!note) return;
-			try {
-				const current = fs.readFileSync(note, "utf-8");
-				const sep = current.endsWith("\n\n") ? "" : current.endsWith("\n") ? "\n" : "\n\n";
-				fs.appendFileSync(note, `${sep}${block}\n`, "utf-8");
-			} catch (e) {
-				if (!warned) {
-					warned = true;
-					ctx.ui?.notify?.(`lesson-log: cannot write ${note}: ${String(e)}`, "warning");
+		chain = chain
+			.then(() => {
+				const note = noteFor();
+				if (!note) return;
+				try {
+					const current = fs.readFileSync(note, "utf-8");
+					const base = current.replace(/\n+$/, "");
+					fs.writeFileSync(note, `${base}${base ? "\n\n" : ""}${block}\n`, "utf-8");
+				} catch (e) {
+					if (!warned) {
+						warned = true;
+						try {
+							ctx.ui?.notify?.(`lesson-log: cannot write ${note}: ${String(e)}`, "warning");
+						} catch {
+							// Never let a broken notify sink poison the chain.
+						}
+					}
 				}
-			}
-		});
+			})
+			.catch(() => {});
 		return chain;
 	}
 
