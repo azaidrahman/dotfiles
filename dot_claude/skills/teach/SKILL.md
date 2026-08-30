@@ -1,11 +1,30 @@
 ---
 name: teach
-description: Use when the user wants to learn or understand a topic, asks "teach me X", "walk me through X", "I want to understand X", or asks for an explanation of a concept that is new to them. Runs a probe, plan, teach loop that builds understanding from unconditional truths, mirrors the lesson live to an Obsidian note, and ends with a spaced-repetition stub for spaced-recall-tutor. Not for quizzing a note the user already learned (use spaced-recall-tutor).
+description: Use when a learner asks to learn, understand, or walk through a new topic. Not for quizzing a note that the learner already knows.
 ---
 
 # Teach
 
 Teach so that the topic is understood, not remembered. A fact that the learner can derive from foundations that they already accept stays. A fact that stands alone rots.
+
+## Tools
+
+This skill runs in Claude Code and in omp. The tool names differ:
+
+- The question tool: `AskUserQuestion` in Claude Code, `ask` in omp. It shows numbered options and returns the choice. It does not grade.
+- The graded quiz tool: `quiz`, present in omp only. It takes the correct answer and an explanation, adds an `I don't know` option, and grades at once.
+- The `researcher` agent: dispatch it with the agent or task tool of the host.
+
+Present every learner question through a host-native card. Use `quiz` for a question with a right answer. If `quiz` does not exist, use the question tool and add a literal `I don't know` option. Use the question tool only for a question with no right answer. The native card provides the padded visual boundary. Do not imitate it with Markdown.
+
+| Learner interaction | Native card |
+|---|---|
+| Factual check | `quiz` |
+| Goal or retro | Question tool |
+
+### Question card mistake
+
+A chat-formatted question cannot provide the card boundary. Present the question with the selected native card.
 
 Read these two files at the start of every lesson:
 - `quiz-construction.md` in this skill's directory
@@ -59,7 +78,7 @@ The learner must be able to trust the tutor. The moment you are not sure of a fa
    ```
 
    Use the tag root `tech/` for a technical topic, `life/` or `work/` otherwise. Never make a new top-level tag. Never write an em dash in the note. Never write a title heading at the top of the note.
-5. Write the absolute path of the note to `~/.config/lesson-log`. Delete `~/.config/lesson-log.cursor` and `~/.config/lesson-log.session` if they exist. From now on the hook mirrors the session to the note.
+5. Write the absolute path of the note to `~/.config/lesson-log`. Delete `~/.config/lesson-log.cursor` and `~/.config/lesson-log.session` if they exist. From now on the lesson mirror appends the session to the note.
 6. Append `## Prior knowledge` to the note: the notes found, their scores, and their recorded weak spots. If nothing was found, write that the topic is new.
 
 ## Phase 1: Probe
@@ -72,7 +91,7 @@ Dispatch `researcher` with the topic and the specific claims from the learner's 
 
 ### 1b. The goal
 
-Use `AskUserQuestion` to make the goal concrete. "Understand Flannel" can mean ten things. Ask until you can state the goal in one sentence. This question has no right answer, so it is never graded.
+Use the question tool to make the goal concrete. "Understand Flannel" can mean ten things. Ask until you can state the goal in one sentence. This question has no right answer, so it is never graded.
 
 ### 1c. Bite-sized walk and poke
 
@@ -80,10 +99,10 @@ For each strand that the goal depends on:
 
 1. Split the strand into bites. Use the structure of the learner's note and the researcher's map. Respect the max bites per strand.
 2. Set the scene in one or two sentences.
-3. Ask one pointed question about the next bite, in free text. Rotate the question types from `quiz-rules.md`: predict the next step, what breaks if, trace this, why does this work. Never ask "explain X".
+3. Ask one pointed question about the next bite through the correct host-native card. Rotate the question types from `quiz-rules.md`: predict the next step, what breaks if, trace this, why does this work. Never ask "explain X".
 4. Grade the bite. Right: move on, and apply the skip-ahead rule. Wrong or vague: ask one follow-up on the exact gap, record the gap, move on. Do not teach yet.
 5. Stop the strand when the edge is bracketed: one bite right and one bite wrong. All right means the bites were too easy. Go harder. One miss is not enough either. Probe around it.
-6. Classify each miss with one or two `AskUserQuestion` multiple-choice questions built with `quiz-construction.md`: slip, isolated gap, or misconception. Always add a literal `I don't know` option. A misconception must be dislodged, not topped up.
+6. Classify each miss with one or two multiple-choice questions built with `quiz-construction.md`: slip, isolated gap, or misconception. Use `quiz` if you have it. If not, use the question tool and add a literal `I don't know` option. A misconception must be dislodged, not topped up.
 
 Append `## Probe map` to the note. Per strand: the last solid bite, the first missed bite, and the type of each miss.
 
@@ -96,7 +115,7 @@ Think hard here. This is the highest-leverage step.
 3. Draw the dependency graph as a Mermaid `graph TD`. Unconditional truths at the roots. The goal at the sink. Few nodes, short labels.
 4. Stress-test each root. If it derives from something simpler that the learner accepts, push it down and extend the graph.
 5. Decide Socratic or expository for each stretch.
-6. Write `## Plan` in your reply: the approach in prose, then the Mermaid graph. The hook mirrors it to the note. Set `status: teaching` in the frontmatter.
+6. Write `## Plan` in your reply: the approach in prose, then the Mermaid graph. The lesson mirror appends it to the note. Set `status: teaching` in the frontmatter.
 7. Stop. Wait for the learner to approve the plan. Do not teach before that.
 
 ## Phase 3: Teach
@@ -106,7 +125,7 @@ Teach from the first missed bite of each strand onward, in the same bite size as
 1. **Motivate.** Why this node, now. What problem it solves.
 2. **Establish.** A foundation: state it plainly, no caveats. A derived step: build it from what is already established, and answer "how could I have discovered this?". When a Socratic step has a right answer, ask it as a graded question.
 3. **Connect.** Make the edge to the earlier nodes explicit.
-4. **Check.** One pointed free-text question, or one multiple-choice question. If the learner misses, fix the node before you build on it.
+4. **Check.** Ask one pointed question through the correct host-native card. If the learner misses, fix the node before you build on it.
 
 Do not front-load all the foundations and then stop checking. A new foundation in the middle of the lesson goes through the same four steps.
 
@@ -142,4 +161,4 @@ The lesson ends when the learner says so, or when the sink node passes its check
 
    Set `target` to the `1-Notes` source note that Phase 0 found. If Phase 0 found no note, set it to the lesson note.
 
-6. Delete `~/.config/lesson-log`, `~/.config/lesson-log.cursor`, and `~/.config/lesson-log.session`. The hook is now off.
+6. Delete `~/.config/lesson-log`, `~/.config/lesson-log.cursor`, and `~/.config/lesson-log.session`. The lesson mirror is now off.
