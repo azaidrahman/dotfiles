@@ -158,9 +158,62 @@ check "the cache holds an epoch, not a countdown" "1" \
   "$(cut -f4 "$tmp/claude-usage.fake.cache" | grep -cE '^[0-9]{10}$')"
 rm -rf "$tmp"
 
-# --- provider resolution and popup sizing ---------------------------------
+# --- provider resolution ---------------------------------------------------
+# The provider comes from the process the pane runs now, so every case below
+# feeds a fake process line to the classifier.
+PROXY_ENV='ANTHROPIC_BASE_URL=http://onyx:4000 ANTHROPIC_AUTH_TOKEN=sk-x'
+
+check "a plain claude is the subscription" "claude" \
+  "$(classify_process 'claude --allow-dangerously-skip-permissions')"
+check "a claude pointed at the proxy is litellm" "litellm" \
+  "$(classify_process "claude --resume $PROXY_ENV")"
+check "an inherited key alone is not the proxy" "claude" \
+  "$(classify_process 'claude LITELLM_API_KEY=sk-x')"
+check "the pi bundle is litellm" "litellm" \
+  "$(classify_process '/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js')"
+check "a bare pi is litellm" "litellm" "$(classify_process '/opt/homebrew/bin/pi --resume')"
+check "omp on a litellm model is litellm" "litellm" \
+  "$(classify_process 'omp --model litellm/gemini-3.5-flash')"
+check "omp on its own model is not litellm" "claude" \
+  "$(classify_process 'omp --model gpt-5.6')"
+check "a shell is not an agent"  "" "$(classify_process '-zsh')"
+check "a helper is not an agent" "" "$(classify_process 'bash /Users/x/.tmux/scripts/claude-usage.sh %9')"
+
+# A fake process table: 100 -> 101 -> 102 -> 103, plus an unrelated branch.
+FAKE_TABLE='  100     1 -zsh
+  101   100 chezmoi cd
+  102   101 /bin/zsh
+  103   102 claude --resume
+  200     1 /bin/zsh
+  201   200 pi'
+check "the tree starts at its own root" "100" \
+  "$(printf '%s\n' "$FAKE_TABLE" | process_tree_pids 100 | head -1)"
+check "the tree reaches a grandchild"    "103" \
+  "$(printf '%s\n' "$FAKE_TABLE" | process_tree_pids 100 | tail -1)"
+check "the tree skips another branch"    "0" \
+  "$(printf '%s\n' "$FAKE_TABLE" | process_tree_pids 100 | grep -c '^20')"
+
+# resolve_provider through the three seams, with no tmux and no real ps.
+fake_resolve() { # <root-pid> <stale-marker>
+  ps_table()      { printf '%s\n' "$FAKE_TABLE"; }
+  pane_root_pid() { printf '%s' "$1"; }
+  proc_line()     { printf '%s\n' "$FAKE_TABLE" | awk -v p="$1" '$1==p{$1="";$2="";print}'; }
+  SRC_PANE=$1 resolve_provider
+}
+check "a nested claude resolves to the subscription" "claude" "$(fake_resolve 100)"
+check "a pi pane resolves to litellm"                "litellm" "$(fake_resolve 200)"
+
+# The regression this replaced: `pi` set a per-pane tmux marker and cleared it
+# on exit, but Ctrl-C aborts the zsh function before the cleanup line. The
+# marker outlived the agent, so a later plain claude in that pane drew the
+# cost view. Nothing may read a marker any more.
+check "no marker is read from the pane" "0" \
+  "$(grep -c '@claude_provider' "$SCRIPT")"
+
 SRC_PANE=''
-check "no pane marker means the claude provider" "claude" "$(resolve_provider)"
+check "a pane with no agent means the claude provider" "claude" "$(resolve_provider)"
+
+# --- popup sizing ----------------------------------------------------------
 
 tmp=$(mktemp -d)
 printf 'QUOTA\ta\t1\t-\t-\nQUOTA\tb\t2\t-\t-\n' > "$tmp/claude-usage.claude.cache"

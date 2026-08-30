@@ -406,16 +406,86 @@ p_litellm_blob() {
 
 # --- provider dispatch ---------------------------------------------------
 
-# resolve_provider : the id of the provider for the invoking pane. The marker
-# @claude_provider is set per pane by `cv`. An unknown or absent marker means
-# a plain Claude subscription.
+# The provider is whatever the pane runs at the moment you press the key. An
+# earlier design kept a per-pane tmux marker that `pi`, `cv` and `omv` set on
+# entry and cleared on exit, but Ctrl-C aborts a zsh function before its last
+# line, so the marker outlived the agent that wrote it. A later plain `claude`
+# in that same pane then drew the LiteLLM cost view. Read the live process
+# tree instead: it cannot go stale, because it is the truth.
+
+# --- the three seams onto the process table. A test replaces all three. ---
+ps_table()      { ps -axo pid=,ppid=,command=; }
+pane_root_pid() { tmux display-message -pt "$1" '#{pane_pid}' 2>/dev/null; }
+proc_line()     { ps -Eww -p "$1" -o command= 2>/dev/null; }
+
+# process_tree_pids <root> : the root and every pid below it, parents first,
+# so the deepest match wins. The table arrives on stdin as "pid ppid command".
+process_tree_pids() {
+  awk -v root="$1" '
+    { pid[NR] = $1; ppid[$1] = $2 }
+    END {
+      seen[root] = 1; out[++n] = root
+      do {
+        added = 0
+        for (i = 1; i <= NR; i++) {
+          p = pid[i]
+          if (!seen[p] && seen[ppid[p]]) { seen[p] = 1; out[++n] = p; added = 1 }
+        }
+      } while (added)
+      for (i = 1; i <= n; i++) print out[i]
+    }'
+}
+
+# classify_process <line> : the provider id of one process, or nothing when
+# the process is not an agent. The line is a command line with the
+# environment appended, which is what `ps -Eww` prints.
+#
+# `cv` is a plain `claude` binary with ANTHROPIC_BASE_URL pointed at the
+# proxy, so the command alone cannot tell the two apart. The proxy always
+# listens on port 4000, on localhost, on onyx, or over Tailscale. Do not test
+# LITELLM_API_KEY: `_litellm_proxy` exports it into the shell, so a plain
+# `claude` started later in that shell inherits it and would read as litellm.
+#
+# `ps -Eww` shows the environment of your own processes. It hides the
+# environment of a binary that SIP protects, but no agent lives in /bin or
+# /usr/bin, so this reads them all. An unreadable environment falls back to
+# the subscription view, which is the safe answer.
+classify_process() {
+  local line=$1 bin
+  line=${line#"${line%%[![:space:]]*}"}   # drop any leading padding from ps
+  bin=${line%% *}; bin=${bin##*/}
+  case "$line" in
+    *pi-coding-agent*) printf 'litellm'; return ;;
+  esac
+  case "$bin" in
+    pi)  printf 'litellm' ;;
+    omp) case "$line" in
+           *' --model litellm/'*) printf 'litellm' ;;
+           *)                     printf 'claude'  ;;
+         esac ;;
+    claude)
+      case "$line" in
+        *ANTHROPIC_BASE_URL=*:4000*) printf 'litellm' ;;
+        *)                           printf 'claude'  ;;
+      esac ;;
+  esac
+}
+
+# resolve_provider : the id of the provider for the invoking pane. A pane that
+# runs no agent at all — a bare shell prompt — reports the plain subscription.
 resolve_provider() {
-  local m=''
-  [ -n "${SRC_PANE:-}" ] && m=$(tmux show-options -pqv -t "$SRC_PANE" @claude_provider 2>/dev/null)
-  local id
-  for id in $PROVIDERS; do
-    [ "$m" = "$id" ] && { printf '%s' "$id"; return; }
-  done
+  local root='' pid id known found=''
+  [ -n "${SRC_PANE:-}" ] && root=$(pane_root_pid "$SRC_PANE")
+  if [[ ${root:-} =~ ^[0-9]+$ ]]; then
+    while read -r pid; do
+      [ -n "$pid" ] || continue
+      id=$(classify_process "$(proc_line "$pid")")
+      for known in $PROVIDERS; do
+        [ "$id" = "$known" ] && found=$id
+      done
+    done < <(ps_table | process_tree_pids "$root")
+    [ -n "$found" ] && { printf '%s' "$found"; return; }
+  fi
   printf 'claude'
 }
 

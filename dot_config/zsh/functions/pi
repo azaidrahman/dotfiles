@@ -4,7 +4,6 @@
 #        1. fetches the 'omp' virtual key from 1Password and health-checks
 #           the proxy (_litellm_proxy), which the litellm-provider extension
 #           reads from $LITELLM_API_KEY
-#        2. sets the @claude_provider tmux marker for the prefix+u cost popup
 #
 #   pi [pi-args...]                 e.g. pi --model claude-opus-4-8
 #   pi --resume                     resume the most recent session
@@ -13,10 +12,4 @@ emulate -L zsh
 
 _litellm_proxy omp || return $?
 
-[[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
-
 command pi "$@"
-local rc=$?
-
-[[ -n "$TMUX" ]] && tmux set -pu @claude_provider 2>/dev/null
-return $rc

@@ -6,8 +6,6 @@ emulate -L zsh
 
 _litellm_proxy claude-code || return $?
 
-[[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
-
 ANTHROPIC_BASE_URL="$REPLY" \
 ANTHROPIC_AUTH_TOKEN="$LITELLM_API_KEY" \
 CLAUDE_CODE_ENABLE_AUTO_MODE=1 \
@@ -15,7 +13,3 @@ ANTHROPIC_DEFAULT_SONNET_MODEL='claude-sonnet-5' \
 ANTHROPIC_DEFAULT_OPUS_MODEL='claude-opus-4-8[1m]' \
 ANTHROPIC_DEFAULT_HAIKU_MODEL='claude-haiku-4-5@20251001' \
 claude --allow-dangerously-skip-permissions "$@"
-local rc=$?
-
-[[ -n "$TMUX" ]] && tmux set -pu @claude_provider 2>/dev/null
-return $rc
