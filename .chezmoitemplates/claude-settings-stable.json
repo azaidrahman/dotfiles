@@ -51,6 +51,15 @@
             "command": "bash ~/.claude/hooks/notify-tmux.sh working"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "atuin hook claude-code"
+          }
+        ]
       }
     ],
     "Notification": [

@@ -19,6 +19,9 @@ export TERMINAL="Ghostty"
 
 # === Tools ===
 export FZF_DEFAULT_COMMAND='rg --files --hidden -g !.git/'
+# Atuin owns Ctrl+R. If FZF_CTRL_R_COMMAND is set and empty, the fzf shell
+# integration skips its own Ctrl+R binding. Ctrl+T and Alt+C stay with fzf.
+export FZF_CTRL_R_COMMAND=""
 export GOKU_EDN_CONFIG_FILE="$HOME/.config/karabiner/karabiner.edn"
 
 # === Claude Code phone notifications ===

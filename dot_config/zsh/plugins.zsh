@@ -46,6 +46,32 @@ _init_cached() {  # _init_cached <cmd> <cache-name> <gen-cmd...>
 _init_cached fzf fzf-init.zsh fzf --zsh
 # zoxide: --cmd cd variant deliberately not used (see git history)
 _init_cached zoxide zoxide-init.zsh zoxide init zsh
+
+# Atuin keeps the shell history in a SQLite database, with search and sync.
+# run_once_after_install-atuin.sh installs the binary in ~/.atuin/bin. Atuin is
+# not in the Brewfile, because the project ships its own installer and updater.
+# Source the env file first, because it puts ~/.atuin/bin on PATH.
+[[ -r "$HOME/.atuin/bin/env" ]] && source "$HOME/.atuin/bin/env"
+if (( $+commands[atuin] )); then
+  _init_cached atuin atuin-init.zsh atuin init zsh
+
+  # Atuin binds Ctrl+R in the viins and emacs keymaps only. In vicmd it binds
+  # `/` instead. Bind Ctrl+R in vicmd too, so that the key opens atuin in every
+  # vi mode. fzf does not compete here: FZF_CTRL_R_COMMAND is empty in
+  # exports.zsh, which stops the fzf Ctrl+R binding.
+  _atuin_bind_ctrl_r() {
+    bindkey -M emacs '^R' atuin-search
+    bindkey -M viins '^R' atuin-search-viins
+    bindkey -M vicmd '^R' atuin-search-vicmd
+  }
+  _atuin_bind_ctrl_r
+
+  # zsh-vi-mode rebuilds the keymaps in zvm_init, and it delays zvm_init until
+  # the first prompt. Bind Ctrl+R again after that step, so that the order of
+  # the plugins cannot take Ctrl+R away.
+  zvm_after_init_commands+=(_atuin_bind_ctrl_r)
+fi
+
 unfunction _init_cached
 
 # Google cloud completion (hardcoded brew prefix to avoid slow brew --prefix call)

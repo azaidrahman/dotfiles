@@ -7,7 +7,9 @@ setopt promptsubst
 setopt numericglobsort
 
 # History Config
-HISTSIZE=1000
+# Atuin imports from HISTFILE, and it falls back to HISTFILE if atuin is not
+# available. Keep a deep history, so that both stay useful.
+HISTSIZE=100000
 HISTFILE=~/zsh_history
 SAVEHIST=$HISTSIZE
 HISTDUP=erase
