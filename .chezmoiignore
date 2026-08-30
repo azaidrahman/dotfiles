@@ -28,6 +28,14 @@ Emoji\ Pack/
 .tmux/scripts/tests
 .omp/agent/node_modules
 
+# omp runtime state (sessions, prompt history, model cache)
+.omp/agent/sessions/
+.omp/agent/*.db
+.omp/agent/*.db-shm
+.omp/agent/*.db-wal
+.omp/agent/cache/
+.omp/agent/terminal-sessions/
+
 # Design docs — version-controlled in the source repo, not deployed to ~/docs
 docs/
 .pi/agent/pi-cache-optimizer-stats.json

@@ -106,7 +106,7 @@ Think hard here. This is the highest-leverage step.
 3. Draw the dependency graph as a Mermaid `graph TD`. Unconditional truths at the roots. The goal at the sink. Few nodes, short labels.
 4. Stress-test each root. If it derives from something simpler that the learner accepts, push it down and extend the graph.
 5. Decide Socratic or expository for each stretch.
-6. Write `## Plan` in your reply: the approach in prose, then the Mermaid graph. The hook mirrors it to the note. Set `status: teaching` in the frontmatter.
+6. Write `## Plan` in your reply: the approach in prose, then the Mermaid graph. The lesson mirror appends it to the note. Set `status: teaching` in the frontmatter.
 7. Stop. Wait for the learner to approve the plan. Do not teach before that.
 
 ## Phase 3: Teach

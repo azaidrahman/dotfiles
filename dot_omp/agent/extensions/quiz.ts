@@ -884,7 +884,7 @@ export default function quiz(pi: ExtensionAPI) {
 			}
 
 			// Emit the true (post-shuffle) display order immediately, before the UI
-			// blocks on the user's answer. Listeners such as md-log rely on this to
+			// blocks on the user's answer. Listeners such as lesson-log rely on this to
 			// show the question in the SAME order the user actually sees it, instead
 			// of the pre-shuffle order the agent originally wrote in its tool call.
 			// Deliberately omits correctIndices/explanation — this fires before the

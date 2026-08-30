@@ -12,14 +12,14 @@ You have no memory of the conversation that sent you. All the context that you n
 ## Process
 
 1. Split the question into 2 to 4 facets that you can search.
-2. Search each facet with `WebSearch`. Use different angles:
+2. Search each facet with `web_search`. Use different angles:
    - the direct question
    - the official documentation or the primary source
    - practical experience: case studies, benchmarks, real usage
    - recent changes, only if the topic changes over time
-3. For a library, framework, or tool, also query context7 for the current documentation.
+3. For a library, framework, or tool, use `web_search` with `site:` for the official documentation.
 4. Read the results. Note what is well covered and what has gaps.
-5. Fetch the 2 or 3 most useful pages with `WebFetch`.
+5. Fetch the 2 or 3 most useful pages with `browser`.
 6. If the task contains claims to verify, check each claim against a primary source. Mark each claim as confirmed, stale, or wrong.
 7. Write the brief.
 

@@ -35,7 +35,7 @@ export default function (pi: ExtensionAPI) {
 	const skip = (ctx: { hasUI?: boolean }) => ctx.hasUI === false;
 
 	// Resolve the note this session may write to, or null.
-	function noteFor(): string | null {
+	function noteFor(ctx: { sessionManager?: { getSessionId?: () => string } }): string | null {
 		let note: string;
 		try {
 			note = fs.readFileSync(LINK, "utf-8").trim();
@@ -43,6 +43,15 @@ export default function (pi: ExtensionAPI) {
 			return null;
 		}
 		if (!note || !fs.existsSync(note)) return null;
+		if (!sessionId) {
+			// session_start may not have set it yet. Try the current event's ctx
+			// before giving up.
+			try {
+				sessionId = ctx.sessionManager?.getSessionId?.() ?? "";
+			} catch {
+				sessionId = "";
+			}
+		}
 		if (!sessionId) return null;
 		const me = `omp:${sessionId}`;
 		try {
@@ -64,10 +73,13 @@ export default function (pi: ExtensionAPI) {
 	// Appends can fire close together; keep them ordered. A rejection must
 	// never propagate, or every later append would be silently skipped.
 	let chain: Promise<void> = Promise.resolve();
-	function append(block: string, ctx: { ui?: { notify?: (m: string, t: string) => void } }): Promise<void> {
+	function append(
+		block: string,
+		ctx: { ui?: { notify?: (m: string, t: string) => void }; sessionManager?: { getSessionId?: () => string } },
+	): Promise<void> {
 		chain = chain
 			.then(() => {
-				const note = noteFor();
+				const note = noteFor(ctx);
 				if (!note) return;
 				try {
 					const current = fs.readFileSync(note, "utf-8");
@@ -163,7 +175,12 @@ export default function (pi: ExtensionAPI) {
 		}
 		if (e.toolName !== "quiz") return;
 		const d = e.details ?? {};
-		if (d.status === "cancelled" || d.status === "unavailable") {
+		if (d.status === "unavailable") {
+			// The model retries the quiz, and `tool_execution_update` writes the
+			// question again, so append nothing here.
+			return;
+		}
+		if (d.status === "cancelled") {
 			await append(youBlock("(no answer)"), ctx);
 			return;
 		}
