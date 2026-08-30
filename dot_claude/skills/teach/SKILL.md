@@ -7,6 +7,16 @@ description: Use when the user wants to learn or understand a topic, asks "teach
 
 Teach so that the topic is understood, not remembered. A fact that the learner can derive from foundations that they already accept stays. A fact that stands alone rots.
 
+## Tools
+
+This skill runs in Claude Code and in omp. The tool names differ:
+
+- The question tool: `AskUserQuestion` in Claude Code, `ask` in omp. It shows numbered options and returns the choice. It does not grade.
+- The graded quiz tool: `quiz`, present in omp only. It takes the correct answer and an explanation, adds an `I don't know` option, and grades at once.
+- The `researcher` agent: dispatch it with the agent or task tool of the host.
+
+If the `quiz` tool exists, use it for every question that has a right answer. Use the question tool only for a question with no right answer. If `quiz` does not exist, ask graded questions with the question tool and add a literal `I don't know` option yourself.
+
 Read these two files at the start of every lesson:
 - `quiz-construction.md` in this skill's directory
 - `~/.claude/skills/spaced-recall-tutor/quiz-rules.md`
@@ -59,7 +69,7 @@ The learner must be able to trust the tutor. The moment you are not sure of a fa
    ```
 
    Use the tag root `tech/` for a technical topic, `life/` or `work/` otherwise. Never make a new top-level tag. Never write an em dash in the note. Never write a title heading at the top of the note.
-5. Write the absolute path of the note to `~/.config/lesson-log`. Delete `~/.config/lesson-log.cursor` and `~/.config/lesson-log.session` if they exist. From now on the hook mirrors the session to the note.
+5. Write the absolute path of the note to `~/.config/lesson-log`. Delete `~/.config/lesson-log.cursor` and `~/.config/lesson-log.session` if they exist. From now on the lesson mirror appends the session to the note.
 6. Append `## Prior knowledge` to the note: the notes found, their scores, and their recorded weak spots. If nothing was found, write that the topic is new.
 
 ## Phase 1: Probe
@@ -72,7 +82,7 @@ Dispatch `researcher` with the topic and the specific claims from the learner's 
 
 ### 1b. The goal
 
-Use `AskUserQuestion` to make the goal concrete. "Understand Flannel" can mean ten things. Ask until you can state the goal in one sentence. This question has no right answer, so it is never graded.
+Use the question tool to make the goal concrete. "Understand Flannel" can mean ten things. Ask until you can state the goal in one sentence. This question has no right answer, so it is never graded.
 
 ### 1c. Bite-sized walk and poke
 
@@ -83,7 +93,7 @@ For each strand that the goal depends on:
 3. Ask one pointed question about the next bite, in free text. Rotate the question types from `quiz-rules.md`: predict the next step, what breaks if, trace this, why does this work. Never ask "explain X".
 4. Grade the bite. Right: move on, and apply the skip-ahead rule. Wrong or vague: ask one follow-up on the exact gap, record the gap, move on. Do not teach yet.
 5. Stop the strand when the edge is bracketed: one bite right and one bite wrong. All right means the bites were too easy. Go harder. One miss is not enough either. Probe around it.
-6. Classify each miss with one or two `AskUserQuestion` multiple-choice questions built with `quiz-construction.md`: slip, isolated gap, or misconception. Always add a literal `I don't know` option. A misconception must be dislodged, not topped up.
+6. Classify each miss with one or two multiple-choice questions built with `quiz-construction.md`: slip, isolated gap, or misconception. Use `quiz` if you have it. If not, use the question tool and add a literal `I don't know` option. A misconception must be dislodged, not topped up.
 
 Append `## Probe map` to the note. Per strand: the last solid bite, the first missed bite, and the type of each miss.
 
@@ -142,4 +152,4 @@ The lesson ends when the learner says so, or when the sink node passes its check
 
    Set `target` to the `1-Notes` source note that Phase 0 found. If Phase 0 found no note, set it to the lesson note.
 
-6. Delete `~/.config/lesson-log`, `~/.config/lesson-log.cursor`, and `~/.config/lesson-log.session`. The hook is now off.
+6. Delete `~/.config/lesson-log`, `~/.config/lesson-log.cursor`, and `~/.config/lesson-log.session`. The lesson mirror is now off.
