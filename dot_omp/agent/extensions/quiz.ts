@@ -430,13 +430,15 @@ function noteEditorTheme(theme: any) {
 	};
 }
 
+// omp's Editor takes the theme as the first argument.
+//
 // Build the note Editor. `disableSubmit` is set because Enter must NOT submit
 // here: the editor's submit path clears the buffer, which would wipe the note.
 // Instead the host intercepts Enter to return focus to the options while
 // keeping the text. Ctrl+J still inserts a newline (pi convention), so
 // multi-line notes work.
-function makeNoteEditor(tui: any, theme: any): Editor {
-	const editor = new Editor(tui, noteEditorTheme(theme) as any);
+function makeNoteEditor(_tui: any, theme: any): Editor {
+	const editor = new Editor(noteEditorTheme(theme) as any);
 	editor.focused = false;
 	editor.disableSubmit = true;
 	return editor;
