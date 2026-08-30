@@ -103,10 +103,13 @@
 
 ## use ctrl instead of alt as the shortcut modifier key for numerical UI shortcuts
 ## alt-0 .. alt-9
-# Karabiner's Left Option layer already uses opt+1, opt+2, opt+8, opt+9 and
-# opt+0 for the aerospace workspaces and layouts. Use ctrl+1 .. ctrl+9 for the
-# numeric shortcuts of atuin, so that the two sets of keys do not collide.
-ctrl_n_shortcuts = true
+# Keep the numeric shortcuts on Alt. Ctrl does not work inside tmux: atuin asks
+# for the kitty keyboard protocol, tmux 3.7 ignores that request, and it sends
+# the legacy codes. In the legacy codes, ctrl+1 is equal to the character "1",
+# so atuin never sees the key. Alt+digit arrives correctly, as ESC and digit.
+# Karabiner takes opt+1, opt+2, opt+8, opt+9 and opt+0 for aerospace, so
+# alt+3 .. alt+7 are the shortcuts that reach atuin.
+# ctrl_n_shortcuts = false
 
 ## Show numeric shortcuts (1..9) beside list items in the TUI
 ## set to false to hide the moving numbers if you find them distracting
