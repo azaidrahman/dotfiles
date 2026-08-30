@@ -1,0 +1,53 @@
+symbolPreset: nerd
+theme:
+  dark: titanium
+  light: light
+setupVersion: 2
+modelRoles:
+  default: openai-codex/gpt-5.6-terra:high
+# Terra caps at "high" in omp; omp rewrites ":max" to ":high" on start.
+defaultThinkingLevel: high
+# Model picker allowlist. Without it omp also lists its built-in catalogs
+# (openai, google, ...) that have no credentials here. Only the LiteLLM proxy
+# models and the Codex subscription models are usable, so show only those.
+enabledModels:
+  - litellm/*
+  - openai-codex/gpt-5.6-terra
+  - openai-codex/gpt-5.6-luna
+  - openai-codex/gpt-5.5
+  - openai-codex/gpt-5.4-mini
+composer:
+  shape: rail
+# Do not import Claude Code marketplace plugins as a provider. The provider
+# also loads their MCP servers (atlassian, todoist), which need tokens that omp
+# does not have, so each start reports "MCP finished with failures". The skills
+# of these plugins come in through skills.customDirectories below.
+disabledProviders:
+  - claude-plugins
+# The Claude, Codex, and Agents skill providers stay off. They pull in commands,
+# rules, hooks, and MCP servers together with the skills, which costs about 20%
+# of the context window before you type. The Claude skills come back below
+# through customDirectories, which loads the skill text only.
+skills:
+  enabled: true
+  enableSkillCommands: true
+  enableClaudeUser: false
+  enableClaudeProject: false
+  enableCodexUser: false
+  enableAgentsUser: false
+  enableAgentsProject: false
+  enablePiUser: true
+  enablePiProject: true
+  # Directories that hold Claude Code skills: ~/.claude/skills and the skills of
+  # each installed marketplace plugin. omp does not expand globs here, so
+  # list-claude-skill-dirs.sh writes the list at "chezmoi apply" time. Run
+  # "chezmoi apply" again after you install or update a plugin. The full set
+  # (72 skills) costs about 2% of the context window.
+  customDirectories:
+{{- range (output "sh" (joinPath .chezmoi.sourceDir "dot_omp/agent/executable_list-claude-skill-dirs.sh") | trim | splitList "\n" | compact) }}
+    - {{ . }}
+{{- end }}
+# omp writes this key itself after you allow the auto-QA prompt. Keep it here so
+# that omp does not ask again after "chezmoi apply".
+dev:
+  autoqaConsent: granted
