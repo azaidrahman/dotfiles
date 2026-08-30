@@ -84,7 +84,7 @@ For each strand that the goal depends on:
 3. Ask one pointed question about the next bite, in free text. Rotate the question types from `quiz-rules.md`: predict the next step, what breaks if, trace this, why does this work. Never ask "explain X".
 4. Grade the bite. Right: move on, and apply the skip-ahead rule. Wrong or vague: ask one follow-up on the exact gap, record the gap, move on. Do not teach yet.
 5. Stop the strand when the edge is bracketed: one bite right and one bite wrong. All right means the bites were too easy. Go harder. One miss is not enough either. Probe around it.
-6. Classify each miss with one or two `AskUserQuestion` multiple-choice questions built with `quiz-construction.md`: slip, isolated gap, or misconception. A misconception must be dislodged, not topped up.
+6. Classify each miss with one or two `AskUserQuestion` multiple-choice questions built with `quiz-construction.md`: slip, isolated gap, or misconception. Always add a literal `I don't know` option. A misconception must be dislodged, not topped up.
 
 Append `## Probe map` to the note. Per strand: the last solid bite, the first missed bite, and the type of each miss.
 
