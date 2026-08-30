@@ -1,4 +1,0 @@
-# pivres - resume the most recent piv (Gemini 3.1 Pro via LiteLLM) session.
-#
-#   pivres [pi-args...]   Equivalent to: piv --resume
-piv --resume "$@"

@@ -1,12 +1,22 @@
-# pi - Pi via the LiteLLM proxy on Gemini 3.5 Flash (cheap default for simple,
-#      high-volume tasks; saves cost vs. Pro). Shadows the `pi` binary so plain
-#      `pi` routes through the proxy and is cost-tracked by the prefix+u popup.
-#      For the raw, un-proxied agent use `command pi`.
+# pi - Pi coding agent through the LiteLLM proxy on onyx (Vertex AI).
+#      Shadows the `pi` binary. Provider and default model come from
+#      ~/.pi/agent/settings.json; this wrapper only:
+#        1. fetches the 'omp' virtual key from 1Password and health-checks
+#           the proxy (_litellm_proxy), which the litellm-provider extension
+#           reads from $LITELLM_API_KEY
+#        2. sets the @claude_provider tmux marker for the prefix+u cost popup
 #
-#      Thin wrapper over `piv`, which owns the proxy guard and the per-pane cost
-#      marker; only the model differs (set via $PI_LITELLM_MODEL). See `piv` for
-#      proxy/auth details.
-#
-#   pi [pi-args...]   Run Pi against gemini-3.5-flash via LiteLLM.
-#   pires             Resume such a session (pi --resume).
-piv "$@"
+#   pi [pi-args...]                 e.g. pi --model claude-opus-4-8
+#   pi --resume                     resume the most recent session
+#   command pi                      raw binary, no proxy guard
+emulate -L zsh
+
+_litellm_proxy omp || return $?
+
+[[ -n "$TMUX" ]] && tmux set -p @claude_provider litellm 2>/dev/null
+
+command pi "$@"
+local rc=$?
+
+[[ -n "$TMUX" ]] && tmux set -pu @claude_provider 2>/dev/null
+return $rc

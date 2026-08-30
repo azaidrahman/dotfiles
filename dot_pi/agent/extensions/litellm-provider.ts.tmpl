@@ -1,84 +1,45 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-// LiteLLM proxy provider — managed by chezmoi; the base URL is baked per-host
-// at `chezmoi apply` time so this file is context-aware:
-//   aqua  -> reaches the proxy running on onyx over Tailscale
-//   onyx  -> talks to its own local proxy
-//   other -> no proxy access, registration is skipped
-// The master key is never stored here; it is read from $LITELLM_MASTER_KEY
-// (exported by the encrypted ~/.zshenv) and interpolated by pi at load time.
-{{- if eq .chezmoi.hostname "aqua" }}
-const LITELLM_BASE_URL = "http://onyx:4000";
-{{- else if eq .chezmoi.hostname "onyx" }}
+// LiteLLM proxy provider — managed by chezmoi. The model list is rendered
+// from .chezmoidata/pi.yaml, the base URL is baked per host:
+//   onyx  -> its own local proxy
+//   other -> the proxy on onyx over Tailscale
+// The key is read from $LITELLM_API_KEY, the per-harness virtual key that the
+// `pi` shell wrapper exports via _litellm_proxy. pi interpolates it at load
+// time, so the key is never stored here.
+{{- if eq .chezmoi.hostname "onyx" }}
 const LITELLM_BASE_URL = "http://localhost:4000";
 {{- else }}
-const LITELLM_BASE_URL = "";
+const LITELLM_BASE_URL = "http://onyx:4000";
 {{- end }}
 
 export default function (pi: ExtensionAPI) {
-	if (!LITELLM_BASE_URL) return; // host without access to the LiteLLM proxy
-
+	// Cost is tracked by the proxy ledger, not by pi.
 	const cost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
 	pi.registerProvider("litellm", {
 		name: "LiteLLM (onyx)",
 		baseUrl: LITELLM_BASE_URL,
-		apiKey: "$LITELLM_MASTER_KEY",
-		// Claude models go through LiteLLM's Anthropic Messages endpoint
-		// (/v1/messages) — pi sends the x-api-key auth header. The Gemini models
-		// override api to "openai-completions" (/v1/chat/completions, Bearer auth):
-		// LiteLLM's Anthropic-Messages translation for Vertex Gemini drops tool-call
-		// input deltas in STREAMING mode (content_block_start carries input:{} and
-		// no input_json_delta ever follows), so every Gemini tool call arrived with
-		// empty args and failed schema validation. Non-streaming /v1/messages and
-		// streaming /v1/chat/completions both return the args intact — verified
-		// against onyx — so routing Gemini through the native OpenAI path fixes it.
+		apiKey: "$LITELLM_API_KEY",
 		api: "anthropic-messages",
 		models: [
+{{- range .pi.models }}
 			{
-				id: "gemini-3.1-pro-preview",
-				name: "Gemini 3.1 Pro (litellm)",
-				api: "openai-completions",
-				reasoning: true,
+				id: {{ .id | quote }},
+				name: {{ printf "%s (litellm)" .name | quote }},
+{{- if hasKey . "api" }}
+				api: {{ .api | quote }},
+{{- end }}
+				reasoning: {{ .reasoning }},
 				input: ["text", "image"],
 				cost,
-				contextWindow: 1048576,
-				maxTokens: 65536,
-			},
-			{
-				id: "gemini-3.5-flash",
-				name: "Gemini 3.5 Flash (litellm)",
-				api: "openai-completions",
-				reasoning: false,
-				input: ["text", "image"],
-				cost,
-				contextWindow: 1048576,
-				maxTokens: 65536,
-			},
-			{
-				// Vertex's claude-opus-4-8 requires the adaptive-thinking format
-				// (thinking.type: "adaptive"), not the legacy "thinking.type.enabled"
-				// param. forceAdaptiveThinking makes pi emit the adaptive format, so
-				// reasoning can stay on.
-				id: "claude-opus-4-8",
-				name: "Claude Opus 4.8 (litellm)",
-				reasoning: true,
-				input: ["text", "image"],
-				cost,
-				contextWindow: 200000,
-				maxTokens: 32768,
+				contextWindow: {{ .context }},
+				maxTokens: {{ .max_tokens }},
+{{- if and (hasKey . "adaptive") .adaptive }}
 				compat: { forceAdaptiveThinking: true },
+{{- end }}
 			},
-			{
-				id: "claude-sonnet-4-6",
-				name: "Claude Sonnet 4.6 (litellm)",
-				reasoning: true,
-				input: ["text", "image"],
-				cost,
-				contextWindow: 200000,
-				maxTokens: 65536,
-				compat: { forceAdaptiveThinking: true },
-			},
+{{- end }}
 		],
 	});
 }

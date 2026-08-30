@@ -1,6 +1,6 @@
 # omv - omp coding agent via LiteLLM proxy (Vertex backend).
 #       Authenticates with the 'omp' virtual key (per-harness spend).
-#       Mirrors `piv` for omp. Key and base URL exported by _litellm_proxy.
+#       Mirrors `pi` for omp. Key and base URL exported by _litellm_proxy.
 #
 #   omv [omp-args...]                             Default: gemini-3.1-pro-preview
 #   omv --model claude-opus-4-8

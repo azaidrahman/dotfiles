@@ -3,41 +3,32 @@
 # Renders the managed settings below, but PRESERVES live dynamic keys:
 #   lastChangelogVersion - updated automatically by pi on new releases
 #   defaultThinkingLevel - updated via pi settings
+# The model list comes from .chezmoidata/pi.yaml.
 set -euo pipefail
 
 current=$(cat)
 changelog=$(printf '%s' "$current" | jq -r '.lastChangelogVersion // empty' 2>/dev/null || true)
 thinking=$(printf '%s' "$current" | jq -r '.defaultThinkingLevel // empty' 2>/dev/null || true)
 
-cat <<'EOF' | jq --arg changelog "$changelog" --arg thinking "$thinking" \
+cat <<'EOF_JSON' | jq --arg changelog "$changelog" --arg thinking "$thinking" \
     '(if $changelog != "" then .lastChangelogVersion = $changelog else . end) | (if $thinking != "" then .defaultThinkingLevel = $thinking else . end)'
 {
-  "lastChangelogVersion": "0.79.4",
-{{- if or (eq .chezmoi.hostname "aqua") (eq .chezmoi.hostname "onyx") }}
+  "lastChangelogVersion": "0.79.9",
   "defaultProvider": "litellm",
-{{- else }}
-  "defaultProvider": "google",
-{{- end }}
-  "defaultModel": "gemini-3.5-flash",
+  "defaultModel": {{ .pi.default_model | quote }},
   "defaultThinkingLevel": "xhigh",
   "enabledModels": [
-{{- if or (eq .chezmoi.hostname "aqua") (eq .chezmoi.hostname "onyx") }}
-    "litellm/gemini-3.5-flash",
-    "litellm/gemini-3.1-pro-preview",
-    "litellm/claude-opus-4-8",
-    "litellm/claude-sonnet-4-6"
-{{- else }}
-    "google/gemini-3.5-flash",
-    "google/gemini-3.1-pro-preview",
-    "google/claude-opus-4-8",
-    "google/claude-sonnet-4-6"
+{{- range $i, $m := .pi.models }}
+    {{ if $i }}, {{ end }}{{ printf "litellm/%s" $m.id | quote }}
 {{- end }}
   ],
   "packages": [
     "npm:pi-web-access",
     "npm:pi-lens",
-    "npm:pi-cache-optimizer"
+    "npm:pi-cache-optimizer",
+    "npm:pi-superpowers-plus",
+    "npm:taskplane"
   ],
   "theme": "effort-colors"
 }
-EOF
+EOF_JSON
