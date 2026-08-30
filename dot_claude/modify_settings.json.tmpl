@@ -15,6 +15,9 @@
 #     content drift, not key reshuffling.
 # effortLevel and model are deliberately absent from the stable template so
 # they pass through from current untouched.
+#
+# Arrays are replaced, not merged. Every hook entry that lives in the live
+# file must also be in the stable template, or apply removes it.
 set -euo pipefail
 
 current=$(cat)
