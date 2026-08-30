@@ -1,0 +1,16 @@
+# omp - Oh My Pi with the shared LiteLLM proxy (Vertex AI) available.
+#       The default model and its Terra Max reasoning level come from
+#       ~/.omp/agent/config.yml; use the in-app model picker to switch.
+#
+#   omp [omp-args...]
+#   omp --resume
+#   command omp            Raw Homebrew binary, without the proxy guard.
+emulate -L zsh
+
+_litellm_proxy omp || return $?
+
+# Lean startup system prompt: prevents unnecessary tool calls and context
+# bloat when running LiteLLM Flash models.
+local _omp_sys='Do not proactively explore the repo or run tools in response to greetings or trivial messages (e.g. "ping", "hi") — reply directly. Use tools only when the request clearly requires them. Never read ~/ctx or follow the active-context pointer unless the user explicitly asks about their context/research. Read specific files, not broad scans; never read large HTML files in full. For a write, stay in the current checkout only for a small one-file non-behavioral change with no generated file, lock file, test, or writing subagent. Before every other write, create an isolated worktree. Use start-ticket for ticket work and start-worktree for ticketless work. Concurrent writing agents must use isolated task worktrees and must not share files.'
+
+command omp --append-system-prompt "$_omp_sys" "$@"

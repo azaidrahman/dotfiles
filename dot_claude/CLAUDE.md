@@ -59,3 +59,27 @@ file. Some formats have a fixed shape. Keep that shape, and write STE inside it.
 
 - Conventional commits keep `type(scope): subject`. Write the subject in STE.
 - Ticket templates keep their headings. Write the body text in STE.
+
+## Worktree policy
+
+Use the current checkout for read-only work.
+
+Use the current checkout for a small change only. A small change modifies one
+existing file and has no behavior change, generated file, lock file, test, or
+writing subagent.
+
+Before any other write, create an isolated worktree.
+
+- If the work has a Jira ticket, use the `start-ticket` skill.
+- If the work has no Jira ticket, use the `start-worktree` skill.
+- If the scope grows, stop writing in the current checkout. Start an isolated
+  worktree before the next write.
+
+One primary writing session owns each worktree. Do not send two writing agents
+to the same worktree.
+
+When agents write concurrently, use isolated task worktrees. The coordinator
+does not edit shared files while writing agents run.
+
+Use `finish-branch` to close a landed branch. It also closes ticketless
+branches.

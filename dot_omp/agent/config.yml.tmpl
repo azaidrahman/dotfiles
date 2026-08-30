@@ -7,17 +7,40 @@ modelRoles:
   default: openai-codex/gpt-5.6-terra:high
 # Terra caps at "high" in omp; omp rewrites ":max" to ":high" on start.
 defaultThinkingLevel: high
-# Model picker allowlist. Without it omp also lists its built-in catalogs
-# (openai, google, ...) that have no credentials here. Only the LiteLLM proxy
-# models and the Codex subscription models are usable, so show only those.
+# Model picker allowlist. Only proxy models and the native Codex provider have
+# credentials here. The wildcard keeps every model that Codex makes available,
+# including new models added to the local Codex model store.
 enabledModels:
   - litellm/*
-  - openai-codex/gpt-5.6-terra
-  - openai-codex/gpt-5.6-luna
-  - openai-codex/gpt-5.5
-  - openai-codex/gpt-5.4-mini
+  - openai-codex/*
 composer:
   shape: rail
+statusLine:
+  preset: custom
+  separator: pipe
+  contextLine: off
+  sessionAccent: false
+  transparent: true
+  compactThinkingLevel: false
+  leftSegments:
+    - model
+    - context_pct
+    - session
+  rightSegments:
+    - path
+    - git
+  segmentOptions:
+    model:
+      showThinkingLevel: true
+    path:
+      abbreviate: true
+      maxLength: 40
+      stripWorkPrefix: true
+    git:
+      showBranch: true
+      showStaged: false
+      showUnstaged: false
+      showUntracked: false
 # Do not import Claude Code marketplace plugins as a provider. The provider
 # also loads their MCP servers (atlassian, todoist), which need tokens that omp
 # does not have, so each start reports "MCP finished with failures". The skills
@@ -51,3 +74,8 @@ skills:
 # that omp does not ask again after "chezmoi apply".
 dev:
   autoqaConsent: granted
+task:
+  isolation:
+    mode: auto
+    apply: false
+    merge: branch
