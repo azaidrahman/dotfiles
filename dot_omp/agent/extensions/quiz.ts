@@ -1,5 +1,4 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { getEditorTheme } from "@earendil-works/pi-coding-agent";
 import {
 	Editor,
 	Key,
@@ -393,16 +392,51 @@ function pushNoteField(lines: string[], theme: any, width: number, editor: Edito
 	for (const line of editor.render(width)) lines.push(line);
 }
 
-// omp's Editor reads symbols and colours from the theme. So use omp's own
-// editor theme helper, not the upstream pi one.
-//
+const ROUND_BOX = {
+	topLeft: "╭",
+	topRight: "╮",
+	bottomLeft: "╰",
+	bottomRight: "╯",
+	horizontal: "─",
+	vertical: "│",
+};
+
+// omp's Editor reads box symbols and colour functions from its theme. Build
+// the theme here from the `theme` argument (ctx.ui.theme): the
+// pi-coding-agent export that omp gives extensions does not carry the
+// symbols, so it cannot be used as-is.
+function noteEditorTheme(theme: any) {
+	const fg = (name: string) => (s: string) => {
+		try {
+			return theme.fg(name, s);
+		} catch {
+			return s;
+		}
+	};
+	return {
+		borderColor: fg("borderMuted"),
+		accentColor: fg("accent"),
+		surfaceColor: (s: string) => s,
+		textColor: (s: string) => s,
+		hintStyle: fg("dim"),
+		selectList: {
+			selectedPrefix: fg("accent"),
+			selectedText: fg("accent"),
+			description: fg("muted"),
+			scrollInfo: fg("dim"),
+			noMatch: fg("warning"),
+		},
+		symbols: { boxRound: ROUND_BOX, inputCursor: "|" },
+	};
+}
+
 // Build the note Editor. `disableSubmit` is set because Enter must NOT submit
 // here: the editor's submit path clears the buffer, which would wipe the note.
 // Instead the host intercepts Enter to return focus to the options while
 // keeping the text. Ctrl+J still inserts a newline (pi convention), so
 // multi-line notes work.
 function makeNoteEditor(tui: any, theme: any): Editor {
-	const editor = new Editor(tui, getEditorTheme());
+	const editor = new Editor(tui, noteEditorTheme(theme) as any);
 	editor.focused = false;
 	editor.disableSubmit = true;
 	return editor;
