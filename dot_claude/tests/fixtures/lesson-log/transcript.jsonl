@@ -1,0 +1,5 @@
+{"type":"user","message":{"role":"user","content":"teach me flannel\n\n<system-reminder>noise</system-reminder>"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"hidden"},{"type":"text","text":"Let us start. A pod on node A sends a packet to a pod on node B."}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"AskUserQuestion","id":"t1","input":{"questions":[{"question":"What does the packet hit first after the veth?","header":"Probe","options":[{"label":"cni0 bridge","description":""},{"label":"flannel.1","description":""},{"label":"I don't know","description":""}]}]}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"answered"}]},"toolUseResult":{"questions":[],"answers":{"What does the packet hit first after the veth?":"cni0 bridge"}}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Correct. The bridge is the first hop.\n\n```mermaid\ngraph TD\n  A[packet] --> B[cni0]\n```"}]}}
