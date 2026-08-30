@@ -48,8 +48,7 @@ PROVIDERS='claude litellm codex agents'
 CODEX_IN_AGENTS=${CODEX_IN_AGENTS:-1}
 
 TAB=$'\t'
-c_reset=$'\033[0m'; c_dim=$'\033[2m'; c_bold=$'\033[1m'
-
+c_reset=$'\033[0m'; c_dim=$'\033[2m'; c_bold=$'\033[1m'; c_cyan=$'\033[36m'
 # --- shared helpers ------------------------------------------------------
 
 color_for() { # pct -> green/yellow/red
@@ -64,6 +63,23 @@ repeat() { # char count -> char repeated count times (0-safe)
   local ch=$1 n=$2 out=''
   while (( n-- > 0 )); do out+=$ch; done
   printf '%s' "$out"
+}
+
+fmt_tokens() { # num -> 500, 1.2k, 1.05M
+  local n=${1:-0}
+  awk -v n="$n" 'BEGIN {
+    if (n >= 1000000) {
+      v = sprintf("%.2f", n/1000000);
+      sub(/0+$/, "", v); sub(/\.$/, "", v);
+      printf "%sM", v;
+    } else if (n >= 1000) {
+      v = sprintf("%.1f", n/1000);
+      sub(/0+$/, "", v); sub(/\.$/, "", v);
+      printf "%sk", v;
+    } else {
+      printf "%d", n;
+    }
+  }'
 }
 
 # term_width : the popup's real column count. `tput cols` first — inside a
@@ -287,20 +303,55 @@ render_quota() { render_header "$2"; quota_body "$1"; }
 
 # --- the cost view -------------------------------------------------------
 
-# cost_body <blob> : one bar per model, scaled against the biggest spender,
-# then the totals. See quota_body for how it treats a NOTE record.
+# cost_body <blob> : one bar per model, scaled against total spend,
+# then the totals. If SESSION record is present, active session context & tokens
+# are rendered first.
 cost_body() {
-  local blob=$1 kind f2 f3 models='' notes=''
-  local t_all=0 t_7d=0 t_mtd=0 t_ytd=0
-  while IFS="$TAB" read -r kind f2 f3; do
+  local blob=$1 kind f2 f3 f4 f5 f6 f7 f8 models='' notes=''
+  local t_all=0 t_7d=0 t_mtd=0 t_ytd=0 t_today=0
+  local sess_model='' sess_ctx=0 sess_ctx_win=0 sess_in=0 sess_cache=0 sess_out=0 sess_think=0
+  while IFS="$TAB" read -r kind f2 f3 f4 f5 f6 f7 f8; do
     case "$kind" in
-      MODEL) models+="$f2$TAB$f3"$'\n' ;;
-      NOTE)  notes+="  $f2"$'\n' ;;
-      TOTAL) case "$f2" in
-               all) t_all=$f3 ;; 7d) t_7d=$f3 ;; mtd) t_mtd=$f3 ;; ytd) t_ytd=$f3 ;;
-             esac ;;
+      MODEL)   models+="$f2$TAB$f3"$'\n' ;;
+      NOTE)    notes+="  $f2"$'\n' ;;
+      TOTAL)   case "$f2" in
+                 all) t_all=$f3 ;; 7d) t_7d=$f3 ;; mtd) t_mtd=$f3 ;; ytd) t_ytd=$f3 ;; today) t_today=$f3 ;;
+               esac ;;
+      SESSION) sess_model=$f2; sess_ctx=$f3; sess_ctx_win=$f4; sess_in=$f5; sess_cache=$f6; sess_out=$f7; sess_think=${f8:-0} ;;
     esac
   done <<< "$blob"
+
+  local width; width=$(term_width)
+  local bar_w=$(( width - 42 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 45 )) && bar_w=45
+
+  if [ -n "$sess_model" ] && (( sess_in > 0 || sess_cache > 0 || sess_ctx > 0 )); then
+    local sess_tot_in=$(( sess_in + sess_cache ))
+    local cache_pct=0
+    (( sess_tot_in > 0 )) && cache_pct=$(( sess_cache * 100 / sess_tot_in ))
+
+    local ctx_pct=0
+    (( sess_ctx_win > 0 )) && ctx_pct=$(( sess_ctx * 100 / sess_ctx_win ))
+    (( ctx_pct > 100 )) && ctx_pct=100
+
+    local ctx_fill=$(( ctx_pct * 16 / 100 ))
+    local ctx_empty=$(( 16 - ctx_fill ))
+
+    printf '  %sActive session%s · %s%s%s\n' "$c_bold" "$c_reset" "$c_cyan" "$sess_model" "$c_reset"
+    printf '  Context  %s%s%s%s%s %s%s / %s (%d%%)%s\n' \
+      "$c_cyan" "$(repeat █ "$ctx_fill")" "$c_dim" "$(repeat ░ "$ctx_empty")" "$c_reset" \
+      "$c_dim" "$(fmt_tokens "$sess_ctx")" "$(fmt_tokens "$sess_ctx_win")" "$ctx_pct" "$c_reset"
+
+    local cache_col="$c_dim"
+    (( cache_pct >= 80 )) && cache_col=$'\033[32m'
+    (( cache_pct >= 50 && cache_pct < 80 )) && cache_col=$'\033[33m'
+
+    local think_str=""
+    (( sess_think > 0 )) && think_str=" ($(fmt_tokens "$sess_think") think)"
+
+    printf '  Tokens   %s in · %s cached (%s%d%% hit%s) · %s out%s\n\n' \
+      "$(fmt_tokens "$sess_in")" "$(fmt_tokens "$sess_cache")" "$cache_col" "$cache_pct" "$c_reset" \
+      "$(fmt_tokens "$sess_out")" "$think_str"
+  fi
 
   if [ -z "$models" ]; then
     if [ -n "$notes" ]; then printf '%s' "$notes"
@@ -309,23 +360,30 @@ cost_body() {
     return
   fi
 
-  local max; max=$(printf '%s' "$models" | awk -F"$TAB" \
-    'BEGIN{m=0}{if($1+0>m)m=$1+0}END{if(m<=0)m=1; print m}')
-  local width; width=$(term_width)
-  local bar_w=$(( width - 42 )); (( bar_w < 8 )) && bar_w=8; (( bar_w > 45 )) && bar_w=45
+  local total_model_spend; total_model_spend=$(printf '%s' "$models" | awk -F"$TAB" \
+    'BEGIN{s=0}{s+=$1+0}END{print s}')
 
-  local spend model pct fill empty
+  local spend model pct fill empty share_pct
   while IFS="$TAB" read -r spend model; do
     [ -z "$model" ] && continue
-    pct=$(awk -v v="$spend" -v m="$max" 'BEGIN{printf "%d", (v/m)*100}')
+    if (( $(awk -v s="$total_model_spend" 'BEGIN{print (s>0)}') )); then
+      pct=$(awk -v v="$spend" -v t="$total_model_spend" 'BEGIN{printf "%d", (v/t)*100}')
+      share_pct=$(awk -v v="$spend" -v t="$total_model_spend" 'BEGIN{printf "%d%%", (v/t)*100}')
+    else
+      pct=0
+      share_pct="0%"
+    fi
     fill=$(( pct * bar_w / 100 )); (( fill < 0 )) && fill=0; (( fill > bar_w )) && fill=bar_w
     empty=$(( bar_w - fill ))
-    printf '  %-24s %s%s%s%s%s %s$%0.2f%s\n' \
-      "${model:0:24}" "$(color_for "$pct")" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" \
-      "$c_reset" "$c_bold" "$spend" "$c_reset"
+    printf '  %-24s %s%s%s%s%s %s$%0.2f%s %s(%s)%s\n' \
+      "${model:0:24}" "$c_cyan" "$(repeat █ "$fill")" "$c_dim" "$(repeat ░ "$empty")" \
+      "$c_reset" "$c_bold" "$spend" "$c_reset" "$c_dim" "$share_pct" "$c_reset"
   done <<< "$models"
 
-  printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 26 )))" "$c_reset"
+  printf '  %s%s%s\n' "$c_dim" "$(repeat ─ $(( bar_w + 33 )))" "$c_reset"
+  if (( $(awk -v v="${t_today:-0}" 'BEGIN{print (v>0)}') )); then
+    printf '  %-24s %*s%s$%0.2f%s\n'      "Today" "$bar_w" "" "$c_bold" "${t_today:-0}" "$c_reset"
+  fi
   printf '  %-24s %*s%s$%0.2f%s\n'      "Total · last 7 days" "$bar_w" "" "$c_bold" "${t_7d:-0}" "$c_reset"
   printf '  %-24s %*s$%0.2f\n'          "month to date" "$bar_w" "" "${t_mtd:-0}"
   printf '  %-24s %*s$%0.2f\n'          "year to date"  "$bar_w" "" "${t_ytd:-0}"
@@ -405,18 +463,106 @@ litellm_curl() {
   curl -fsS -m 5 -H "Authorization: Bearer $2" "$1$3" 2>/dev/null
 }
 
-# litellm_blob <models_json> <spend_json> <logs_json> <cut7d> <cutMTD> <cutYTD> :
+# session_blob : reads the active omp session stats for the current directory/pane.
+session_blob() {
+  command -v python3 >/dev/null 2>&1 || return
+  local target_dir="${SRC_PATH:-}"
+  if [ -z "$target_dir" ] && [ -n "${SRC_PANE:-}" ]; then
+    target_dir=$(tmux display-message -p -t "$SRC_PANE" '#{pane_current_path}' 2>/dev/null || true)
+  fi
+  [ -z "$target_dir" ] && target_dir=$(pwd)
+
+  python3 -c '
+import os, sys, json, glob, time
+
+def find_session(target_dir):
+    base = os.path.expanduser("~/.omp/agent/sessions")
+    if not os.path.isdir(base):
+        return
+    all_jsonls = glob.glob(os.path.join(base, "*", "*.jsonl"))
+    if not all_jsonls:
+        return
+    all_jsonls.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    chosen = None
+    if target_dir:
+        norm = target_dir.replace(os.path.expanduser("~"), "").replace("/", "-")
+        for f in all_jsonls:
+            if norm in f:
+                chosen = f
+                break
+    if not chosen:
+        chosen = all_jsonls[0]
+
+    if time.time() - os.path.getmtime(chosen) > 7200:
+        return
+
+    total_in = 0
+    total_out = 0
+    total_cache = 0
+    total_think = 0
+    last_ctx = 0
+    model = "unknown"
+
+    try:
+        with open(chosen) as f:
+            for line in f:
+                try:
+                    d = json.loads(line)
+                except Exception:
+                    continue
+                if d.get("type") == "model_change":
+                    model = d.get("model", model)
+                elif d.get("type") == "message" and d.get("message", {}).get("role") == "assistant":
+                    msg = d.get("message", {})
+                    if "model" in msg:
+                        model = msg["model"]
+                    usage = msg.get("usage", {})
+                    total_in += usage.get("input", 0)
+                    total_out += usage.get("output", 0)
+                    total_cache += usage.get("cacheRead", 0)
+                    total_think += usage.get("reasoningTokens", 0)
+                    ctx = msg.get("contextSnapshot", {})
+                    if "promptTokens" in ctx:
+                        last_ctx = ctx["promptTokens"]
+                    elif "totalTokens" in usage:
+                        last_ctx = usage["totalTokens"]
+    except Exception:
+        return
+
+    if total_in == 0 and total_cache == 0 and total_out == 0 and last_ctx == 0:
+        return
+
+    ctx_window = 1048576
+    if "200k" in model or "haiku" in model:
+        ctx_window = 200000
+    elif "128k" in model or "gpt-4" in model:
+        ctx_window = 128000
+
+    print(f"SESSION\t{model}\t{last_ctx}\t{ctx_window}\t{total_in}\t{total_cache}\t{total_out}\t{total_think}")
+
+target = sys.argv[1] if len(sys.argv) > 1 else ""
+find_session(target)
+' "$target_dir" 2>/dev/null
+}
+
+# litellm_blob <models_json> <spend_json> <logs_json> <cut7d> <cutMTD> <cutYTD> [cutToday] :
 # fold the ledger of the proxy into a canonical blob (pure; no network). The
-# three cutoffs are inclusive YYYY-MM-DD lower bounds summed from the daily
+# cutoffs are inclusive YYYY-MM-DD lower bounds summed from the daily
 # logs. The model name loses its provider prefix, to save width.
 litellm_blob() {
-  local mj=$1 sj=$2 lj=$3 cut=$4 cutm=$5 cuty=$6 all
+  local mj=$1 sj=$2 lj=$3 cut=$4 cutm=$5 cuty=$6 cutt=${7:-}
+  local all
   all=$(printf '%s' "$sj"  | jq -r '.spend // 0' 2>/dev/null); all=${all:-0}
   # sum the daily logs on/after an inclusive YYYY-MM-DD cutoff (0 on failure)
   sum_since() { local s; s=$(printf '%s' "$lj" | jq -r --arg c "$1" \
     '[.[] | select(.date >= $c) | .spend] | add // 0' 2>/dev/null); printf '%s' "${s:-0}"; }
-  printf 'TOTAL\tall\t%s\nTOTAL\t7d\t%s\nTOTAL\tmtd\t%s\nTOTAL\tytd\t%s\n' \
-    "$all" "$(sum_since "$cut")" "$(sum_since "$cutm")" "$(sum_since "$cuty")"
+
+  if [ -z "$cutt" ]; then
+    cutt=$(date +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)
+  fi
+
+  printf 'TOTAL\tall\t%s\nTOTAL\t7d\t%s\nTOTAL\tmtd\t%s\nTOTAL\tytd\t%s\nTOTAL\ttoday\t%s\n' \
+    "$all" "$(sum_since "$cut")" "$(sum_since "$cutm")" "$(sum_since "$cuty")" "$(sum_since "$cutt")"
   printf '%s' "$mj" | jq -r '
     [.[] | select((.total_spend // 0) > 0)] | sort_by(-.total_spend)[]
     | "MODEL\t\(.total_spend)\t\(.model | sub("^[a-z_]+/"; ""))"' 2>/dev/null
@@ -425,19 +571,21 @@ litellm_blob() {
 # The proxy needs three calls and the cutoffs of today, so this provider
 # builds the blob in one step instead of a fetch plus a normalize.
 p_litellm_blob() {
-  local base key cut cutm cuty mj sj lj
+  local base key cut cutm cuty cutt mj sj lj
   base=$(litellm_base); key=$(litellm_key)
-  cut=$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d)
-  cutm=$(date +%Y-%m-01)   # first of this month (BSD + GNU)
-  cuty=$(date +%Y-01-01)   # first of this year
+  cut=$(date -u -v-7d +%Y-%m-%d 2>/dev/null || date -u -d '7 days ago' +%Y-%m-%d)
+  cutm=$(date -u +%Y-%m-01)   # first of this month in UTC
+  cuty=$(date -u +%Y-01-01)   # first of this year in UTC
+  cutt=$(date -u +%Y-%m-%d)   # today in UTC
   mj=$(litellm_curl "$base" "$key" "/global/spend/models")
   sj=$(litellm_curl "$base" "$key" "/global/spend")
   lj=$(litellm_curl "$base" "$key" "/global/spend/logs")
+  session_blob
   if [ -z "$mj" ] && [ -z "$sj" ]; then
     printf 'NOTE\tproxy unreachable — could not fetch spend\n'
     return
   fi
-  litellm_blob "$mj" "$sj" "$lj" "$cut" "$cutm" "$cuty"
+  litellm_blob "$mj" "$sj" "$lj" "$cut" "$cutm" "$cuty" "$cutt"
 }
 
 # --- provider : codex ----------------------------------------------------
@@ -679,11 +827,16 @@ rows_in_cache() {
 size_for() {
   SRC_PANE=$1
   PROVIDER=$(resolve_provider)
+  local has_sess=0
+  local cache; cache=$(cache_path "$PROVIDER")
+  if [[ -s $cache ]] && grep -q "^SESSION$TAB" "$cache" 2>/dev/null; then
+    has_sess=4
+  fi
   case "$(provider_hook view)" in
-    cost) printf '%dx%d' "$COST_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" MODEL 6) + 13 ))" ;;
+    cost) printf '%dx%d' "$COST_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" MODEL 6) + 14 + has_sess ))" ;;
     both) printf '%dx%d' "$USAGE_POPUP_W" \
             "$(( $(rows_in_cache "$PROVIDER" QUOTA 2) * 2 \
-                 + $(rows_in_cache "$PROVIDER" MODEL 6) + 16 ))" ;;
+                 + $(rows_in_cache "$PROVIDER" MODEL 6) + 17 + has_sess ))" ;;
     *)    printf '%dx%d' "$USAGE_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" QUOTA 3) * 2 + 8 ))" ;;
   esac
 }
@@ -694,7 +847,7 @@ popup_main() {
   local pane=$1 cwd=$2 sz w h
   sz=$(size_for "$pane")
   w=${sz%x*}; h=${sz#*x}
-  tmux display-popup -E -w "$w" -h "$h" -d "$cwd" -T ' Usage ' "$0 $pane"
+  tmux display-popup -E -w "$w" -h "$h" -d "$cwd" -T ' Usage ' "$0 \"$pane\" \"$cwd\""
 }
 
 # Pick the provider from the per-pane marker, NOT from what happens to be
@@ -702,6 +855,7 @@ popup_main() {
 # of liveness would show cost even for a plain subscription session.
 main() {
   SRC_PANE="${1:-}"
+  SRC_PATH="${2:-}"
   # display-popup does NOT expand formats in its command string, so the
   # keybinding's #{pane_id} arrives here literally (or empty). When it isn't a
   # real pane id, self-resolve to the session's active pane — which is the pane
