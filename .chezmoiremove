@@ -3,3 +3,5 @@
 .config/zsh/functions/piv
 .config/zsh/functions/pires
 .config/zsh/functions/pivres
+.config/zsh/functions/omv
+.config/zsh/functions/omvres

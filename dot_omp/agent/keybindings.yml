@@ -1,0 +1,8 @@
+# Keep Pi and OMP's model and reasoning controls aligned. Retain OMP's
+# original chords as alternatives so existing muscle memory still works.
+app.model.select:
+  - Ctrl+Shift+M
+  - Alt+M
+app.thinking.cycle:
+  - Ctrl+Shift+T
+  - Shift+Tab

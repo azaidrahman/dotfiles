@@ -511,7 +511,7 @@ p_agents_blob()  { p_codex_fetch | p_codex_normalize; p_litellm_blob; }
 # --- provider dispatch ---------------------------------------------------
 
 # The provider is whatever the pane runs at the moment you press the key. An
-# earlier design kept a per-pane tmux marker that `pi`, `cv` and `omv` set on
+# earlier design kept a per-pane tmux marker that `pi`, `cv` and `omp` set on
 # entry and cleared on exit, but Ctrl-C aborts a zsh function before its last
 # line, so the marker outlived the agent that wrote it. A later plain `claude`
 # in that same pane then drew the LiteLLM cost view. Read the live process

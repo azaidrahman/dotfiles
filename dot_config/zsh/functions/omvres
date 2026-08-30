@@ -1,2 +1,0 @@
-# omvres - resume the most recent omv session.
-omv --resume "$@"

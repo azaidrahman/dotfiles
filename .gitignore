@@ -8,4 +8,5 @@ dot_config/wezterm/*.tmp
 __pycache__/
 /.superpowers/
 /.claude/worktrees/
+/.worktrees/
 dot_omp/agent/node_modules/
