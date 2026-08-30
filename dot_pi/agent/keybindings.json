@@ -1,4 +1,7 @@
 {
   "tui.input.newLine": ["shift+enter", "alt+enter", "ctrl+j"],
-  "tui.input.submit": ["enter"]
+  "tui.input.submit": ["enter"],
+
+  "app.model.select": ["ctrl+shift+m"],
+  "app.thinking.cycle": ["ctrl+shift+t", "shift+tab"]
 }
