@@ -9,8 +9,9 @@
 #
 # Exports: LITELLM_API_KEY (the virtual key), LITELLM_BASE_URL
 # Sets:    REPLY to the base URL (no trailing slash, no /v1)
-# Lazy:    fetches each distinct key from 1Password once per session, cached in
-#          a per-field global so cv and omv can hold different keys at once.
+# Lazy:    uses LITELLM_KEY_<FIELD> from secrets.zsh if set (no op call);
+#          else fetches from 1Password once per session, cached in a per-field
+#          global so cv, pi, and omp can hold different keys at once.
 # Guard:   health-checks proxy; auto-starts docker compose on onyx if down.
 # Returns: non-zero on any failure.
 emulate -L zsh
@@ -28,6 +29,11 @@ fi
 # Lazy per-field key fetch. Cache var name is derived from the field so each
 # harness's key persists independently across calls in the same shell.
 local cache_var="_litellm_key_${op_field//[^A-Za-z0-9]/_}"
+# Pre-seeded key from secrets.zsh (e.g. LITELLM_KEY_OMP) skips 1Password.
+local env_var="LITELLM_KEY_${(U)op_field//[^A-Za-z0-9]/_}"
+if [[ -z "${(P)cache_var}" && -n "${(P)env_var}" ]]; then
+  typeset -g "$cache_var=${(P)env_var}"
+fi
 if [[ -z "${(P)cache_var}" ]]; then
   print -u2 "_litellm_proxy: fetching '${op_field}' key from 1Password…"
   local _key

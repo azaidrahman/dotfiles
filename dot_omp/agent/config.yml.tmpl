@@ -41,15 +41,16 @@ statusLine:
       showStaged: false
       showUnstaged: false
       showUntracked: false
-# Do not import Claude Code marketplace plugins (~/.claude/plugins/cache).
-# Their MCP servers (atlassian, todoist) need tokens that omp does not have,
-# so each start reports "MCP finished with failures". The Claude skills are
-# already off below.
+# Do not import Claude Code marketplace plugins as a provider. The provider
+# also loads their MCP servers (atlassian, todoist), which need tokens that omp
+# does not have, so each start reports "MCP finished with failures". The skills
+# of these plugins come in through skills.customDirectories below.
 disabledProviders:
   - claude-plugins
-# Keep startup context lean: don't auto-inject the whole Claude/Codex/Agents
-# skill marketplace (~20% of the window before you type). pi-native skills stay,
-# and slash-command invocation remains on for on-demand use.
+# The Claude, Codex, and Agents skill providers stay off. They pull in commands,
+# rules, hooks, and MCP servers together with the skills, which costs about 20%
+# of the context window before you type. The Claude skills come back below
+# through customDirectories, which loads the skill text only.
 skills:
   enabled: true
   enableSkillCommands: true
@@ -60,10 +61,21 @@ skills:
   enableAgentsProject: false
   enablePiUser: true
   enablePiProject: true
+  # Directories that hold Claude Code skills: ~/.claude/skills and the skills of
+  # each installed marketplace plugin. omp does not expand globs here, so
+  # list-claude-skill-dirs.sh writes the list at "chezmoi apply" time. Run
+  # "chezmoi apply" again after you install or update a plugin. The full set
+  # (72 skills) costs about 2% of the context window.
+  customDirectories:
+{{- range (output "sh" (joinPath .chezmoi.sourceDir "dot_omp/agent/executable_list-claude-skill-dirs.sh") | trim | splitList "\n" | compact) }}
+    - {{ . }}
+{{- end }}
+# omp writes this key itself after you allow the auto-QA prompt. Keep it here so
+# that omp does not ask again after "chezmoi apply".
+dev:
+  autoqaConsent: granted
 task:
   isolation:
     mode: auto
     apply: false
     merge: branch
-dev:
-  autoqaConsent: granted
