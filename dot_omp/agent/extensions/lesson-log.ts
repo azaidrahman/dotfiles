@@ -5,10 +5,11 @@
 //   message_end (user)          -> YOU
 //   message_end (assistant)     -> TUTOR (text blocks only)
 //   tool_call ask               -> one Question per entry in `questions`
-//   tool_execution_update quiz  -> Question in the shuffled display order
 //   tool_result ask             -> YOU, one line per question
-//   tool_result quiz            -> YOU (choice) then TUTOR (grade + explanation)
+//   tool_result quiz            -> Question (display order), YOU (choice), TUTOR (grade + explanation)
 //
+// omp does not send tool_execution_update to extensions, so the question is
+// written with the result.
 // Only the session that first sees the link file may write. It records
 // "omp:<sessionId>:<pid>" in ~/.config/lesson-log.session; the Claude hook
 // reads the same file and exits when the id is not its own transcript path.
@@ -163,26 +164,15 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	// `quiz` shuffles inside execute(), so wait for its first update, which
-	// carries the true display order. One write per call id.
-	const loggedQuiz = new Set<string>();
-	pi.on("tool_execution_update", async (event, ctx) => {
-		if (skip(ctx)) return;
-		const e = event as { toolName?: string; toolCallId: string; args?: { question?: string }; partialResult?: { details?: { options?: Array<{ label: string }> } } };
-		if (e.toolName !== "quiz" || loggedQuiz.has(e.toolCallId)) return;
-		const opts = e.partialResult?.details?.options;
-		if (!opts?.length) return;
-		loggedQuiz.add(e.toolCallId);
-		await append(questionBlock(e.args?.question ?? "", opts.map((o) => o.label)), ctx);
-	});
-
 	pi.on("tool_result", async (event, ctx) => {
 		if (skip(ctx)) return;
 		const e = event as {
 			toolName?: string;
 			content?: unknown;
+			input?: { question?: string };
 			details?: {
 				status?: string;
+				question?: string;
 				correct?: boolean;
 				dontKnow?: boolean;
 				correctIndices?: number[];
@@ -198,14 +188,17 @@ export default function (pi: ExtensionAPI) {
 		if (e.toolName !== "quiz") return;
 		const d = e.details ?? {};
 		if (d.status === "unavailable") {
-			// The model retries the quiz, and `tool_execution_update` writes the
+			// The model retries the quiz, and the retry's own result writes the
 			// question again, so append nothing here.
 			return;
 		}
+		const question = questionBlock(d.question ?? e.input?.question ?? "", (d.options ?? []).map((o) => o.label));
 		if (d.status === "cancelled") {
+			await append(question, ctx);
 			await append(youBlock("(no answer)"), ctx);
 			return;
 		}
+		await append(question, ctx);
 		const chosen = d.dontKnow ? "I don't know" : (d.answers ?? []).map((a) => a.label).join(", ") || "(no answer)";
 		await append(youBlock(chosen), ctx);
 		const correctLabels = (d.correctIndices ?? []).map((i) => d.options?.[i - 1]?.label ?? String(i));
