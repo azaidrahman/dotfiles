@@ -6,9 +6,12 @@
 # note as an Obsidian callout:
 #   - a user prompt              -> [!quote] YOU
 #   - assistant prose            -> [!abstract] TUTOR
-#   - an AskUserQuestion call    -> [!question] Question, with numbered options
-#   - the answer to that call    -> [!quote] YOU
-# Tool calls, tool results, and thinking blocks are not mirrored.
+#   - an AskUserQuestion call    -> one [!question] Question per question,
+#                                    each with numbered options
+#   - the answers to that call   -> one [!quote] YOU, one line per answer,
+#                                    in the same order as the questions
+# Tool calls, tool results, and thinking blocks are not mirrored. A user
+# prompt is also stripped of <system-reminder> and <skill> blocks.
 #
 # The hook keeps a cursor in ~/.config/lesson-log.cursor: the count of
 # transcript lines that it has already mirrored. Each run reads only the
@@ -47,7 +50,7 @@ callout() { # type title body
 # Strip system-injected blocks from a user prompt, then trim blank lines
 # at the start and end of the text that remains.
 strip_noise() {
-  perl -0pe 's/<system-reminder>.*?<\/system-reminder>//gs' |
+  perl -0pe 's/<system-reminder>.*?<\/system-reminder>//gs; s/<skill\b[^>]*>.*?<\/skill>//gs' |
     sed -e '/./,$!d' -e ':a' -e '/^\n*$/{$d;N;ba' -e '}'
 }
 
@@ -81,8 +84,14 @@ while IFS= read -r line; do
           text=$(printf '%s' "$item" | jq -r '.text' | sed -e '/./,$!d' -e ':a' -e '/^\n*$/{$d;N;ba' -e '}')
           [ -n "$text" ] && { callout abstract TUTOR "$text"; printf '\n'; }
         else
-          body=$(printf '%s' "$item" | jq -r '.input.questions[]? | .question, "", (.options | to_entries[] | "\(.key+1). \(.value.label)")')
-          callout question Question "$body"; printf '\n'
+          # One AskUserQuestion call can carry more than one question. Emit
+          # one Question callout per question, in order, each separated by
+          # one blank line.
+          printf '%s' "$item" | jq -c '.input.questions[]?' 2>/dev/null |
+          while IFS= read -r q; do
+            body=$(printf '%s' "$q" | jq -r '.question, "", (.options | to_entries[] | "\(.key+1). \(.value.label)")')
+            callout question Question "$body"; printf '\n'
+          done
         fi
       done > "$chunk_file"
       # Drop one trailing blank line so blocks stay separated by exactly one.

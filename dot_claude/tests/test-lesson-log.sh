@@ -46,7 +46,9 @@ printf '%s\n' "$NOTE" > "$HOME/.config/lesson-log"
 run_hook Stop
 check "first run: exit 0" "0" "$?"
 check "first run: note matches expected" "$(cat "$FIX/expected.md")" "$(cat "$NOTE")"
-check "first run: cursor is 5" "5" "$(cat "$HOME/.config/lesson-log.cursor")"
+check "first run: cursor is 8" "8" "$(cat "$HOME/.config/lesson-log.cursor")"
+check "first run: skill block stripped" "0" "$(grep -c 'internal noise' "$NOTE")"
+check "first run: skill tag stripped" "0" "$(grep -c '<skill' "$NOTE")"
 
 # 3. A second run appends nothing.
 run_hook PostToolUse

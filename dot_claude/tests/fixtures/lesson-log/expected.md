@@ -29,3 +29,22 @@ status: probing
 > graph TD
 >   A[packet] --> B[cni0]
 > ```
+
+> [!quote] YOU
+> What about multi-homing?
+
+> [!question] Question
+> Does flannel support VXLAN?
+>
+> 1. Yes
+> 2. No
+
+> [!question] Question
+> Does flannel support host-gw?
+>
+> 1. Yes
+> 2. No
+
+> [!quote] YOU
+> Yes
+> No
