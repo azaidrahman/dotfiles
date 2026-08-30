@@ -9,8 +9,10 @@ providers:
     discovery:
       type: litellm
 
+# Native Codex authenticates through OMP's one-time /login flow; the OAuth
+# state remains outside chezmoi. LiteLLM roles below retain their proxy route.
 modelRoles:
-  default: litellm/claude-sonnet-4-6
+  default: openai-codex/gpt-5.6-terra:high
   smol:    litellm/gemini-3.5-flash
   slow:    litellm/claude-opus-4-8
   plan:    litellm/claude-opus-4-8
