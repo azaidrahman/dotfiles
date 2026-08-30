@@ -93,6 +93,23 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/tag-pane-session.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/lesson-log.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/lesson-log.sh",
+            "timeout": 10
           }
         ]
       }
