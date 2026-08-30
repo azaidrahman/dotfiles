@@ -18,6 +18,32 @@ enabledModels:
   - openai-codex/gpt-5.4-mini
 composer:
   shape: rail
+statusLine:
+  preset: custom
+  separator: pipe
+  contextLine: off
+  sessionAccent: false
+  transparent: true
+  compactThinkingLevel: false
+  leftSegments:
+    - model
+    - context_pct
+    - session
+  rightSegments:
+    - path
+    - git
+  segmentOptions:
+    model:
+      showThinkingLevel: true
+    path:
+      abbreviate: true
+      maxLength: 40
+      stripWorkPrefix: true
+    git:
+      showBranch: true
+      showStaged: false
+      showUnstaged: false
+      showUntracked: false
 # Do not import Claude Code marketplace plugins (~/.claude/plugins/cache).
 # Their MCP servers (atlassian, todoist) need tokens that omp does not have,
 # so each start reports "MCP finished with failures". The Claude skills are
