@@ -25,24 +25,29 @@ export default function (pi: ExtensionAPI) {
             // ignore
         }
 
-        // 3. Claude Code Marketplaces (e.g. gtech-skills plugin tree)
-        // We'll search one level deep in the gtech-skills packages
-        const marketplacesPath = path.join(os.homedir(), ".claude/plugins/marketplaces/gtech-skills");
+        // 3. Claude Code marketplace plugins — only the ones that are enabled in
+        // ~/.claude/plugins/installed_plugins.json (keys look like
+        // "general@gtech-skills"), the same set Claude Code loads. Packages that
+        // merely exist in a marketplace checkout are skipped.
+        const pluginsRoot = path.join(os.homedir(), ".claude/plugins");
         try {
-            const packages = await fs.readdir(marketplacesPath, { withFileTypes: true });
-            for (const pkg of packages) {
-                if (pkg.isDirectory() && !pkg.name.startsWith(".")) {
-                    const skillDir = path.join(marketplacesPath, pkg.name, "skills");
-                    try {
-                        await fs.access(skillDir);
-                        pathsToReturn.push(skillDir);
-                    } catch {
-                        // This package doesn't have a skills directory
-                    }
+            const raw = await fs.readFile(path.join(pluginsRoot, "installed_plugins.json"), "utf8");
+            const installed = JSON.parse(raw) as { plugins?: Record<string, unknown> };
+            for (const key of Object.keys(installed.plugins ?? {})) {
+                const at = key.lastIndexOf("@");
+                if (at <= 0) continue;
+                const plugin = key.slice(0, at);
+                const marketplace = key.slice(at + 1);
+                const skillDir = path.join(pluginsRoot, "marketplaces", marketplace, plugin, "skills");
+                try {
+                    await fs.access(skillDir);
+                    pathsToReturn.push(skillDir);
+                } catch {
+                    // This plugin has no skills directory
                 }
             }
         } catch {
-            // No marketplaces directory found
+            // No installed_plugins.json
         }
 
         return {
