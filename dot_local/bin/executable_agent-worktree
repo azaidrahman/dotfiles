@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# Create or reuse a named, ticketless Git worktree.
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: agent-worktree <type> <slug> [--repo <path>] [--base <branch>] [--session <claude|omp>] [--no-fetch]
+
+Create or reuse branch <type>/<slug> at .worktrees/<slug>.
+Types: feat, fix, chore, docs.
+USAGE
+}
+
+die() {
+  printf 'agent-worktree: %s\n' "$*" >&2
+  exit 2
+}
+
+halt() {
+  printf 'agent-worktree: %s\n' "$*" >&2
+  exit 4
+}
+
+TYPE=${1:-}
+SLUG=${2:-}
+[ -n "$TYPE" ] && [ -n "$SLUG" ] || { usage >&2; exit 2; }
+shift 2
+
+REPO_ARG=.
+BASE=
+SESSION_AGENT=
+DO_FETCH=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --repo)
+      [ $# -ge 2 ] || die '--repo requires a path'
+      REPO_ARG=$2
+      shift 2
+      ;;
+    --base)
+      [ $# -ge 2 ] || die '--base requires a branch name'
+      BASE=$2
+      shift 2
+      ;;
+    --session)
+      [ $# -ge 2 ] || die '--session requires claude or omp'
+      SESSION_AGENT=$2
+      shift 2
+      ;;
+    --no-fetch)
+      DO_FETCH=0
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+
+case "$TYPE" in feat|fix|chore|docs) ;; *) die "bad type '$TYPE' (one of: feat fix chore docs)" ;; esac
+case "$SLUG" in
+  *[!a-z0-9-]*|*--*|-*|*-) die "bad slug '$SLUG' (use lowercase kebab-case)" ;;
+  '') die 'slug is required' ;;
+esac
+[ "${#SLUG}" -le 30 ] || die "bad slug '$SLUG' (${#SLUG} chars > 30 cap)"
+case "$SESSION_AGENT" in ''|claude|omp) ;; *) die "bad session agent '$SESSION_AGENT' (claude or omp)" ;; esac
+
+CALLER_REPO=$(git -C "$REPO_ARG" rev-parse --show-toplevel 2>/dev/null) || die "not a git repo: $REPO_ARG"
+REPO=$(git -C "$CALLER_REPO" worktree list --porcelain | awk '/^worktree / { print substr($0, 10); exit }')
+[ -n "$REPO" ] || die "cannot resolve the primary worktree"
+g() { git -C "$REPO" "$@"; }
+COMMON_DIR=$(g rev-parse --git-common-dir)
+case "$COMMON_DIR" in
+  /*) ;;
+  *) COMMON_DIR="$REPO/$COMMON_DIR" ;;
+esac
+COMMON_DIR=$(cd "$COMMON_DIR" && pwd -P)
+
+LOCK="$COMMON_DIR/agent-worktree.lock"
+LOCK_HELD=0
+release_lock() {
+  if [ "$LOCK_HELD" -eq 1 ]; then
+    rmdir "$LOCK" 2>/dev/null || true
+  fi
+}
+trap release_lock EXIT HUP INT TERM
+
+for _ in $(seq 1 60); do
+  if mkdir "$LOCK" 2>/dev/null; then
+    LOCK_HELD=1
+    break
+  fi
+  sleep 1
+done
+[ "$LOCK_HELD" -eq 1 ] || halt "timed out waiting for repository worktree lock: $LOCK"
+
+BRANCH="$TYPE/$SLUG"
+WT="$REPO/.worktrees/$SLUG"
+[ "${BRANCH##*/}" = "${WT##*/}" ] || die "internal: naming mismatch ${BRANCH##*/} != ${WT##*/}"
+
+if [ "$DO_FETCH" -eq 1 ] && g remote get-url origin >/dev/null 2>&1; then
+  g fetch --prune origin >/dev/null 2>&1 || die 'git fetch failed (check remote/network)'
+fi
+
+if [ -z "$BASE" ]; then
+  if g show-ref --verify --quiet refs/remotes/origin/develop; then
+    BASE=develop
+  else
+    BASE=$(g symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+    if [ -z "$BASE" ]; then
+      if g show-ref --verify --quiet refs/heads/develop; then
+        BASE=develop
+      elif g show-ref --verify --quiet refs/heads/main; then
+        BASE=main
+      else
+        BASE=$(g branch --show-current)
+      fi
+    fi
+  fi
+fi
+[ -n "$BASE" ] || die 'cannot resolve a base branch from a detached HEAD'
+
+if g show-ref --verify --quiet "refs/remotes/origin/$BASE"; then
+  BASE_REF="origin/$BASE"
+elif g show-ref --verify --quiet "refs/heads/$BASE"; then
+  BASE_REF="$BASE"
+else
+  die "base branch does not exist: $BASE"
+fi
+
+if g worktree list --porcelain | grep -qx "branch refs/heads/$BRANCH"; then
+  WT=$(g worktree list --porcelain | awk -v branch="branch refs/heads/$BRANCH" '/^worktree / { path=$2 } $0 == branch { print path; exit }')
+  printf 'worktree: reused %s %s\n' "$BRANCH" "$WT"
+elif [ -e "$WT" ]; then
+  halt "path exists but is not a worktree for $BRANCH: $WT (refusing to overwrite)"
+elif g show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  g worktree add "$WT" "$BRANCH" >/dev/null
+  printf 'worktree: reused %s %s\n' "$BRANCH" "$WT"
+elif g show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+  g worktree add -B "$BRANCH" "$WT" "origin/$BRANCH" >/dev/null
+  printf 'worktree: tracked-remote %s %s\n' "$BRANCH" "$WT"
+else
+  g worktree add -b "$BRANCH" "$WT" "$BASE_REF" >/dev/null
+  printf 'worktree: created %s %s\n' "$BRANCH" "$WT"
+fi
+
+if [ -n "$SESSION_AGENT" ]; then
+  command -v tmux >/dev/null 2>&1 || halt 'tmux is required for --session'
+  SESSION_NAME=${SLUG//[.:]/-}
+  if tmux has-session -t "=$SESSION_NAME" 2>/dev/null; then
+    printf 'session: already-live %s\n' "$SESSION_NAME"
+  else
+    tmux new-session -d -s "$SESSION_NAME" -c "$WT" "$SESSION_AGENT"
+    printf 'session: created %s\n' "$SESSION_NAME"
+  fi
+fi
+
+printf 'base: %s\nbranch: %s\npath: %s\n' "$BASE_REF" "$BRANCH" "$WT"

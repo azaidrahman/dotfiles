@@ -7,15 +7,12 @@ modelRoles:
   default: openai-codex/gpt-5.6-terra:high
 # Terra caps at "high" in omp; omp rewrites ":max" to ":high" on start.
 defaultThinkingLevel: high
-# Model picker allowlist. Without it omp also lists its built-in catalogs
-# (openai, google, ...) that have no credentials here. Only the LiteLLM proxy
-# models and the Codex subscription models are usable, so show only those.
+# Model picker allowlist. Only proxy models and the native Codex provider have
+# credentials here. The wildcard keeps every model that Codex makes available,
+# including new models added to the local Codex model store.
 enabledModels:
   - litellm/*
-  - openai-codex/gpt-5.6-terra
-  - openai-codex/gpt-5.6-luna
-  - openai-codex/gpt-5.5
-  - openai-codex/gpt-5.4-mini
+  - openai-codex/*
 composer:
   shape: rail
 statusLine:
@@ -63,3 +60,10 @@ skills:
   enableAgentsProject: false
   enablePiUser: true
   enablePiProject: true
+task:
+  isolation:
+    mode: auto
+    apply: false
+    merge: branch
+dev:
+  autoqaConsent: granted
