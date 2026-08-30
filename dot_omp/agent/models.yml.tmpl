@@ -8,6 +8,47 @@ providers:
     api: openai-completions
     discovery:
       type: litellm
+    modelOverrides:
+      gemini-3.5-flash:
+        cost:
+          input: 0.075
+          output: 0.30
+          cacheRead: 0.01875
+      gemini-3.7-flash:
+        cost:
+          input: 0.075
+          output: 0.30
+          cacheRead: 0.01875
+      gemini-3.1-pro-preview:
+        cost:
+          input: 1.25
+          output: 5.00
+          cacheRead: 0.3125
+      claude-sonnet-5:
+        cost:
+          input: 3.00
+          output: 15.00
+          cacheRead: 0.30
+      claude-sonnet-4-6:
+        cost:
+          input: 3.00
+          output: 15.00
+          cacheRead: 0.30
+      claude-opus-4-8:
+        cost:
+          input: 15.00
+          output: 75.00
+          cacheRead: 1.50
+      "claude-opus-4-8[1m]":
+        cost:
+          input: 15.00
+          output: 75.00
+          cacheRead: 1.50
+      "claude-haiku-4-5@20251001":
+        cost:
+          input: 0.80
+          output: 4.00
+          cacheRead: 0.08
 
 # Native Codex authenticates through OMP's one-time /login flow; the OAuth
 # state remains outside chezmoi. LiteLLM roles below retain their proxy route.
