@@ -18,6 +18,12 @@ enabledModels:
   - openai-codex/gpt-5.4-mini
 composer:
   shape: rail
+# Do not import Claude Code marketplace plugins (~/.claude/plugins/cache).
+# Their MCP servers (atlassian, todoist) need tokens that omp does not have,
+# so each start reports "MCP finished with failures". The Claude skills are
+# already off below.
+disabledProviders:
+  - claude-plugins
 # Keep startup context lean: don't auto-inject the whole Claude/Codex/Agents
 # skill marketplace (~20% of the window before you type). pi-native skills stay,
 # and slash-command invocation remains on for on-demand use.
