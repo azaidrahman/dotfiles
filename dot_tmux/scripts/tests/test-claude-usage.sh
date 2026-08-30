@@ -169,13 +169,21 @@ check "a claude pointed at the proxy is litellm" "litellm" \
   "$(classify_process "claude --resume $PROXY_ENV")"
 check "an inherited key alone is not the proxy" "claude" \
   "$(classify_process 'claude LITELLM_API_KEY=sk-x')"
-check "the pi bundle is litellm" "litellm" \
+check "the pi bundle is the combined view" "agents" \
   "$(classify_process '/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js')"
-check "a bare pi is litellm" "litellm" "$(classify_process '/opt/homebrew/bin/pi --resume')"
-check "omp on a litellm model is litellm" "litellm" \
+check "a bare pi is the combined view" "agents" "$(classify_process '/opt/homebrew/bin/pi --resume')"
+# Both harnesses switch model inside a session, so the model on the command
+# line must not change the answer: every pi and omp pane shows both budgets.
+check "omp on a litellm model is the combined view" "agents" \
   "$(classify_process 'omp --model litellm/gemini-3.5-flash')"
-check "omp on its own model is not litellm" "claude" \
+check "omp on its own model is also the combined view" "agents" \
   "$(classify_process 'omp --model gpt-5.6')"
+check "a codex pane is the codex subscription" "codex" \
+  "$(classify_process '/opt/homebrew/bin/codex --resume')"
+# The toggle covers pi and omp only. A codex pane spends the subscription
+# whatever pi is allowed to do, so it keeps its own view.
+check "the toggle leaves a codex pane alone" "codex" \
+  "$(CODEX_IN_AGENTS=0 classify_process 'codex')"
 check "a shell is not an agent"  "" "$(classify_process '-zsh')"
 check "a helper is not an agent" "" "$(classify_process 'bash /Users/x/.tmux/scripts/claude-usage.sh %9')"
 
@@ -201,7 +209,16 @@ fake_resolve() { # <root-pid> <stale-marker>
   SRC_PANE=$1 resolve_provider
 }
 check "a nested claude resolves to the subscription" "claude" "$(fake_resolve 100)"
-check "a pi pane resolves to litellm"                "litellm" "$(fake_resolve 200)"
+check "a pi pane resolves to the combined view"      "agents" "$(fake_resolve 200)"
+
+# The escape hatch: one flag drops pi and omp back to the cost view they drew
+# before the Codex section existed, for the day the ChatGPT subscription stops
+# allowing the Codex models inside pi.
+check "the toggle sends a pi pane back to litellm" "litellm" \
+  "$(CODEX_IN_AGENTS=0 fake_resolve 200)"
+check "the toggle leaves a claude pane alone"      "claude" \
+  "$(CODEX_IN_AGENTS=0 fake_resolve 100)"
+check "the toggle defaults to on" "1" "$CODEX_IN_AGENTS"
 
 # The regression this replaced: `pi` set a per-pane tmux marker and cleared it
 # on exit, but Ctrl-C aborts the zsh function before the cleanup line. The
@@ -212,6 +229,82 @@ check "no marker is read from the pane" "0" \
 
 SRC_PANE=''
 check "a pane with no agent means the claude provider" "claude" "$(resolve_provider)"
+
+# --- the codex provider : backend JSON -> canonical blob -------------------
+# The real shape of a GET on the usage endpoint, trimmed to what is read.
+CODEX_JSON='{"plan_type":"team","rate_limit":{"allowed":true,
+  "primary_window":  {"used_percent":22.7,"limit_window_seconds":18000,"reset_at":'"$(( FAKE_NOW + 7200 ))"'},
+  "secondary_window":{"used_percent":9,"limit_window_seconds":604800,"reset_at":'"$(( FAKE_NOW + 183600 ))"'}}}'
+
+blob=$(printf '%s' "$CODEX_JSON" | p_codex_normalize)
+cfield() { printf '%s\n' "$blob" | sed -n "$1p" | cut -f"$2"; }
+
+check "codex normalize gives one row per window" "2" \
+  "$(printf '%s\n' "$blob" | grep -c '^QUOTA')"
+check "codex normalize labels the session window" "Codex session" "$(cfield 1 2)"
+check "codex normalize labels the weekly window"  "Codex week"    "$(cfield 2 2)"
+check "codex normalize floors a fractional percent" "22" "$(cfield 1 3)"
+check "codex normalize keeps reset_at as an epoch" "$(( FAKE_NOW + 7200 ))" "$(cfield 1 4)"
+check "codex normalize takes the window length from the payload" "18000" "$(cfield 1 5)"
+check "codex normalize reads the weekly window length" "604800" "$(cfield 2 5)"
+
+# The window length arrives in the payload, so a label the shared helper does
+# not know still gets a pace marker.
+check "the codex labels need no window_len lookup" "1" \
+  "$(( $(window_len 'Codex session') == 18000 ))"
+
+# A dead endpoint, an expired token or an empty body must say so, never draw
+# an empty popup that looks like "no usage".
+for bad in '' 'not json' '{}' '{"rate_limit":null}'; do
+  check "codex normalize notes a bad payload: ${bad:-<empty>}" "1" \
+    "$(printf '%s' "$bad" | p_codex_normalize | grep -c '^NOTE')"
+done
+
+check "codex plan falls back when the auth file is missing" "subscription" \
+  "$(CODEX_AUTH=/nonexistent/auth.json codex_plan)"
+
+# The token must never be fetched for the tag: the popup draws the tag from
+# the cache before any network call returns.
+check "the codex tag needs no network call" "1" \
+  "$(CODEX_AUTH=/nonexistent/auth.json PROVIDER=codex bash -c "
+      source '$SCRIPT'; CODEX_AUTH=/nonexistent/auth.json; p_codex_tag" | strip | grep -c 'ChatGPT')"
+
+# --- the combined view -----------------------------------------------------
+# One blob carrying both record kinds, which is what p_agents_blob builds.
+BOTH_BLOB="QUOTA${TAB}Codex session${TAB}22${TAB}${SESSION_RESET}${TAB}18000
+MODEL${TAB}4.12${TAB}gemini-3.5-flash
+TOTAL${TAB}7d${TAB}6.00"
+
+PROVIDER=agents
+check "the agents provider picks the combined view" "both" "$(provider_hook view)"
+
+out=$(COLUMNS=149 TERM=dumb render_both "$BOTH_BLOB" "" | strip)
+check "the combined view draws the quota bar" "1" \
+  "$(printf '%s\n' "$out" | grep -c 'Codex session .* 22%')"
+check "the combined view draws the model bar" "1" \
+  "$(printf '%s\n' "$out" | grep -c 'gemini-3.5-flash .* \$4.12')"
+check "the combined view draws the totals" "1" \
+  "$(printf '%s\n' "$out" | grep -c 'Total · last 7 days .* \$6.00')"
+check "the combined view draws one header only" "1" \
+  "$(printf '%s\n' "$out" | grep -c '^  provider:')"
+check "the quota section comes before the cost section" "1" \
+  "$(( $(printf '%s\n' "$out" | grep -n 'Codex session' | cut -d: -f1) \
+     < $(printf '%s\n' "$out" | grep -n 'gemini-3.5-flash' | cut -d: -f1) ))"
+
+# A failure of one provider must not print under the other section. The blob
+# holds one NOTE and the model bars of the section that did work.
+half="NOTE${TAB}codex usage unavailable"$'\n'"MODEL${TAB}4.12${TAB}gemini-3.5-flash"
+out=$(COLUMNS=149 TERM=dumb render_both "$half" "" | strip)
+check "the note prints one time, under its own section only" "1" \
+  "$(printf '%s\n' "$out" | grep -c 'codex usage unavailable')"
+check "the working section still draws" "1" \
+  "$(printf '%s\n' "$out" | grep -c 'gemini-3.5-flash')"
+
+# The refactor must not have changed either view on its own.
+check "the quota view alone draws one header" "1" \
+  "$(PROVIDER=claude render_quota "$QUOTA_BLOB" "" | strip | grep -c '^  provider:')"
+check "the cost view alone draws one header"  "1" \
+  "$(PROVIDER=litellm render_cost "$BOTH_BLOB" "" | strip | grep -c '^  provider:')"
 
 # --- popup sizing ----------------------------------------------------------
 
@@ -225,5 +318,17 @@ rm -rf "$tmp"
 
 check "the quota popup fits a full-cap row" "149" "$USAGE_POPUP_W"
 check "the popup width is derived, not fixed" "149" "$(( ROW_FIXED_W + BAR_CAP + 2 ))"
+
+# The combined popup is as wide as a quota row and as tall as both sections.
+tmp=$(mktemp -d)
+printf 'QUOTA\ta\t1\t-\t-\nQUOTA\tb\t2\t-\t-\nMODEL\t1\tm1\nMODEL\t2\tm2\nMODEL\t3\tm3\n' \
+  > "$tmp/claude-usage.agents.cache"
+sz=$(TMPDIR="$tmp" PROVIDER=agents bash -c "source '$SCRIPT'
+  pane_root_pid() { printf ''; }
+  PROVIDER=agents; TMPDIR='$tmp'
+  printf '%dx%d' \"\$USAGE_POPUP_W\" \
+    \"\$(( \$(rows_in_cache agents QUOTA 2) * 2 + \$(rows_in_cache agents MODEL 6) + 16 ))\"")
+check "the combined popup sizes from both record kinds" "149x23" "$sz"
+rm -rf "$tmp"
 
 exit $fail

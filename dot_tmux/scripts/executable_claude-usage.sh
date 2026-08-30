@@ -3,7 +3,8 @@
 #
 # The script has three layers. Keep them separate.
 #   1. A provider fetches its own data and prints a canonical blob.
-#   2. A view renders one blob shape. There are two views: quota and cost.
+#   2. A view renders one blob shape. There are three views: quota, cost and
+#      both, which stacks a quota section over a cost section.
 #   3. The popup sizes itself from the blob that is already in the cache.
 #
 # A provider never draws, and a view never fetches. To add a subscription you
@@ -36,7 +37,15 @@
 
 set -u
 
-PROVIDERS='claude litellm'
+PROVIDERS='claude litellm codex agents'
+
+# CODEX_IN_AGENTS : 1 adds the Codex subscription quota to a pi or omp pane,
+# 0 leaves those panes on the LiteLLM cost view alone. Flip it to 0 if the
+# ChatGPT subscription stops allowing the Codex models inside pi — nothing
+# else has to change. The environment wins, so you can compare the two
+# without an edit:
+#   CODEX_IN_AGENTS=0 ~/.tmux/scripts/claude-usage.sh
+CODEX_IN_AGENTS=${CODEX_IN_AGENTS:-1}
 
 TAB=$'\t'
 c_reset=$'\033[0m'; c_dim=$'\033[2m'; c_bold=$'\033[1m'
@@ -244,14 +253,26 @@ bar() { # label pct epoch window
   fi
 }
 
-# render_quota <blob> <note> : one bar per QUOTA record. NOTE records print
-# only when no bar parsed, so an error page or a login prompt is still readable.
-render_quota() {
-  local blob=$1 note=$2 kind f2 f3 f4 f5 bars=0 notes=''
+# render_header <note> : the title and the provider tag. Every view starts
+# with it, so the combined view draws it one time and not once per section.
+render_header() {
   clear 2>/dev/null
   echo
-  printf '  %s%s%s  %s%s%s\n' "$c_bold" "$(provider_hook title)" "$c_reset" "$c_dim" "$note" "$c_reset"
+  printf '  %s%s%s  %s%s%s\n' "$c_bold" "$(provider_hook title)" "$c_reset" "$c_dim" "$1" "$c_reset"
   printf '  provider: %s\n\n' "$(provider_hook tag)"
+}
+
+# section_rule : the divider between the two sections of the combined view.
+section_rule() { printf '\n  %s%s%s\n\n' "$c_dim" "$(repeat ─ 60)" "$c_reset"; }
+
+# quota_body <blob> : one bar per QUOTA record.
+#
+# Both bodies follow one rule for NOTE records: a note prints only when its
+# section drew nothing. A note beside real bars is chatter, and a combined
+# blob holds the notes of both providers, so the rule also stops a failure of
+# one section from printing again under the other.
+quota_body() {
+  local blob=$1 kind f2 f3 f4 f5 bars=0 notes=''
   while IFS="$TAB" read -r kind f2 f3 f4 f5; do
     case "$kind" in
       QUOTA) bar "$f2" "$f3" "${f4:--}" "${f5:--}"; bars=$(( bars + 1 )) ;;
@@ -261,12 +282,15 @@ render_quota() {
   (( bars )) || printf '%s' "$notes"
 }
 
+# render_quota <blob> <note> : the quota view on its own.
+render_quota() { render_header "$2"; quota_body "$1"; }
+
 # --- the cost view -------------------------------------------------------
 
-# render_cost <blob> <note> : one bar per model, scaled against the biggest
-# spender, then the totals. NOTE records print above the bars.
-render_cost() {
-  local blob=$1 note=$2 kind f2 f3 models='' notes=''
+# cost_body <blob> : one bar per model, scaled against the biggest spender,
+# then the totals. See quota_body for how it treats a NOTE record.
+cost_body() {
+  local blob=$1 kind f2 f3 models='' notes=''
   local t_all=0 t_7d=0 t_mtd=0 t_ytd=0
   while IFS="$TAB" read -r kind f2 f3; do
     case "$kind" in
@@ -278,14 +302,10 @@ render_cost() {
     esac
   done <<< "$blob"
 
-  clear 2>/dev/null
-  echo
-  printf '  %s%s%s  %s%s%s\n' "$c_bold" "$(provider_hook title)" "$c_reset" "$c_dim" "$note" "$c_reset"
-  printf '  provider: %s\n\n' "$(provider_hook tag)"
-  [ -n "$notes" ] && printf '%s' "$notes"
-
   if [ -z "$models" ]; then
-    [ -n "$notes" ] || printf '  %sno spend recorded%s\n' "$c_dim" "$c_reset"
+    if [ -n "$notes" ]; then printf '%s' "$notes"
+    else printf '  %sno spend recorded%s\n' "$c_dim" "$c_reset"
+    fi
     return
   fi
 
@@ -310,6 +330,22 @@ render_cost() {
   printf '  %-24s %*s$%0.2f\n'          "month to date" "$bar_w" "" "${t_mtd:-0}"
   printf '  %-24s %*s$%0.2f\n'          "year to date"  "$bar_w" "" "${t_ytd:-0}"
   printf '  %s%-24s %*s$%0.2f%s\n' "$c_dim" "all-time" "$bar_w" "" "${t_all:-0}" "$c_reset"
+}
+
+# render_cost <blob> <note> : the cost view on its own.
+render_cost() { render_header "$2"; cost_body "$1"; }
+
+# --- the combined view ---------------------------------------------------
+
+# render_both <blob> <note> : the quota section over the cost section, from
+# one blob. A pi or omp pane spends against two budgets at the same time — the
+# ChatGPT subscription and the LiteLLM ledger — and the model changes inside a
+# session, so the pane shows both instead of guessing which one is live.
+render_both() {
+  render_header "$2"
+  quota_body "$1"
+  section_rule
+  cost_body "$1"
 }
 
 # --- provider : claude ---------------------------------------------------
@@ -404,6 +440,74 @@ p_litellm_blob() {
   litellm_blob "$mj" "$sj" "$lj" "$cut" "$cutm" "$cuty"
 }
 
+# --- provider : codex ----------------------------------------------------
+# The ChatGPT subscription. `codex` uses it, and so do the openai-codex/*
+# models of pi, which do not pass through the LiteLLM proxy and so leave no
+# trace in its ledger. The backend reports both limit windows in one call, so
+# the fetch is a single GET and the normalize is pure jq.
+
+CODEX_AUTH="${CODEX_AUTH:-$HOME/.codex/auth.json}"
+CODEX_USAGE_URL="${CODEX_USAGE_URL:-https://chatgpt.com/backend-api/wham/usage}"
+
+p_codex_view()  { printf 'quota'; }
+p_codex_title() { printf 'Codex usage'; }
+p_codex_tag()   { printf '\033[32mChatGPT\033[0m \033[2m(%s)\033[0m' "$(codex_plan)"; }
+
+# codex_field <jq-path> : one value out of the auth file that codex writes.
+codex_field() { jq -r "$1 // empty" "$CODEX_AUTH" 2>/dev/null; }
+
+# codex_plan : the plan behind the subscription — "team", "plus", "pro". It is
+# a claim inside the access token, so it costs no network call. The tag draws
+# before the fetch returns, which is why it cannot come from the response.
+codex_plan() {
+  local claims plan=''
+  claims=$(codex_field '.tokens.access_token' | cut -d. -f2)
+  if [ -n "$claims" ]; then
+    while (( ${#claims} % 4 )); do claims+='='; done   # a JWT drops the padding
+    plan=$(printf '%s' "$claims" | tr '_-' '/+' | base64 -d 2>/dev/null \
+      | jq -r '."https://api.openai.com/auth".chatgpt_plan_type // empty' 2>/dev/null)
+  fi
+  printf '%s' "${plan:-subscription}"
+}
+
+# The access token lives ten days and codex refreshes it on every run, so an
+# expired token is rare. Report it as a NOTE rather than refresh it here: a
+# refresh rewrites the auth file, and this popup must never race codex for it.
+p_codex_fetch() {
+  local at acc
+  at=$(codex_field '.tokens.access_token')
+  [ -n "$at" ] || return
+  acc=$(codex_field '.tokens.account_id')
+  curl -fsS -m 5 -H "Authorization: Bearer $at" -H "chatgpt-account-id: $acc" \
+    "$CODEX_USAGE_URL" 2>/dev/null
+}
+
+# The backend names the two windows primary and secondary, and gives the
+# length of each, so the label does not have to carry the window.
+p_codex_normalize() {
+  local out
+  out=$(jq -r '
+    .rate_limit // empty
+    | [ {w: .primary_window,   l: "Codex session"},
+        {w: .secondary_window, l: "Codex week"} ][]
+    | select(.w != null)
+    | "QUOTA\t\(.l)\t\(.w.used_percent // 0 | floor)\t\(.w.reset_at // "-")\t\(.w.limit_window_seconds // "-")"
+  ' 2>/dev/null)
+  if [ -n "$out" ]; then printf '%s\n' "$out"; return; fi
+  printf 'NOTE\tcodex usage unavailable — run `codex` one time to refresh the login\n'
+}
+
+# --- provider : agents ---------------------------------------------------
+# A pi or omp pane. Both harnesses reach the Vertex models through the LiteLLM
+# proxy and the GPT-5.6 models through the ChatGPT subscription, and the model
+# changes inside a session. So the pane shows both budgets. The canonical
+# format already allows this: QUOTA rows and MODEL rows can share one blob.
+
+p_agents_view()  { printf 'both'; }
+p_agents_title() { printf 'Coding agents'; }
+p_agents_tag()   { printf '%s + %s' "$(p_codex_tag)" "$(p_litellm_tag)"; }
+p_agents_blob()  { p_codex_fetch | p_codex_normalize; p_litellm_blob; }
+
 # --- provider dispatch ---------------------------------------------------
 
 # The provider is whatever the pane runs at the moment you press the key. An
@@ -440,6 +544,11 @@ process_tree_pids() {
 # the process is not an agent. The line is a command line with the
 # environment appended, which is what `ps -Eww` prints.
 #
+# `pi` and `omp` report "agents", whatever model the command line names. Both
+# switch model inside a session, so the command line at the moment you press
+# the key does not say which budget you are spending. The combined view shows
+# both instead of guessing.
+#
 # `cv` is a plain `claude` binary with ANTHROPIC_BASE_URL pointed at the
 # proxy, so the command alone cannot tell the two apart. The proxy always
 # listens on port 4000, on localhost, on onyx, or over Tailscale. Do not test
@@ -455,14 +564,12 @@ classify_process() {
   line=${line#"${line%%[![:space:]]*}"}   # drop any leading padding from ps
   bin=${line%% *}; bin=${bin##*/}
   case "$line" in
-    *pi-coding-agent*) printf 'litellm'; return ;;
+    *pi-coding-agent*) printf 'agents'; return ;;
   esac
   case "$bin" in
-    pi)  printf 'litellm' ;;
-    omp) case "$line" in
-           *' --model litellm/'*) printf 'litellm' ;;
-           *)                     printf 'claude'  ;;
-         esac ;;
+    pi)    printf 'agents' ;;
+    omp)   printf 'agents' ;;
+    codex) printf 'codex'  ;;
     claude)
       case "$line" in
         *ANTHROPIC_BASE_URL=*:4000*) printf 'litellm' ;;
@@ -484,7 +591,12 @@ resolve_provider() {
         [ "$id" = "$known" ] && found=$id
       done
     done < <(ps_table | process_tree_pids "$root")
-    [ -n "$found" ] && { printf '%s' "$found"; return; }
+    # The toggle drops a pi or omp pane back to the plain cost view, which is
+    # what it drew before the Codex section existed.
+    if [ -n "$found" ]; then
+      if [ "$found" = agents ] && [ "$CODEX_IN_AGENTS" != 1 ]; then found=litellm; fi
+      printf '%s' "$found"; return
+    fi
   fi
   printf 'claude'
 }
@@ -510,6 +622,7 @@ cache_path() { printf '%s/claude-usage.%s.cache' "${TMPDIR:-/tmp}" "$1"; }
 render_view() {
   case "$(provider_hook view)" in
     cost) render_cost "$1" "$2" ;;
+    both) render_both "$1" "$2" ;;
     *)    render_quota "$1" "$2" ;;
   esac
 }
@@ -566,11 +679,13 @@ rows_in_cache() {
 size_for() {
   SRC_PANE=$1
   PROVIDER=$(resolve_provider)
-  if [ "$(provider_hook view)" = cost ]; then
-    printf '%dx%d' "$COST_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" MODEL 6) + 13 ))"
-  else
-    printf '%dx%d' "$USAGE_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" QUOTA 3) * 2 + 8 ))"
-  fi
+  case "$(provider_hook view)" in
+    cost) printf '%dx%d' "$COST_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" MODEL 6) + 13 ))" ;;
+    both) printf '%dx%d' "$USAGE_POPUP_W" \
+            "$(( $(rows_in_cache "$PROVIDER" QUOTA 2) * 2 \
+                 + $(rows_in_cache "$PROVIDER" MODEL 6) + 16 ))" ;;
+    *)    printf '%dx%d' "$USAGE_POPUP_W" "$(( $(rows_in_cache "$PROVIDER" QUOTA 3) * 2 + 8 ))" ;;
+  esac
 }
 
 # popup_main <pane_id> <cwd> : called from the keybinding (outside any popup)
