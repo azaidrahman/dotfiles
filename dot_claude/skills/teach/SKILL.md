@@ -20,7 +20,6 @@ Edit these values to change the loop. Nothing else needs to change.
 | Max bites per strand | 6 |
 | Skip-ahead rule | 2 clean bites in a row: jump 2 bites |
 | Probe depth on a miss | 1 follow-up question |
-| Recall questions before multiple choice | all bites of the strand |
 | SRS first interval | 2 days |
 | SRS first ease | 2.5 |
 | Lessons folder | `~/vaults/Polaris/5-Workbook/Lessons` |
@@ -60,7 +59,7 @@ The learner must be able to trust the tutor. The moment you are not sure of a fa
    ```
 
    Use the tag root `tech/` for a technical topic, `life/` or `work/` otherwise. Never make a new top-level tag. Never write an em dash in the note. Never write a title heading at the top of the note.
-5. Write the absolute path of the note to `~/.config/lesson-log`. Delete `~/.config/lesson-log.cursor` if it exists. From now on the hook mirrors the session to the note.
+5. Write the absolute path of the note to `~/.config/lesson-log`. Delete `~/.config/lesson-log.cursor` and `~/.config/lesson-log.session` if they exist. From now on the hook mirrors the session to the note.
 6. Append `## Prior knowledge` to the note: the notes found, their scores, and their recorded weak spots. If nothing was found, write that the topic is new.
 
 ## Phase 1: Probe
@@ -121,14 +120,14 @@ The lesson ends when the learner says so, or when the sink node passes its check
 2. Ask one question: "What should the loop do differently next time?" Append the answer under `## Retro`. This list is the queue of edits to this skill.
 3. Set `status: done` in the frontmatter.
 4. Score the lesson 0 to 5 with the scale in `quiz-rules.md`, from the Phase 3 checks.
-5. Write `<SRS folder>/<Topic> (review).md`:
+5. Look in the SRS folder for a stub whose `target` matches the topic. If one exists, update `last_reviewed`, `next_due`, `interval`, `ease`, and `last_score`, append the new weak-spot line, and keep only the last 3 `weak_spots` entries, newest last. If none exists, create this file:
 
    ```yaml
    ---
    tags:
      - review/srs
    type: note
-   target: "[[<Topic>]]"
+   target: "[[<Source note or lesson note>]]"
    last_reviewed: <today>
    next_due: <today + SRS first interval>
    interval: <SRS first interval>
@@ -141,4 +140,6 @@ The lesson ends when the learner says so, or when the sink node passes its check
    Review stub for [[<Topic>]]. Made by the teach skill. Managed by the spaced-recall-tutor skill.
    ```
 
-6. Delete `~/.config/lesson-log` and `~/.config/lesson-log.cursor`. The hook is now off.
+   Set `target` to the `1-Notes` source note that Phase 0 found. If Phase 0 found no note, set it to the lesson note.
+
+6. Delete `~/.config/lesson-log`, `~/.config/lesson-log.cursor`, and `~/.config/lesson-log.session`. The hook is now off.
