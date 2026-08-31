@@ -35,6 +35,7 @@
              :show-timer    "~/.config/karabiner/scripts/show-timer.sh"
              :hide-timer    "killall timer-hud 2>/dev/null"
              :toggle-topbar "~/.config/karabiner/scripts/toggle-top-bar"
+             :key-search    "~/.config/karabiner/scripts/show-key-search.sh"
             }
 
 ;; BEGIN HELP-TEXT (auto-generated from config/help-text.yaml)
@@ -91,6 +92,8 @@
     [:!T#Oslash :show-l2-help :shortcut-l2 {:afterup :clear-l2-help}]
     [:!Cslash :show-l3-help :shortcut-l3 {:afterup :clear-l3-help}]
     [:!Oslash :show-ws-help nil {:afterup :clear-ws-help}]
+    ;; ctrl+shift+/ = consolidated fuzzy key search HUD (toggle)
+    [:!TSslash [:key-search]]
 
 ;; BEGIN SHORTCUT-DIRECT (auto-generated from config/shortcuts.yaml)
     [:!T#Oc    [:open "Claude"]    :shortcut-l2]   ;; l2+c → open:Claude

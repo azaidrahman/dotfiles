@@ -19,7 +19,7 @@ from lib.generator import (LAYERS, generate_app_rules, generate_layer,
                             generate_shortcut_direct_rules,
                             generate_workspace_rules, generate_help_block,
                             generate_hyper_rules, generate_hyper_help,
-                            load_hyperkeys, print_mapping)
+                            load_hyperkeys, print_mapping, generate_key_index)
 
 # -- Paths --------------------------------------------------------------------
 
@@ -164,6 +164,13 @@ if hyper_block:
 
 open(edn_path, 'w').write(edn)
 save_pool(pool_path, pool_map)
+
+# Consolidated key index for the search HUD (ctrl+shift+/)
+index_rows = generate_key_index(
+    app_sections.get('app', []), ws_entries, ws_shift_entries,
+    shortcut_sections, pool_map, hyper_data, hyper_labels)
+index_path = os.path.join(dir_path, 'data', 'keymap-index.tsv')
+open(index_path, 'w').write('\n'.join(index_rows) + '\n')
 
 # -- Summary ------------------------------------------------------------------
 

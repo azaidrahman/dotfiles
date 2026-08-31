@@ -177,6 +177,16 @@ Press `/` while in any layer to show its help overlay. Release to dismiss.
 
 Comments in YAML files create `\n`-separated sections in the help overlay.
 
+### Key search (Ctrl+Shift+/)
+
+Press Ctrl+Shift+`/` to open a fuzzy search HUD over all layers. Type to
+filter, press Esc to close. Press Ctrl+Shift+`/` again to toggle it off.
+
+The HUD reads `data/keymap-index.tsv`. The build step (`generate.py`) writes
+this file from all the layer YAML files. The launcher
+(`scripts/show-key-search.sh`) compiles `src/key-search-hud.swift` on the
+first run and after a source change.
+
 ## Adding a New Layer
 
 1. Add section to `config/shortcuts.yaml` (e.g., `l4:`)

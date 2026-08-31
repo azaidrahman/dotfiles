@@ -458,3 +458,63 @@ def generate_help_block(app_t, ws_t, layer_help_lines, hyper_help_line):
         + '}\n'
         ';; END HELP-TEXT'
     )
+
+
+# -- Consolidated key index (for the searchable key-search HUD) ---------------
+
+# Layer name -> trigger glyphs shown in the search HUD
+INDEX_TRIGGERS = {
+    'app': '⌥R',
+    'workspace': '⌥L',
+    'l1': '⇧⌥R',
+    'l2': '⌃⌥R',
+    'l3': '⌘⌥R',
+    'hyper': '⇪',
+}
+
+
+def generate_key_index(app_entries, ws_entries, ws_shift_entries,
+                       shortcut_sections, pool_map, hyper_data, hyper_labels):
+    """Build the consolidated key index for the search HUD.
+
+    Returns a list of TSV rows: layer, trigger, key, label, action.
+    """
+    rows = []
+
+    def add(layer, key, label, action):
+        rows.append((layer, INDEX_TRIGGERS[layer], key, label or '', action or ''))
+
+    for entry in app_entries:
+        key, label, extra = parse_entry(entry)
+        disp = f'⇧{key.lower()}' if key.isalpha() and key.isupper() else key
+        add('app', disp, label, extra)
+
+    for entry in ws_entries:
+        key, label, extra = parse_entry(entry)
+        add('workspace', key, label, extra)
+    for entry in ws_shift_entries:
+        key, label, extra = parse_entry(entry)
+        add('workspace', f'⇧{key}', label, extra)
+
+    for ln in sorted(LAYERS.keys()):
+        for entry in shortcut_sections.get(ln, []):
+            key, label, extra = parse_entry(entry)
+            action = extra
+            if not action:
+                slot = pool_map.get(f'{ln}:{key}')
+                if slot is not None:
+                    fkey, human_mod, _ = slot_to_combo(slot)
+                    action = f'{human_mod}{fkey.upper()} (via KM/Alfred)'
+            add(ln, key, label, action)
+
+    for section in ('hyper', 'misc'):
+        for key, mappings in (hyper_data.get(section) or {}).items():
+            for mod, action in mappings.items():
+                label = hyper_labels.get((section, key, mod), '')
+                sym = HYPER_MOD_SYMBOLS.get(mod, mod)
+                disp = f'{sym}{key}' if mod != '-' else key
+                if isinstance(action, list):
+                    action = ' '.join(str(a) for a in action)
+                add('hyper', disp, label, str(action))
+
+    return ['\t'.join(r) for r in rows]
