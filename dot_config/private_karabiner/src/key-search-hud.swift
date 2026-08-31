@@ -2,7 +2,7 @@
 //
 // Usage: key-search-hud <keymap-index.tsv>
 // The TSV comes from scripts/generate.py (columns: layer, trigger, key, label, action).
-// Type to filter, Esc (or click away) to close.
+// Type to filter, scroll or arrow keys to move, Esc (or click away) to close.
 import AppKit
 
 struct Entry {
@@ -76,18 +76,29 @@ func filtered(_ query: String) -> [Entry] {
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
-let maxRows = 18
-let font = NSFont.monospacedSystemFont(ofSize: 14, weight: .medium)
+// System font, to match the Karabiner notification overlays (the / tooltips)
+let fontSize: CGFloat = 13.5
+let rowFont = NSFont.systemFont(ofSize: fontSize)
+let keyFont = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
 let triggerColor = NSColor(red: 1.0, green: 0.75, blue: 0.35, alpha: 1.0)
 let keyColor = NSColor(red: 0.4, green: 0.8, blue: 1.0, alpha: 1.0)
 let labelColor = NSColor.white
 let actionColor = NSColor(white: 1, alpha: 0.45)
 
+let visibleRows = 18
 let lineHeight: CGFloat = 24
 let padding: CGFloat = 16
 let panelWidth: CGFloat = 680
 let searchHeight: CGFloat = 34
-let panelHeight = CGFloat(maxRows) * lineHeight + searchHeight + padding * 2 + 8
+let listHeight = CGFloat(visibleRows) * lineHeight
+let panelHeight = listHeight + searchHeight + padding * 2 + 8
+
+// Column x-offsets inside the list (system font is proportional,
+// so alignment comes from fixed positions, not space padding)
+let colTrigger: CGFloat = 0
+let colKey: CGFloat = 62
+let colLabel: CGFloat = 156
+let colAction: CGFloat = 356
 
 class KeyPanel: NSPanel {
     var didBecomeKey = false
@@ -106,7 +117,12 @@ class KeyPanel: NSPanel {
     }
 }
 
+class FlippedView: NSView {
+    override var isFlipped: Bool { true }
+}
+
 let rootView = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
+rootView.appearance = NSAppearance(named: .darkAqua)
 rootView.wantsLayer = true
 rootView.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.95).cgColor
 rootView.layer?.cornerRadius = 14
@@ -114,7 +130,7 @@ rootView.layer?.cornerRadius = 14
 let searchField = NSTextField(frame: NSRect(
     x: padding, y: panelHeight - padding - searchHeight,
     width: panelWidth - padding * 2, height: searchHeight))
-searchField.font = NSFont.monospacedSystemFont(ofSize: 17, weight: .medium)
+searchField.font = NSFont.systemFont(ofSize: 16)
 searchField.textColor = .white
 searchField.backgroundColor = NSColor(white: 0.2, alpha: 1.0)
 searchField.isBordered = false
@@ -124,44 +140,58 @@ searchField.layer?.cornerRadius = 8
 searchField.placeholderString = "search keys…"
 rootView.addSubview(searchField)
 
-let resultsView = NSView(frame: NSRect(
+let scrollView = NSScrollView(frame: NSRect(
     x: padding, y: padding,
     width: panelWidth - padding * 2,
-    height: panelHeight - padding * 2 - searchHeight - 8))
-rootView.addSubview(resultsView)
+    height: listHeight))
+scrollView.drawsBackground = false
+scrollView.hasVerticalScroller = true
+scrollView.scrollerStyle = .overlay
+scrollView.autohidesScrollers = true
+scrollView.verticalScroller?.knobStyle = .light
+scrollView.verticalScrollElasticity = .none
+
+let docView = FlippedView(frame: NSRect(x: 0, y: 0, width: scrollView.frame.width, height: 0))
+scrollView.documentView = docView
+rootView.addSubview(scrollView)
+
+func addLabel(_ text: String, font: NSFont, color: NSColor,
+              x: CGFloat, y: CGFloat, width: CGFloat) {
+    let l = NSTextField(labelWithString: text)
+    l.font = font
+    l.textColor = color
+    l.lineBreakMode = .byTruncatingTail
+    l.frame = NSRect(x: x, y: y + 3, width: width, height: lineHeight - 4)
+    docView.addSubview(l)
+}
 
 func render(_ query: String) {
-    resultsView.subviews.forEach { $0.removeFromSuperview() }
+    docView.subviews.forEach { $0.removeFromSuperview() }
     let matches = filtered(query)
-    // Reserve the last row for the "… N more" counter when results overflow
-    let shown = matches.prefix(matches.count > maxRows ? maxRows - 1 : maxRows)
+    docView.setFrameSize(NSSize(
+        width: scrollView.frame.width,
+        height: max(CGFloat(matches.count) * lineHeight, listHeight)))
 
-    for (i, e) in shown.enumerated() {
-        let attrStr = NSMutableAttributedString()
-        let trig = (e.trigger as NSString).padding(toLength: 5, withPad: " ", startingAt: 0)
-        let key = (e.key as NSString).padding(toLength: 6, withPad: " ", startingAt: 0)
-        let label = (String(e.label.prefix(18)) as NSString).padding(toLength: 20, withPad: " ", startingAt: 0)
-        attrStr.append(NSAttributedString(string: trig, attributes: [.font: font, .foregroundColor: triggerColor]))
-        attrStr.append(NSAttributedString(string: key, attributes: [.font: font, .foregroundColor: keyColor]))
-        attrStr.append(NSAttributedString(string: label, attributes: [.font: font, .foregroundColor: labelColor]))
-        attrStr.append(NSAttributedString(string: String(e.action.prefix(44)), attributes: [.font: font, .foregroundColor: actionColor]))
-
-        let row = NSTextField(labelWithAttributedString: attrStr)
-        row.frame = NSRect(
-            x: 0, y: resultsView.frame.height - CGFloat(i + 1) * lineHeight,
-            width: resultsView.frame.width, height: lineHeight)
-        resultsView.addSubview(row)
+    let listWidth = scrollView.frame.width
+    for (i, e) in matches.enumerated() {
+        let y = CGFloat(i) * lineHeight
+        addLabel(e.trigger, font: rowFont, color: triggerColor, x: colTrigger, y: y, width: colKey - colTrigger - 6)
+        addLabel(e.key, font: keyFont, color: keyColor, x: colKey, y: y, width: colLabel - colKey - 6)
+        addLabel(e.label, font: rowFont, color: labelColor, x: colLabel, y: y, width: colAction - colLabel - 6)
+        addLabel(e.action, font: rowFont, color: actionColor, x: colAction, y: y, width: listWidth - colAction)
     }
 
-    if matches.count > maxRows {
-        let more = NSTextField(labelWithString: "… \(matches.count - shown.count) more (type to narrow)")
-        more.font = font
-        more.textColor = actionColor
-        more.frame = NSRect(
-            x: 0, y: resultsView.frame.height - CGFloat(shown.count + 1) * lineHeight,
-            width: resultsView.frame.width, height: lineHeight)
-        resultsView.addSubview(more)
-    }
+    scrollView.contentView.scroll(to: .zero)
+    scrollView.reflectScrolledClipView(scrollView.contentView)
+}
+
+func scrollBy(_ dy: CGFloat) {
+    let clip = scrollView.contentView
+    let maxY = max(0, (docView.frame.height) - clip.bounds.height)
+    var y = clip.bounds.origin.y + dy
+    y = min(max(0, y), maxY)
+    clip.scroll(to: NSPoint(x: 0, y: y))
+    scrollView.reflectScrolledClipView(clip)
 }
 
 class SearchDelegate: NSObject, NSTextFieldDelegate {
@@ -169,12 +199,26 @@ class SearchDelegate: NSObject, NSTextFieldDelegate {
         render(searchField.stringValue)
     }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
-        if selector == #selector(NSResponder.cancelOperation(_:))
-            || selector == #selector(NSResponder.insertNewline(_:)) {
+        switch selector {
+        case #selector(NSResponder.cancelOperation(_:)),
+             #selector(NSResponder.insertNewline(_:)):
             NSApp.terminate(nil)
             return true
+        case #selector(NSResponder.moveDown(_:)):
+            scrollBy(lineHeight)
+            return true
+        case #selector(NSResponder.moveUp(_:)):
+            scrollBy(-lineHeight)
+            return true
+        case #selector(NSResponder.scrollPageDown(_:)):
+            scrollBy(listHeight)
+            return true
+        case #selector(NSResponder.scrollPageUp(_:)):
+            scrollBy(-listHeight)
+            return true
+        default:
+            return false
         }
-        return false
     }
 }
 let delegate = SearchDelegate()
