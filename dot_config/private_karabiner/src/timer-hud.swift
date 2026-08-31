@@ -741,17 +741,22 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
 // the index of the item, the word skip, the word back, or the word
 // timeout.
 //
-//   timer-hud pick [--select <n>] [--step "<label>"] [--back] \
+//   timer-hud pick [--select <n>] [--step "<label>"] [--back] [--search] \
 //       "<prompt>" "<item>" "<item>" ...
 //
 // --step names the step of a multi-step flow and turns on the n key,
 // which takes the highlighted item. --back turns on the p key, which
 // prints back and lets the caller show the step before this one.
+// --search turns on a fuzzy search: the letter keys type a query that
+// narrows the list, and the delete key erases it. The digit keys still
+// pick a visible row, so a search plus one digit takes an item. The
+// letter keys type in this mode, so the n and the p keys stay off.
 if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     var argIndex = 2
     var selected = 0
     var stepLabel = ""
     var canGoBack = false
+    var canSearch = false
     flags: while argIndex < CommandLine.arguments.count {
         switch CommandLine.arguments[argIndex] {
         case "--select" where argIndex + 1 < CommandLine.arguments.count:
@@ -762,6 +767,9 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
             argIndex += 2
         case "--back":
             canGoBack = true
+            argIndex += 1
+        case "--search":
+            canSearch = true
             argIndex += 1
         default:
             break flags
@@ -783,12 +791,40 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
 
     let perPage = 5
     let visible = min(perPage, items.count)
-    let pages = (items.count + perPage - 1) / perPage
+
+    // The search narrows the list to `filtered`, which holds indexes into
+    // `items`. With no query every item is in it, so a pick with no
+    // --search runs on the same model. `selected` is a position in
+    // `filtered`, and the HUD prints the item index that the position
+    // holds.
+    var query = ""
+    var filtered = Array(items.indices)
+    var pages = (filtered.count + perPage - 1) / perPage
     var page = selected / perPage
+
+    // Return how well the query matches one item, or nil for no match.
+    // A lower rank sorts first: 0 is a prefix, 1 is a substring, and 2 is
+    // a subsequence, so "ku" puts "Kubernetes" above "Haiku".
+    func matchRank(_ item: String) -> Int? {
+        if query.isEmpty { return 0 }
+        let hay = item.lowercased()
+        let needle = query.lowercased()
+        if hay.hasPrefix(needle) { return 0 }
+        if hay.contains(needle) { return 1 }
+        var next = needle.startIndex
+        for ch in hay {
+            if ch == needle[next] {
+                next = needle.index(after: next)
+                if next == needle.endIndex { return 2 }
+            }
+        }
+        return nil
+    }
 
     let panelWidth: CGFloat = 480
     let rowHeight: CGFloat = 32
-    let headArea: CGFloat = stepLabel.isEmpty ? 42 : 62
+    let searchArea: CGFloat = canSearch ? 24 : 0
+    let headArea: CGFloat = (stepLabel.isEmpty ? 42 : 62) + searchArea
     let footArea: CGFloat = 34
     let panelHeight = headArea + rowHeight * CGFloat(visible) + footArea
 
@@ -807,6 +843,17 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     head.frame = NSRect(x: 14, y: panelHeight - (stepLabel.isEmpty ? 32 : 52),
                         width: panelWidth - 28, height: 20)
     root.addSubview(head)
+
+    // The query sits under the prompt, so the user reads what the HUD
+    // searched for. An empty query shows a hint in its place.
+    let queryLabel = NSTextField(labelWithString: "")
+    queryLabel.font = hudFont(ofSize: 13, weight: .regular)
+    queryLabel.alignment = .center
+    queryLabel.lineBreakMode = .byTruncatingTail
+    queryLabel.frame = NSRect(x: 14,
+                              y: panelHeight - (stepLabel.isEmpty ? 54 : 74),
+                              width: panelWidth - 28, height: 18)
+    if canSearch { root.addSubview(queryLabel) }
 
     var rows: [NSView] = []
     var numbers: [NSTextField] = []
@@ -847,34 +894,59 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     root.addSubview(foot)
 
     func render() {
+        if canSearch {
+            queryLabel.stringValue = query.isEmpty
+                ? "type to search" : "⌕ \(query)"
+            queryLabel.textColor = query.isEmpty
+                ? hudGray(1, 0.35) : hudAccent
+        }
         for i in 0..<visible {
-            let index = page * perPage + i
-            let present = index < items.count
+            let position = page * perPage + i
+            let present = position < filtered.count
             rows[i].isHidden = !present
-            if present { labels[i].stringValue = items[index] }
-            let isSelected = present && index == selected
+            if present { labels[i].stringValue = items[filtered[position]] }
+            let isSelected = present && position == selected
             rows[i].layer?.backgroundColor = isSelected
                 ? hudAccent.withAlphaComponent(0.35).cgColor
                 : hudGray(1, 0.07).cgColor
         }
-        let shown = min(visible, items.count - page * perPage)
+        let shown = min(visible, filtered.count - page * perPage)
         var hint = "↑↓ move · ⏎ take · 1-\(max(1, shown)) jumps · esc cancels"
-        if pages > 1 {
+        if filtered.isEmpty {
+            hint = "no match · ⌫ deletes · esc cancels"
+        } else if pages > 1 {
             hint = "↑↓ move · ⏎ take · 1-\(max(1, shown)) · [ ] page \(page + 1)/\(pages) · esc"
         }
-        if !stepLabel.isEmpty {
+        if !stepLabel.isEmpty && !canSearch {
             hint += canGoBack ? " · n next · p back" : " · n next"
         }
         foot.stringValue = hint
     }
 
+    // Narrow the list to the items that match the query, best match
+    // first. The highlight goes to the top, so a search plus return
+    // takes the best match.
+    func refilter() {
+        let ranked = items.indices.compactMap { i in
+            matchRank(items[i]).map { (index: i, rank: $0) }
+        }
+        filtered = ranked
+            .sorted { $0.rank == $1.rank ? $0.index < $1.index : $0.rank < $1.rank }
+            .map { $0.index }
+        pages = (filtered.count + perPage - 1) / perPage
+        selected = 0
+        page = 0
+        render()
+    }
+
     // The highlighted item is the answer. The flash marks the choice, so
     // the user sees which row the HUD took.
     func take() {
+        guard selected < filtered.count else { return }
         let row = selected % perPage
         rows[row].layer?.backgroundColor = hudAccent.cgColor
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            finish("\(selected)")
+            finish("\(filtered[selected])")
         }
     }
 
@@ -900,23 +972,29 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     }
 
     NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-        // 53 is escape, 123 is the left arrow, 124 is the right arrow,
-        // 125 is the down arrow, 126 is the up arrow, 36 is return.
+        // 53 is escape, 51 is delete, 123 is the left arrow, 124 is the
+        // right arrow, 125 is the down arrow, 126 is the up arrow, 36 is
+        // return.
         if event.keyCode == 53 {
             finish("skip")
         }
         let chars = event.charactersIgnoringModifiers ?? ""
 
         // n takes the highlighted item and p leaves for the step before
-        // this one. Both keys work only in a multi-step flow, so a plain
-        // pick keeps its old keys.
-        if !stepLabel.isEmpty {
+        // this one. Both keys work only in a multi-step flow with no
+        // search, because a search needs every letter for the query.
+        if !stepLabel.isEmpty && !canSearch {
             if chars == "n" { take(); return nil }
             if chars == "p" && canGoBack { finish("back") }
         }
 
+        if canSearch && event.keyCode == 51 {
+            if !query.isEmpty { query.removeLast(); refilter() }
+            return nil
+        }
+
         if event.keyCode == 125 {
-            if selected < items.count - 1 { selected += 1; page = selected / perPage; render() }
+            if selected < filtered.count - 1 { selected += 1; page = selected / perPage; render() }
             return nil
         }
         if event.keyCode == 126 {
@@ -937,17 +1015,29 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
             return nil
         }
 
-        guard chars.count == 1, let digit = Int(chars),
-              digit >= 1, digit <= visible
-        else { return nil }
+        if let digit = Int(chars), chars.count == 1,
+           digit >= 1, digit <= visible {
+            let position = page * perPage + (digit - 1)
+            guard position < filtered.count else { return nil }
 
-        let index = page * perPage + (digit - 1)
-        guard index < items.count else { return nil }
+            selected = position
+            rows[digit - 1].layer?.backgroundColor = hudAccent.cgColor
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                finish("\(filtered[position])")
+            }
+            return nil
+        }
 
-        selected = index
-        rows[digit - 1].layer?.backgroundColor = hudAccent.cgColor
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            finish("\(index)")
+        // Every other printable key types into the query. The digit keys
+        // stay pickers, so a search plus one digit takes an item.
+        if canSearch, chars.count == 1,
+           event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+           let ch = chars.first, !ch.isNewline,
+           ch.isLetter || ch.isNumber || ch.isWhitespace
+               || ch.isPunctuation || ch.isSymbol {
+            query.append(ch)
+            refilter()
+            return nil
         }
         return nil
     }

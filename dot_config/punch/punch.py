@@ -293,13 +293,15 @@ def parse_pick(out: str, options: list[str]):
 
 
 def choose_hud(prompt: str, options: list[str], select: int = 0,
-               step: str = "", back: bool = False):
+               step: str = "", back: bool = False, search: bool = False):
     """Show the HUD list picker. Return the choice, BACK, or None."""
     args = [str(HUD), "pick", "--select", str(select)]
     if step:
         args += ["--step", step]
     if back:
         args.append("--back")
+    if search:
+        args.append("--search")
     r = subprocess.run(args + [prompt, *options],
                        capture_output=True, text=True, timeout=300)
     if r.returncode != 0:
@@ -308,16 +310,17 @@ def choose_hud(prompt: str, options: list[str], select: int = 0,
 
 
 def choose(prompt: str, options: list[str], select: int = 0,
-           step: str = "", back: bool = False):
+           step: str = "", back: bool = False, search: bool = False):
     """Ask the user to choose one option.
 
-    The HUD answers on one key press. A machine with no HUD binary falls
-    back to the native picker, which has no step keys. There the step
-    label goes into the prompt and a cancel ends the flow.
+    The HUD answers on one key press. With search on, the letter keys
+    narrow the list before the pick. A machine with no HUD binary falls
+    back to the native picker, which has no step keys and no search.
+    There the step label goes into the prompt and a cancel ends the flow.
     """
     if HUD.exists():
         try:
-            return choose_hud(prompt, options, select, step, back)
+            return choose_hud(prompt, options, select, step, back, search)
         except Exception as e:
             log.warning("the pick HUD failed: %s", e)
     return choose_native(f"{step} — {prompt}" if step else prompt, options)
@@ -385,15 +388,17 @@ def ask_topic(current=None):
     """Ask which topic to punch. Return the topic, or None on cancel.
 
     This is step 1, so there is no step to go back to and the p key stays
-    off. A new topic that the user leaves with escape brings back the
-    list of topics.
+    off. The pick has search on, so the letter keys narrow the topics and
+    one digit takes the match. A new topic that the user leaves with
+    escape brings back the list of topics.
     """
     step = step_label(1, [])
     while True:
         options = read_topics() + ["other…"]
         recent = current or last_topic()
         select = options.index(recent) if recent in options else 0
-        topic = choose("What are you punching?", options, select, step)
+        topic = choose("What are you punching?", options, select, step,
+                       search=True)
         if topic is None or topic is BACK:
             return None
         if topic != "other…":
