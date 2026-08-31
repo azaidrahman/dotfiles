@@ -183,7 +183,10 @@ Press Ctrl+Shift+`/` to open a fuzzy search HUD over all layers. Type to
 filter, press Esc to close. Press Ctrl+Shift+`/` again to toggle it off.
 
 The HUD reads `data/keymap-index.tsv`. The build step (`generate.py`) writes
-this file from all the layer YAML files. The launcher
+this file from all the layer YAML files and from `config/extras.yaml`.
+The extras file lists the hand-written bindings from `karabiner.base.edn`.
+It is for the search index only — it does not generate rules. When you add
+a hand-written rule to `karabiner.base.edn`, mirror it in `extras.yaml`. The launcher
 (`scripts/show-key-search.sh`) compiles `src/key-search-hud.swift` on the
 first run and after a source change.
 

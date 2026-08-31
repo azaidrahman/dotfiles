@@ -1,0 +1,36 @@
+# Hand-written bindings, for the key search HUD only.
+# Format: combo | label | description
+#
+# This file does NOT generate rules. The rules live in karabiner.base.edn
+# (outside the BEGIN/END markers). When you add a hand-written rule there,
+# mirror it here so the key search HUD (caps+? / ctrl+shift+/) can find it.
+
+extras:
+  # Layer triggers
+  - ⌥R hold | app layer | hold Right Option = app launcher
+  - ⌥L hold | workspace | hold Left Option = aerospace layer
+  - ⇧⌥R hold | l1 layer | Left Shift + Right Option = shortcut layer 1
+  - ⌃⌥R hold | l2 layer | Left Ctrl + Right Option = shortcut layer 2
+  - ⌘⌥R hold | l3 layer | Left Cmd + Right Option = shortcut layer 3
+  - ⇪ hold | hyper | CapsLock held = Hyper layer
+
+  # Taps and double-taps
+  - ⇪ tap | esc | CapsLock tap = Escape
+  - tab hold | ctrl | Tab held = Ctrl, tap = Tab
+  - ⌥R ⌥R | time | double-tap Right Option = time HUD
+  - ⇧⌥R 2x | timer | double-tap Shift+Right Option = timer HUD
+  - \ \ | notif centre | double-tap backslash = Notification Centre
+
+  # Hyper shell commands (rules in base.edn, not hyperkeys.yaml)
+  - ⇪t | top bar | toggle mouse to top of screen
+  - ⇪space | lang | language switch (ctrl+space)
+
+  # Left Option layer one-offs
+  - ⌥L, | vol- | volume down (SoundSource on aqua)
+  - ⌥L. | vol+ | volume up (SoundSource on aqua)
+  - ⌥L] | next app | cmd+tab
+  - ⌥L[ | prev app | cmd+shift+tab
+
+  # Help
+  - layer / | layer help | hold a layer, press / = that layer's overlay
+  - ⇪? | key search | this HUD (also ctrl+shift+/)

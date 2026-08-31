@@ -29,6 +29,7 @@ app_path = os.path.join(config, 'app.yaml')
 yaml_path = os.path.join(config, 'help-text.yaml')
 shortcuts_path = os.path.join(config, 'shortcuts.yaml')
 hyperkeys_path = os.path.join(config, 'hyperkeys.yaml')
+extras_path = os.path.join(config, 'extras.yaml')
 pool_path = os.path.join(dir_path, 'data', 'fkey-pool.json')
 edn_path = os.path.join(dir_path, 'karabiner.edn')
 
@@ -40,6 +41,7 @@ ws_sections = parse_yaml(yaml_path)
 shortcut_sections = parse_yaml(shortcuts_path) if os.path.exists(shortcuts_path) else {}
 shortcut_grouped = parse_yaml_grouped(shortcuts_path) if os.path.exists(shortcuts_path) else {}
 pool_map = load_pool(pool_path)
+extras_sections = parse_yaml(extras_path) if os.path.exists(extras_path) else {}
 
 edn = open(edn_path).read()
 
@@ -168,7 +170,8 @@ save_pool(pool_path, pool_map)
 # Consolidated key index for the search HUD (ctrl+shift+/)
 index_rows = generate_key_index(
     app_sections.get('app', []), ws_entries, ws_shift_entries,
-    shortcut_sections, pool_map, hyper_data, hyper_labels)
+    shortcut_sections, pool_map, hyper_data, hyper_labels,
+    extras_sections.get('extras', []))
 index_path = os.path.join(dir_path, 'data', 'keymap-index.tsv')
 open(index_path, 'w').write('\n'.join(index_rows) + '\n')
 

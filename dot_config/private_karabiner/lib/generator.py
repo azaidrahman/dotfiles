@@ -474,7 +474,8 @@ INDEX_TRIGGERS = {
 
 
 def generate_key_index(app_entries, ws_entries, ws_shift_entries,
-                       shortcut_sections, pool_map, hyper_data, hyper_labels):
+                       shortcut_sections, pool_map, hyper_data, hyper_labels,
+                       extras_entries=()):
     """Build the consolidated key index for the search HUD.
 
     Returns a list of TSV rows: layer, trigger, key, label, action.
@@ -516,5 +517,10 @@ def generate_key_index(app_entries, ws_entries, ws_shift_entries,
                 if isinstance(action, list):
                     action = ' '.join(str(a) for a in action)
                 add('hyper', disp, label, str(action))
+
+    # Hand-written base.edn bindings, declared in config/extras.yaml
+    for entry in extras_entries:
+        combo, label, extra = parse_entry(entry)
+        rows.append(('extra', '', combo, label or '', extra or ''))
 
     return ['\t'.join(r) for r in rows]

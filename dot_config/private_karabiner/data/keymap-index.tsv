@@ -112,3 +112,22 @@ hyper	⇪	0	ice bar	!QWER0
 hyper	⇪	q	mouseless freekey (hold)	!QWERq
 hyper	⇪	⌘spacebar	emoji	!TCspacebar
 hyper	⇪	escape	caps	!Tcaps_lock
+extra		⌥R hold	app layer	hold Right Option = app launcher
+extra		⌥L hold	workspace	hold Left Option = aerospace layer
+extra		⇧⌥R hold	l1 layer	Left Shift + Right Option = shortcut layer 1
+extra		⌃⌥R hold	l2 layer	Left Ctrl + Right Option = shortcut layer 2
+extra		⌘⌥R hold	l3 layer	Left Cmd + Right Option = shortcut layer 3
+extra		⇪ hold	hyper	CapsLock held = Hyper layer
+extra		⇪ tap	esc	CapsLock tap = Escape
+extra		tab hold	ctrl	Tab held = Ctrl, tap = Tab
+extra		⌥R ⌥R	time	double-tap Right Option = time HUD
+extra		⇧⌥R 2x	timer	double-tap Shift+Right Option = timer HUD
+extra		\ \	notif centre	double-tap backslash = Notification Centre
+extra		⇪t	top bar	toggle mouse to top of screen
+extra		⇪space	lang	language switch (ctrl+space)
+extra		⌥L,	vol-	volume down (SoundSource on aqua)
+extra		⌥L.	vol+	volume up (SoundSource on aqua)
+extra		⌥L]	next app	cmd+tab
+extra		⌥L[	prev app	cmd+shift+tab
+extra		layer /	layer help	hold a layer, press / = that layer's overlay
+extra		⇪?	key search	this HUD (also ctrl+shift+/)
