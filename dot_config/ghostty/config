@@ -111,6 +111,24 @@ macos-icon = official
 background-opacity = 1
 
 background-blur = true
+# Some programs write text in a color that is almost the same as the background.
+# The text then disappears. Two examples on this machine:
+#   - The ghostty-theme file sets color 0 to #0D1116 and the background to
+#     #002b36. The contrast ratio is 1.27:1.
+#   - The omp agent draws code fence markers in #2a3038 on #0f1216. The contrast
+#     ratio is 1.41:1. The program assumes a pure black background.
+#
+# Ghostty compares the text color to the background color of the same cell. If
+# the ratio is less than the value below, Ghostty makes the text lighter when it
+# draws the cell. This repairs every program at one time. You do not need to
+# change the theme of each program.
+#
+# A ratio of 3 is the WCAG AA level for large text. Use 4.5 if text is still too
+# dark. Use 2 if dim parts of the interface look too bright.
+#
+# Ghostty does not change a cell when the text color and the background color are
+# the same. Programs use that trick to hide text, for example a password prompt.
+minimum-contrast = 3
 
 unfocused-split-opacity = 0.2
 # keybind = shift+enter=text:\x1b\r
