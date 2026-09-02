@@ -1,0 +1,153 @@
+#compdef twg
+#
+# Completion for the TWG CLI (Atlassian Teamwork Graph).
+#
+# twg ships no `twg completion zsh`, so this file builds the completion from
+# the CLI's own `--help` output. The help text is the commander.js layout:
+#
+#   Options:                     <- section heading, no indent
+#     -o, --output <format>  ... <- entry, exactly two spaces of indent
+#   Commands:                    <- section heading; the root help uses names
+#     jira                   ...    like "Native Product Commands"
+#
+# The parser keeps only lines with exactly two spaces of indent, so wrapped
+# description lines (which are indented much deeper) are ignored.
+#
+# Each help page is cached under $XDG_CACHE_HOME/twg/completion. A cache file
+# is stale when the twg binary is newer than the file. To clear the cache:
+#   rm -rf ~/.cache/twg/completion
+
+# Print the parsed help for one command path ($@ = the path, empty = root).
+# Output is one record per line:
+#   C<TAB>name<TAB>description            a subcommand (one line per alias)
+#   O<TAB>flag<TAB>kind<TAB>arg<TAB>desc  an option; kind is none|req|opt
+_twg_help() {
+    local bin cache key file
+    bin=${commands[twg]}
+    [[ -n $bin ]] || return 1
+
+    key=${(j:-:)@}
+    [[ -n $key ]] || key=_root
+    key=${key//\//_}
+    cache=${XDG_CACHE_HOME:-$HOME/.cache}/twg/completion
+    file=$cache/$key
+
+    if [[ ! -f $file || $bin -nt $file ]]; then
+        [[ -d $cache ]] || mkdir -p $cache
+        twg "$@" --help 2>/dev/null | awk '
+            # An unindented, non-empty line starts a new section.
+            /^[^ \t]/ { section = $0; next }
+
+            # Keep only entries indented by exactly two spaces.
+            !/^  [^ ]/ { next }
+
+            {
+                line = substr($0, 3)
+                n = split(line, part, /  +/)
+                desc = ""
+                for (i = 2; i <= n; i++) desc = desc (desc == "" ? "" : " ") part[i]
+                gsub(/^[ \t]+|[ \t]+$/, "", desc)
+            }
+
+            section ~ /^Options/ {
+                spec = part[1]
+                kind = "none"; arg = ""
+                if (match(spec, /<[^>]+>/)) {
+                    kind = "req"; arg = substr(spec, RSTART + 1, RLENGTH - 2)
+                } else if (match(spec, /\[[^]]+\]/)) {
+                    kind = "opt"; arg = substr(spec, RSTART + 1, RLENGTH - 2)
+                }
+                sub(/[ \t]*[<[].*$/, "", spec)
+                nf = split(spec, flag, /,[ \t]*/)
+                for (i = 1; i <= nf; i++) {
+                    gsub(/^[ \t]+|[ \t]+$/, "", flag[i])
+                    if (flag[i] ~ /^-/)
+                        print "O\t" flag[i] "\t" kind "\t" arg "\t" desc
+                }
+                next
+            }
+
+            section ~ /[Cc]ommands/ {
+                name = part[1]
+                sub(/[ \t].*$/, "", name)          # drop "[options] <args>"
+                nn = split(name, alias, "|")
+                for (i = 1; i <= nn; i++)
+                    if (alias[i] ~ /^[a-z][a-z0-9._-]*$/)
+                        print "C\t" alias[i] "\t" desc
+                next
+            }
+        ' > $file.$$ 2>/dev/null && mv -f $file.$$ $file || { rm -f $file.$$; return 1 }
+    fi
+
+    cat $file 2>/dev/null
+}
+
+# Parse the records of one help page into $subcmds and $opt_specs. The caller
+# declares both arrays. Flags already present are skipped, so the level's own
+# help wins over the inherited global options.
+#
+# With -o, only the options are taken (used to inherit the global options).
+_twg_parse() {
+    local line kind flag arg desc name opts_only=0
+    if [[ $1 == -o ]]; then opts_only=1; shift; fi
+
+    for line in ${(f)"$(_twg_help "$@")"}; do
+        case ${line[1]} in
+            C)
+                (( opts_only )) && continue
+                name=${${(s:	:)line}[2]}
+                desc=${${(s:	:)line}[3]}
+                # _describe reads "name:description", so ':' must go.
+                subcmds+=("${name}:${desc//:/ -}")
+                ;;
+            O)
+                flag=${${(s:	:)line}[2]}
+                kind=${${(s:	:)line}[3]}
+                arg=${${(s:	:)line}[4]}
+                desc=${${(s:	:)line}[5]}
+                (( ${+seen_flags[$flag]} )) && continue
+                seen_flags[$flag]=1
+                # Square brackets delimit the description, ':' delimits fields.
+                desc=${desc//[\[\]]/}
+                desc=${desc//:/ -}
+                [[ -n $arg ]] || arg=value
+                case $kind in
+                    req) opt_specs+=("${flag}[${desc}]:${arg}:") ;;
+                    opt) opt_specs+=("${flag}[${desc}]::${arg}:") ;;
+                    *)   opt_specs+=("${flag}[${desc}]") ;;
+                esac
+                ;;
+        esac
+    done
+}
+
+# Complete one level of the command tree. $@ = the command path so far.
+_twg_level() {
+    local -a subcmds opt_specs args
+    local -A seen_flags
+    local state
+
+    _twg_parse "$@"
+
+    # The global options (-o, --select, ...) are accepted at every level, but
+    # only the root help lists them. Add them to every deeper level.
+    (( $# )) && _twg_parse -o
+
+    args=($opt_specs)
+    if (( ${#subcmds} )); then
+        args+=('1: :->subcmd' '*:: :->rest')
+    else
+        args+=('*: :_default')
+    fi
+
+    _arguments -C -s $args && return 0
+
+    case $state in
+        subcmd) _describe -t commands 'twg command' subcmds ;;
+        rest)   _twg_level "$@" "${words[1]}" ;;
+    esac
+}
+
+_twg() { _twg_level }
+
+_twg "$@"
