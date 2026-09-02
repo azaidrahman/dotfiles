@@ -35,9 +35,10 @@ HUD = Path.home() / ".config/karabiner/scripts/timer-hud"
 # HUD closes at once.
 RESYNC_SCRIPT = Path(__file__).with_name("resync.py")
 
-# The two rows of step 1 that are not a topic.
+# The row of step 1 that is not a topic.
 OTHER = "other…"
-RESYNC = "resync…"
+# The HUD prints this token when the user holds control and presses r.
+RESYNC_KEY = "r=resync"
 
 # The distraction dialog closes itself after this many seconds, so a timer
 # that rings at an empty desk never blocks the next session.
@@ -60,6 +61,17 @@ class _Back:
 
 # One shared value, so a caller can test the answer with `is BACK`.
 BACK = _Back()
+
+
+class _Resync:
+    """The answer of a pick that the user left with the resync key."""
+
+    def __repr__(self) -> str:
+        return "RESYNC"
+
+
+# One shared value, so a caller can test the answer with `is RESYNC`.
+RESYNC = _Resync()
 
 
 def step_label(number: int, chosen: list[str]) -> str:
@@ -289,10 +301,13 @@ def parse_pick(out: str, options: list[str]):
     The HUD prints the index of the option. It prints skip when the user
     cancels, and timeout when nobody answers. Both give no choice, because
     a session must never start on its own. It prints back when the user
-    presses the p key, which asks for the step before this one.
+    presses the p key, which asks for the step before this one. It prints
+    resync when the user holds control and presses r.
     """
     if out.strip() == "back":
         return BACK
+    if out.strip() == "resync":
+        return RESYNC
     try:
         index = int(out.strip())
     except ValueError:
@@ -301,7 +316,8 @@ def parse_pick(out: str, options: list[str]):
 
 
 def choose_hud(prompt: str, options: list[str], select: int = 0,
-               step: str = "", back: bool = False, search: bool = False):
+               step: str = "", back: bool = False, search: bool = False,
+               ctrl_key: str = ""):
     """Show the HUD list picker. Return the choice, BACK, or None."""
     args = [str(HUD), "pick", "--select", str(select)]
     if step:
@@ -310,6 +326,8 @@ def choose_hud(prompt: str, options: list[str], select: int = 0,
         args.append("--back")
     if search:
         args.append("--search")
+    if ctrl_key:
+        args += ["--ctrl-key", ctrl_key]
     r = subprocess.run(args + [prompt, *options],
                        capture_output=True, text=True, timeout=300)
     if r.returncode != 0:
@@ -318,17 +336,20 @@ def choose_hud(prompt: str, options: list[str], select: int = 0,
 
 
 def choose(prompt: str, options: list[str], select: int = 0,
-           step: str = "", back: bool = False, search: bool = False):
+           step: str = "", back: bool = False, search: bool = False,
+           ctrl_key: str = ""):
     """Ask the user to choose one option.
 
     The HUD answers on one key press. With search on, the letter keys
     narrow the list before the pick. A machine with no HUD binary falls
-    back to the native picker, which has no step keys and no search.
-    There the step label goes into the prompt and a cancel ends the flow.
+    back to the native picker, which has no step keys, no search, and no
+    control keys. There the step label goes into the prompt and a cancel
+    ends the flow.
     """
     if HUD.exists():
         try:
-            return choose_hud(prompt, options, select, step, back, search)
+            return choose_hud(prompt, options, select, step, back, search,
+                              ctrl_key)
         except Exception as e:
             log.warning("the pick HUD failed: %s", e)
     return choose_native(f"{step} — {prompt}" if step else prompt, options)
@@ -424,20 +445,20 @@ def ask_topic(current=None):
     one digit takes the match. A new topic that the user leaves with
     escape brings back the list of topics.
 
-    The last row starts a resync instead of a session. A resync that
+    Control and r start a resync instead of a session. A resync that
     runs ends the flow, because a resync is not a punch. A refused
     resync brings back the list of topics.
     """
     step = step_label(1, [])
     while True:
-        options = read_topics() + [OTHER, RESYNC]
+        options = read_topics() + [OTHER]
         recent = current or last_topic()
         select = options.index(recent) if recent in options else 0
         topic = choose("What are you punching?", options, select, step,
-                       search=True)
+                       search=True, ctrl_key=RESYNC_KEY)
         if topic is None or topic is BACK:
             return None
-        if topic == RESYNC:
+        if topic is RESYNC:
             if start_resync():
                 return None
             continue

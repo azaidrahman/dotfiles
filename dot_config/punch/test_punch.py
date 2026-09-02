@@ -137,7 +137,7 @@ if __name__ == "__main__":
     exit(0 if failed == 0 else 1)
 
 
-# --- the resync row of step 1 ---
+# --- the resync key of step 1 ---
 
 def _topic_flow(monkeypatch, picks, started=True):
     """Drive ask_topic with canned picks. Return the answer and the starts."""
@@ -145,26 +145,43 @@ def _topic_flow(monkeypatch, picks, started=True):
     picks, starts = list(picks), []
     monkeypatch.setattr(punch, "read_topics", lambda: list(OPTIONS))
     monkeypatch.setattr(punch, "last_topic", lambda: None)
-    monkeypatch.setattr(punch, "choose",
-                        lambda *a, **k: picks.pop(0))
+    monkeypatch.setattr(punch, "choose", lambda *a, **k: picks.pop(0))
     monkeypatch.setattr(punch, "start_resync",
                         lambda: (starts.append(True), started)[1])
     return punch.ask_topic(), starts
 
 
-def test_the_resync_row_ends_the_flow_when_it_starts(monkeypatch):
+def test_the_resync_token_reads_as_the_resync_answer():
+    from punch import RESYNC
+    assert parse_pick("resync\n", OPTIONS) is RESYNC
+
+
+def test_the_resync_row_is_gone_from_the_list(monkeypatch):
     import punch
-    answer, starts = _topic_flow(monkeypatch, [punch.RESYNC], started=True)
+    seen = []
+    monkeypatch.setattr(punch, "read_topics", lambda: list(OPTIONS))
+    monkeypatch.setattr(punch, "last_topic", lambda: None)
+
+    def spy(prompt, options, *a, **k):
+        seen.append(list(options))
+        return options[0]
+
+    monkeypatch.setattr(punch, "choose", spy)
+    punch.ask_topic()
+    assert seen[0] == OPTIONS + [punch.OTHER]
+
+
+def test_the_resync_key_ends_the_flow_when_it_starts(monkeypatch):
+    from punch import RESYNC
+    answer, starts = _topic_flow(monkeypatch, [RESYNC], started=True)
     assert starts == [True]
     assert answer is None
 
 
 def test_a_refused_resync_brings_back_the_list_of_topics(monkeypatch):
-    # A stray pick must not end the punch. The next pick is a topic, and
-    # ask_topic gives it back.
-    import punch
-    answer, starts = _topic_flow(monkeypatch, [punch.RESYNC, "Go"],
-                                 started=False)
+    # A resync that the user refuses must not end the punch.
+    from punch import RESYNC
+    answer, starts = _topic_flow(monkeypatch, [RESYNC, "Go"], started=False)
     assert starts == [True]
     assert answer == "Go"
 
