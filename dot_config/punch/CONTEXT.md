@@ -43,6 +43,13 @@ _Avoid_: focus score, quality, rating
 How a session ended. The value is `completed` or `cancelled`.
 _Avoid_: state, result, outcome
 
+**Resync**:
+The job that brings the machine back to the chezmoi source. It clears
+the script state, so every chezmoi hook runs again. Step 1 offers it as
+a row. It is not a session, and it is not the `reset` of an open
+session.
+_Avoid_: reset, sync, update, repair
+
 **HUD**:
 The Swift program that shows every prompt. It reads one key press. The user
 never needs the mouse.
