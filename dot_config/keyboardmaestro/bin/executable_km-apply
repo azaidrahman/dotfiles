@@ -30,6 +30,17 @@ def main() -> int:
         file_uids.add(d["UID"])
         macro_dicts.append((path.name, d))
 
+    # Two files with one UID are the same macro to Keyboard Maestro, so
+    # the import of the last one silently replaces the first. Stop before
+    # any write, because a partial import is harder to undo than a stop.
+    duplicates = kmlib.find_duplicate_uids(macro_dicts)
+    if duplicates:
+        for uid, names in sorted(duplicates.items()):
+            print(f"error: {uid} is claimed by {', '.join(names)}", file=sys.stderr)
+        print("error: give each macro its own UID, or delete the stale file",
+              file=sys.stderr)
+        return 1
+
     live = kmlib.live_macros()
 
     # Delete-then-import each managed macro (import with an existing UID
