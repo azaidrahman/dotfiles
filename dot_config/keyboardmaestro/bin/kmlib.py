@@ -58,6 +58,24 @@ def read_macro_file(path: Path) -> dict:
     return data
 
 
+def find_duplicate_uids(macro_files: list) -> dict:
+    """Find each UID that more than one macro file claims.
+
+    Take (filename, macro dict) pairs. Return a map of the repeated UID
+    to the sorted names of the files that claim it. An empty map means
+    every file has its own UID.
+
+    Keyboard Maestro keys a macro by its UID, so two files with one UID
+    are the same macro. An import of the second one replaces the first,
+    and the file that the loop reads last wins. The caller must stop
+    before it writes, because the result is silent and wrong.
+    """
+    by_uid = {}
+    for name, macro in macro_files:
+        by_uid.setdefault(macro["UID"], []).append(name)
+    return {uid: sorted(names) for uid, names in by_uid.items() if len(names) > 1}
+
+
 def wrap_in_group(macro_dicts: list) -> bytes:
     group = {
         "Activate": "Normal",

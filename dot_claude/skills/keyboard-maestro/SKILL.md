@@ -13,14 +13,14 @@ Keyboard Maestro macros in the **Chezmoi-Managed** group are file-managed, one m
 
 ## Where things live
 
-- **Edit here (chezmoi source):** `dot_config/keyboardmaestro/macros/*.kmmacros`
+- **Edit here (chezmoi source):** `dot_config/keyboardmaestro/exact_macros/*.kmmacros`
 - **Deployed:** `~/.config/keyboardmaestro/macros/*.kmmacros`
 - Each file is a single macro as a plist `dict`. The filename is a cosmetic kebab-case slug for humans — renaming the file does nothing to Keyboard Maestro. The `UID` key inside the plist is what actually identifies the macro.
 - Macro group: **"Chezmoi-Managed"**. Only macros in this group are file-managed; macros elsewhere are untouched by any of this tooling. The group's UID differs per machine — `km-apply` looks it up by name at runtime (`kmlib.group_uid()`) rather than hardcoding one, and creates the group automatically on a machine where it doesn't exist yet.
 
 ## Edit flow (chezmoi source → live)
 
-1. Edit the XML in the chezmoi source (`dot_config/keyboardmaestro/macros/<slug>.kmmacros`).
+1. Edit the XML in the chezmoi source (`dot_config/keyboardmaestro/exact_macros/<slug>.kmmacros`).
 2. `chezmoi apply` — this triggers a `run_onchange` hook that runs `~/.config/keyboardmaestro/bin/km-apply` automatically, which deletes the old macro (by UID) and re-imports the new one.
 3. Verify the change landed:
    ```bash

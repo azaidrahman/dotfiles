@@ -1,5 +1,5 @@
 #!/bin/bash
-# Macros hash: {{ range (glob (joinPath .chezmoi.sourceDir "dot_config/keyboardmaestro/macros/*.kmmacros")) }}{{ include . | sha256sum }}{{ end }}
+# Macros hash: {{ range (glob (joinPath .chezmoi.sourceDir "dot_config/keyboardmaestro/exact_macros/*.kmmacros")) }}{{ include . | sha256sum }}{{ end }}
 # km-apply hash: {{ include (joinPath .chezmoi.sourceDir "dot_config/keyboardmaestro/bin/kmlib.py") | sha256sum }}{{ include (joinPath .chezmoi.sourceDir "dot_config/keyboardmaestro/bin/executable_km-apply") | sha256sum }}
 
 set -euo pipefail
