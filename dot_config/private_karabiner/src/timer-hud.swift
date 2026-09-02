@@ -742,7 +742,7 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
 // timeout.
 //
 //   timer-hud pick [--select <n>] [--step "<label>"] [--back] [--search] \
-//       "<prompt>" "<item>" "<item>" ...
+//       [--ctrl-key <char>=<token>] "<prompt>" "<item>" "<item>" ...
 //
 // --step names the step of a multi-step flow and turns on the n key,
 // which takes the highlighted item. --back turns on the p key, which
@@ -751,12 +751,17 @@ if CommandLine.arguments.count >= 7 && CommandLine.arguments[1] == "time" {
 // narrows the list, and the delete key erases it. The digit keys still
 // pick a visible row, so a search plus one digit takes an item. The
 // letter keys type in this mode, so the n and the p keys stay off.
+// --ctrl-key gives the pick one more answer: control and the character
+// print the token and end the pick. The search reads no key that holds
+// control, so the two never collide.
 if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
     var argIndex = 2
     var selected = 0
     var stepLabel = ""
     var canGoBack = false
     var canSearch = false
+    var ctrlChar = ""
+    var ctrlToken = ""
     flags: while argIndex < CommandLine.arguments.count {
         switch CommandLine.arguments[argIndex] {
         case "--select" where argIndex + 1 < CommandLine.arguments.count:
@@ -771,6 +776,14 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
         case "--search":
             canSearch = true
             argIndex += 1
+        case "--ctrl-key" where argIndex + 1 < CommandLine.arguments.count:
+            let parts = CommandLine.arguments[argIndex + 1]
+                .split(separator: "=", maxSplits: 1)
+            if parts.count == 2 {
+                ctrlChar = String(parts[0]).lowercased()
+                ctrlToken = String(parts[1])
+            }
+            argIndex += 2
         default:
             break flags
         }
@@ -920,6 +933,9 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
         if !stepLabel.isEmpty && !canSearch {
             hint += canGoBack ? " · n next · p back" : " · n next"
         }
+        if !ctrlChar.isEmpty {
+            hint += " · ⌃\(ctrlChar) \(ctrlToken)"
+        }
         foot.stringValue = hint
     }
 
@@ -979,6 +995,14 @@ if CommandLine.arguments.count >= 4 && CommandLine.arguments[1] == "pick" {
             finish("skip")
         }
         let chars = event.charactersIgnoringModifiers ?? ""
+
+        // Control and the character end the pick with the token. This
+        // comes first, so no later key reads the same press.
+        if !ctrlChar.isEmpty && event.modifierFlags.contains(.control)
+            && chars.lowercased() == ctrlChar {
+            finish(ctrlToken)
+            return nil
+        }
 
         // n takes the highlighted item and p leaves for the step before
         // this one. Both keys work only in a multi-step flow with no
