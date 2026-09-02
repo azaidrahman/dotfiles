@@ -135,3 +135,53 @@ if __name__ == "__main__":
             failed += 1
     print(f"\n{passed} passed, {failed} failed")
     exit(0 if failed == 0 else 1)
+
+
+# --- the resync row of step 1 ---
+
+def _topic_flow(monkeypatch, picks, started=True):
+    """Drive ask_topic with canned picks. Return the answer and the starts."""
+    import punch
+    picks, starts = list(picks), []
+    monkeypatch.setattr(punch, "read_topics", lambda: list(OPTIONS))
+    monkeypatch.setattr(punch, "last_topic", lambda: None)
+    monkeypatch.setattr(punch, "choose",
+                        lambda *a, **k: picks.pop(0))
+    monkeypatch.setattr(punch, "start_resync",
+                        lambda: (starts.append(True), started)[1])
+    return punch.ask_topic(), starts
+
+
+def test_the_resync_row_ends_the_flow_when_it_starts(monkeypatch):
+    import punch
+    answer, starts = _topic_flow(monkeypatch, [punch.RESYNC], started=True)
+    assert starts == [True]
+    assert answer is None
+
+
+def test_a_refused_resync_brings_back_the_list_of_topics(monkeypatch):
+    # A stray pick must not end the punch. The next pick is a topic, and
+    # ask_topic gives it back.
+    import punch
+    answer, starts = _topic_flow(monkeypatch, [punch.RESYNC, "Go"],
+                                 started=False)
+    assert starts == [True]
+    assert answer == "Go"
+
+
+def test_a_topic_never_starts_a_resync(monkeypatch):
+    answer, starts = _topic_flow(monkeypatch, ["Terraform"])
+    assert starts == []
+    assert answer == "Terraform"
+
+
+def test_a_resync_that_cannot_start_does_not_end_the_flow(monkeypatch):
+    import punch
+    monkeypatch.setattr(punch, "choose", lambda *a, **k: "yes")
+    monkeypatch.setattr(punch, "notify", lambda text: None)
+
+    def boom(*a, **k):
+        raise OSError("no interpreter")
+
+    monkeypatch.setattr(punch.subprocess, "Popen", boom)
+    assert punch.start_resync() is False

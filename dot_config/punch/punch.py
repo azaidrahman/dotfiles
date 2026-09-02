@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import subprocess
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -30,6 +31,13 @@ PRESETS = ["25", "50", "60", "90"]
 # The HUD binary shows the toast, the list picker, and the score picker.
 # It reads one key press, so the pickers need no mouse.
 HUD = Path.home() / ".config/karabiner/scripts/timer-hud"
+# The resync runs as its own process, because it takes minutes and the
+# HUD closes at once.
+RESYNC_SCRIPT = Path(__file__).with_name("resync.py")
+
+# The two rows of step 1 that are not a topic.
+OTHER = "other…"
+RESYNC = "resync…"
 
 # The distraction dialog closes itself after this many seconds, so a timer
 # that rings at an empty desk never blocks the next session.
@@ -384,6 +392,30 @@ def ask_text(prompt: str, digits: bool = False, step: str = "",
     return text
 
 
+def start_resync() -> bool:
+    """Confirm a resync, then start it as its own process.
+
+    Return True when the resync runs. A refused resync returns False, so
+    the caller brings back the list of topics instead of ending the flow.
+
+    A resync takes minutes, so punch never waits for it. The new process
+    shows a toast when it ends. The confirm opens on no, because the row
+    sits in the same list that the search narrows.
+    """
+    if choose("Resync this machine?", ["no", "yes"]) != "yes":
+        return False
+    try:
+        subprocess.Popen([sys.executable, str(RESYNC_SCRIPT)],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+        log.info("resync started")
+        return True
+    except Exception as e:
+        log.warning("the resync failed to start: %s", e)
+        notify("resync failed to start")
+        return False
+
+
 def ask_topic(current=None):
     """Ask which topic to punch. Return the topic, or None on cancel.
 
@@ -391,17 +423,25 @@ def ask_topic(current=None):
     off. The pick has search on, so the letter keys narrow the topics and
     one digit takes the match. A new topic that the user leaves with
     escape brings back the list of topics.
+
+    The last row starts a resync instead of a session. A resync that
+    runs ends the flow, because a resync is not a punch. A refused
+    resync brings back the list of topics.
     """
     step = step_label(1, [])
     while True:
-        options = read_topics() + ["other…"]
+        options = read_topics() + [OTHER, RESYNC]
         recent = current or last_topic()
         select = options.index(recent) if recent in options else 0
         topic = choose("What are you punching?", options, select, step,
                        search=True)
         if topic is None or topic is BACK:
             return None
-        if topic != "other…":
+        if topic == RESYNC:
+            if start_resync():
+                return None
+            continue
+        if topic != OTHER:
             return topic
 
         new = ask_text("New topic:", step=step, back=True)
