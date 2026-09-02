@@ -30,7 +30,7 @@
 # A provider that cannot split the fetch from the parse writes p_<id>_blob
 # instead. The default p_<id>_blob is "fetch | normalize".
 #
-# A fetch is slow (`claude -p /usage` cold-boots the CLI, ~1.5-2s), so:
+# A fetch is slow (`claude -p /usage` cold-boots the CLI, ~0.9s), so:
 #   1. if a cached blob exists, draw it at once and mark it stale,
 #   2. if not, show a "Loading…" line,
 #   3. then fetch, overwrite the cache, and draw again.
@@ -415,7 +415,13 @@ p_claude_tag() {
   else                                          printf '\033[36mAnthropic API\033[0m'
   fi
 }
-p_claude_fetch() { claude -p /usage 2>&1; }
+# /usage needs auth and nothing else, so the session starts with the two most
+# expensive parts of a normal boot turned off: --strict-mcp-config with no
+# --mcp-config starts no MCP server, and an empty --setting-sources skips the
+# project and local settings, and the plugins that come with them. Both are
+# safe here, because no tool runs. This is the difference between 4.5s and
+# 0.9s, and it is the whole cost of the popup.
+p_claude_fetch() { claude --strict-mcp-config --setting-sources '' -p /usage 2>&1; }
 
 # The CLI prints lines like "Current session: 12% used · resets Jun 22 at 4pm
 # (Asia/Kuala_Lumpur)". A bar shows a limit window, so a row becomes a QUOTA
