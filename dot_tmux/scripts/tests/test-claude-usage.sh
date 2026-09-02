@@ -62,23 +62,24 @@ check "epoch_from_iso reads a UTC instant" "1782129600" \
 PROVIDER=claude
 FIXTURE="Current session: 12% used · resets Jun 22 at 4pm (Asia/Kuala_Lumpur)
 Current week (all models): 78% used · resets Jun 26 at 9am (Asia/Kuala_Lumpur)
-Current week (Fable): 47% used · resets Jun 26 at 9am (Asia/Kuala_Lumpur)"
+Current week (Fable): 47% used"
 
 blob=$(printf '%s\n' "$FIXTURE" | p_claude_normalize)
 field() { printf '%s\n' "$blob" | sed -n "$1p" | cut -f"$2"; }
 
-check "normalize keeps every row"        "3" "$(printf '%s\n' "$blob" | grep -c '^QUOTA')"
+check "normalize keeps every metered row" "2" "$(printf '%s\n' "$blob" | grep -c '^QUOTA')"
 check "normalize reads the label"        "Current session" "$(field 1 2)"
 check "normalize reads the percent"      "12"              "$(field 1 3)"
 check "normalize resolves the reset to epoch" "Jun 22 04:00PM" \
   "$(date -r "$(field 1 4)" '+%b %d %I:%M%p')"
 check "normalize reads the session window" "18000"  "$(field 1 5)"
 check "normalize reads the weekly window"  "604800" "$(field 2 5)"
-check "normalize keeps a parenthesized label" "Current week (Fable)" "$(field 3 2)"
+check "normalize keeps a parenthesized label" "Current week (all models)" "$(field 2 2)"
+check "an unmetered row draws no bar" "0" "$(printf '%s\n' "$blob" | grep -c '^QUOTA.*Fable')"
 
-# A row with no reset clause still renders, with a dash for the unknown parts.
-one=$(printf 'Current session: 5%% used\n' | p_claude_normalize)
-check "a row with no reset gives a dash epoch"  "-" "$(printf '%s' "$one" | cut -f4)"
+# A percentage with no reset clause is not a limit window, so it becomes a NOTE.
+one=$(printf 'Current week (Fable): 5%% used\n' | p_claude_normalize)
+check "a row with no reset becomes a NOTE" "1" "$(printf '%s\n' "$one" | grep -c '^NOTE')"
 
 # Anything the format does not cover becomes a NOTE, never a silent drop.
 noisy=$(printf 'Please run /login first\n\nnot a metric line\n' | p_claude_normalize)

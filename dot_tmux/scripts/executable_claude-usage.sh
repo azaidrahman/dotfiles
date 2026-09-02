@@ -418,12 +418,15 @@ p_claude_tag() {
 p_claude_fetch() { claude -p /usage 2>&1; }
 
 # The CLI prints lines like "Current session: 12% used · resets Jun 22 at 4pm
-# (Asia/Kuala_Lumpur)". Anything else becomes a NOTE.
+# (Asia/Kuala_Lumpur)". A bar shows a limit window, so a row becomes a QUOTA
+# only when it carries a reset clause. A percentage with no reset is not a
+# window that the plan meters any more, so it falls through to a NOTE, which
+# the quota view hides while real bars exist. Anything else is a NOTE too.
 p_claude_normalize() {
   local line epoch win
   while IFS= read -r line || [ -n "$line" ]; do
-    if [[ $line =~ ^(.+):\ *([0-9]+)%\ used(\ *·\ *resets\ (.*))?$ ]]; then
-      epoch=''; [ -n "${BASH_REMATCH[4]:-}" ] && epoch=$(epoch_from_ampm "${BASH_REMATCH[4]}")
+    if [[ $line =~ ^(.+):\ *([0-9]+)%\ used\ *·\ *resets\ (.*)$ ]]; then
+      epoch=$(epoch_from_ampm "${BASH_REMATCH[3]}")
       win=$(window_len "${BASH_REMATCH[1]}")
       printf 'QUOTA\t%s\t%s\t%s\t%s\n' \
         "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${epoch:--}" "${win:--}"
