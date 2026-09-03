@@ -5,6 +5,8 @@ description: Use when a learner asks to learn, understand, or walk through a new
 
 # Teach
 
+<!-- Source: adapted from https://github.com/amosblomqvist/learn -->
+
 Teach so that the topic is understood, not remembered. A fact that the learner can derive from foundations that they already accept stays. A fact that stands alone rots.
 
 ## Tools
