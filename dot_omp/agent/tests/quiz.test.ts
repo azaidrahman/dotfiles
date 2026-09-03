@@ -15,7 +15,7 @@
 // dot_omp/agent/node_modules, so this scaffold is never deployed by
 // `chezmoi apply` and never picked up by `git add`.)
 import { describe, expect, test } from "bun:test";
-import { coerceCorrectAnswer, isCorrect, normalizeOptions, resolveCorrect, shuffleOptions } from "../extensions/quiz";
+import { coerceCorrectAnswer, isCorrect, normalizeOptions, resolveCorrect, shuffleOptions, wrapLabel } from "../extensions/quiz";
 
 const opts = normalizeOptions([
 	{ label: "Mercury", value: "mercury" },
@@ -45,5 +45,18 @@ describe("quiz grading", () => {
 	test("shuffle keeps the same set", () => {
 		const s = shuffleOptions(opts);
 		expect(s.map((o) => o.value).sort()).toEqual(opts.map((o) => o.value).sort());
+	});
+});
+
+describe("quiz option wrapping", () => {
+	test("a long label wraps into several lines and keeps every word", () => {
+		const label = "Which component assigns the Pod IP range to each node in the cluster";
+		const lines = wrapLabel(label, 40, 2);
+		expect(lines.length).toBeGreaterThan(1);
+		for (const line of lines) expect(line.length).toBeLessThanOrEqual(38);
+		expect(lines.join(" ").replace(/\s+/g, " ")).toBe(label);
+	});
+	test("a short label stays on one line", () => {
+		expect(wrapLabel("Mercury", 40, 2)).toEqual(["Mercury"]);
 	});
 });

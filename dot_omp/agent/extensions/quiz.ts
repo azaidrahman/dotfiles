@@ -200,6 +200,30 @@ function addWrapped(lines: string[], text: string, width: number, indent = ""): 
 	}
 }
 
+// Wrap a plain option label so that no word is lost at the right edge. The
+// first line gets `prefix` (for example "> " or "  [x] "); every continuation
+// line gets a hanging indent of the same visible width, so the wrapped text
+// lines up under the label and not under the marker. `style` colours each
+// line after wrapping, so the ANSI codes never distort the width maths.
+export function wrapLabel(label: string, width: number, prefixWidth: number): string[] {
+	const contentWidth = Math.max(1, width - prefixWidth);
+	return wrapTextWithAnsi(label, contentWidth);
+}
+
+function addLabel(
+	lines: string[],
+	width: number,
+	prefix: string,
+	prefixWidth: number,
+	label: string,
+	style: (line: string) => string,
+): void {
+	const hanging = " ".repeat(prefixWidth);
+	wrapLabel(label, width, prefixWidth).forEach((line, i) => {
+		lines.push(truncateToWidth(`${i === 0 ? prefix : hanging}${style(line)}`, width));
+	});
+}
+
 export function isCorrect(selectedIndices: number[], correctIndices: number[]): boolean {
 	if (selectedIndices.length !== correctIndices.length) return false;
 	const a = [...selectedIndices].sort((x, y) => x - y);
@@ -337,7 +361,7 @@ function renderFeedback(
 			marker = " ";
 			color = "dim";
 		}
-		add(theme.fg(color, ` ${marker} ${index}. ${opt.label}`));
+		addLabel(lines, width, ` ${marker} `, 3, `${index}. ${opt.label}`, (l) => theme.fg(color, l));
 	}
 
 	lines.push("");
@@ -586,8 +610,7 @@ async function askSingleChoice(
 					const selected = focus === "options" && i === optionIndex;
 					const prefix = selected ? theme.fg("accent", "> ") : "  ";
 					const label = `${option.index}. ${option.label}`;
-					const styled = selected ? theme.fg("accent", label) : theme.fg("text", label);
-					add(`${prefix}${styled}`);
+					addLabel(lines, width, prefix, 2, label, (l) => theme.fg(selected ? "accent" : "text", l));
 					if (option.description) {
 						addWrapped(lines, theme.fg("muted", option.description), width, "     ");
 					}
@@ -829,8 +852,7 @@ async function askMultiChoice(
 					const checked = selected.has(item.id);
 					const marker = checked ? "[x]" : "[ ]";
 					const label = `${marker} ${item.index}. ${item.label}`;
-					const styled = isFocused ? theme.fg("accent", label) : theme.fg(checked ? "success" : "text", label);
-					add(`${prefix}${styled}`);
+					addLabel(lines, width, prefix, 2, label, (l) => theme.fg(isFocused ? "accent" : checked ? "success" : "text", l));
 					if (item.description) {
 						addWrapped(lines, theme.fg("muted", item.description), width, "     ");
 					}
