@@ -1,0 +1,26 @@
+#!/bin/bash
+# plist hash: {{ include "dot_config/displayctl/com.zaid.displayctl.plist.tmpl" | sha256sum }}
+# source hash: {{ include "dot_config/displayctl/src/displayctl.swift" | sha256sum }}
+#
+# The source hash is here on purpose. A new binary needs a restart of the agent,
+# or launchd keeps the old one running.
+set -e
+{{ if ne .chezmoi.hostname "aqua" -}}
+# displayctl controls the built-in display of aqua. Other machines skip it.
+exit 0
+{{ end -}}
+
+cp ~/.config/displayctl/com.zaid.displayctl.plist ~/Library/LaunchAgents/
+# A bootout sends SIGTERM. The agent turns the built-in display back on before
+# it stops, so a reinstall never leaves the panel off.
+launchctl bootout gui/$(id -u)/com.zaid.displayctl 2>/dev/null || true
+
+# A bootout returns before the agent stops. A bootstrap that starts too early
+# fails with "Input/output error", because the label is still in use. Wait for
+# the label to go, for five seconds at most.
+for _ in $(seq 1 50); do
+  launchctl print gui/$(id -u)/com.zaid.displayctl >/dev/null 2>&1 || break
+  sleep 0.1
+done
+
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.zaid.displayctl.plist

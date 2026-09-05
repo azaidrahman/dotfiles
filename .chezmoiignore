@@ -43,3 +43,9 @@ docs/
 archive/
 .pi/agent/pi-cache-optimizer-stats.json
 .pi/agent/taskplane/
+
+# displayctl controls the built-in display of aqua only
+{{ if ne .chezmoi.hostname "aqua" }}
+.config/displayctl/
+.local/bin/displayctl
+{{ end }}

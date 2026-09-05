@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.zaid.displayctl</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ .chezmoi.homeDir }}/.config/displayctl/bin/displayctl</string>
+    <string>watch</string>
+  </array>
+  <!-- The agent must run in the GUI session, because it needs a connection to
+       the window server. A bootstrap into gui/<uid> gives that session. -->
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardErrorPath</key>
+  <string>/tmp/displayctl.err</string>
+</dict>
+</plist>

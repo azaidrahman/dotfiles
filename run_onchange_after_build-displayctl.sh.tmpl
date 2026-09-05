@@ -1,0 +1,21 @@
+#!/bin/bash
+# Sources hash: {{ include "dot_config/displayctl/src/displayctl.swift" | sha256sum }}
+set -euo pipefail
+{{ if ne .chezmoi.hostname "aqua" -}}
+# displayctl controls the built-in display of aqua. Other machines skip it.
+exit 0
+{{ end -}}
+
+# A compiled binary is specific to one machine, so each Mac builds its own.
+# See docs/adr/0002-compile-swift-huds-on-each-machine.md.
+if ! command -v swiftc >/dev/null 2>&1; then
+  echo "build-displayctl: swiftc not found, skipping the build" >&2
+  exit 0
+fi
+
+SRC="$HOME/.config/displayctl/src"
+OUT="$HOME/.config/displayctl/bin"
+
+mkdir -p "$OUT"
+echo "build-displayctl: compiling displayctl"
+swiftc -O "$SRC/displayctl.swift" -o "$OUT/displayctl"
