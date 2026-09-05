@@ -112,6 +112,13 @@ brew "borders"
 brew "openclaw/tap/wacli"
 brew "codex"
 brew "atuin"
+# tsshd is the server half of tssh (trzsz-ssh). rootshell on the phone connects
+# with tssh, which logs in over normal SSH and then starts a tsshd process for
+# the session. The session then runs over UDP, so it survives a locked phone, a
+# sleeping network, and a change of IP address. tmux control mode works over
+# tssh, but it does not work over mosh. There is no daemon to run: tsshd starts
+# on demand, one process for each session.
+brew "tsshd"
 {{ if eq .chezmoi.username "zaid" -}}
 {{ end -}}
 
