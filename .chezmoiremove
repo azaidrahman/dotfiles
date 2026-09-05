@@ -5,3 +5,8 @@
 .config/zsh/functions/pivres
 .config/zsh/functions/omv
 .config/zsh/functions/omvres
+.tmux/scripts/mobile-attach.sh
+.tmux/scripts/mobile-link-menu.sh
+.tmux/scripts/mobile-unlink-all.sh
+.tmux/conf.d/visual-mobile.conf
+.config/zsh/starship-mobile.toml

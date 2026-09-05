@@ -38,5 +38,8 @@ Emoji\ Pack/
 
 # Design docs — version-controlled in the source repo, not deployed to ~/docs
 docs/
+
+# Retired configuration — kept in the source repo for reference, never deployed
+archive/
 .pi/agent/pi-cache-optimizer-stats.json
 .pi/agent/taskplane/
