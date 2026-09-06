@@ -45,6 +45,7 @@ Edit these values to change the loop. Nothing else needs to change.
 | SRS first ease | 2.5 |
 | Lessons folder | `~/vaults/Polaris/5-Workbook/Lessons` |
 | Lesson file name | `Lesson-<Topic> <DDMonYYYY>.md` |
+| Lesson template | `~/vaults/Polaris/98-Templates/Lesson Template.md` |
 | SRS folder | `~/vaults/Polaris/99-Review/srs` |
 
 ## The philosophy
@@ -68,7 +69,11 @@ The learner must be able to trust the tutor. The moment you are not sure of a fa
 1. Run `date +%F` for the ISO date and `date +%d%b%Y` for the file-name date, for example `13May2026`. Use these dates everywhere. Never guess a date.
 2. Find what the learner already has. Run `rg -il '<topic>' ~/vaults/Polaris/1-Notes/`. Read the notes found. Follow their wikilinks one level.
 3. Read the SRS stubs for those notes in the SRS folder. Collect `last_score`, `weak_spots`, and `next_due`.
-4. Create the lessons folder if it does not exist. Create the lesson note `<Lessons folder>/Lesson-<Topic> <DDMonYYYY>.md`, for example `Lesson-Flannel 13May2026.md`. The `Lesson-` prefix marks the file as a lesson. The date is the file-name date from step 1. Write this frontmatter and nothing else:
+4. Create the lessons folder if it does not exist. Create the lesson note `<Lessons folder>/Lesson-<Topic> <DDMonYYYY>.md`, for example `Lesson-Flannel 13May2026.md`. The `Lesson-` prefix marks the file as a lesson. The date is the file-name date from step 1.
+
+   The lesson template holds the shape of this note. The template is a Templater script, and Templater runs only in Obsidian. You cannot run it. Read the template, then write the same file name and the same frontmatter by hand. If the template and the block below disagree, follow the template and tell the learner.
+
+   Write this frontmatter and nothing else:
 
    ```yaml
    ---
